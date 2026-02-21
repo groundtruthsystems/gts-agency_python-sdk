@@ -58,22 +58,20 @@ jobs:
         if: ${{ needs.publish.result == 'success' }}
         uses: slackapi/slack-github-action@v2
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "✅ Published GTS Agency Python SDK to PyPI!\nTag: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
       - name: Notify build failure
         if: ${{ needs.publish.result == 'failure' }}
         uses: slackapi/slack-github-action@v2
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "❌ Failed to publish GTS Agency Python SDK to PyPI!\nTag: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nPlease check the workflow logs."
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
