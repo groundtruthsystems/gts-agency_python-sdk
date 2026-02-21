@@ -1,0 +1,40 @@
+[project]
+name = "gts-agency_python-sdk"
+version = "0.0.1rc1"
+description = ""
+requires-python = ">=3.12"
+authors = [{name="Ground Control Systems", email="engineering@groundcontrolsystems.com"}]
+readme = "README.md"
+dependencies = [
+    "requests>=2.32.0",
+    "pydantic>=2.9.2",
+    "pyjwt>=2.3.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==1.4.1",
+    "pytest==7.4.0",
+    "pre-commit==3.8.0",
+    "black==23.12.1"
+]
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.black]
+line-length = 120
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+follow_imports = "skip"
+warn_return_any = true
+disallow_subclassing_any = false
+disallow_untyped_decorators = false
+exclude = ['agency_sdk.test']
+
+[[tool.mypy.overrides]]
+module = "agency_sdk.test.*"
+disallow_untyped_defs = false
+disable_error_code = "index"
