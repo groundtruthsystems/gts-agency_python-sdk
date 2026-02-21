@@ -1,5 +1,3 @@
-from typing import Optional, List
-
 from pydantic import BaseModel, ConfigDict
 
 from agency_sdk.delegates.datasets_dto import Page
@@ -16,13 +14,13 @@ class EntityDatasourceMapping(BaseModel):
     id: str
     ontology_id: str
     datasource_id: str
-    datasource_name: Optional[str] = None
+    datasource_name: str | None = None
     entity_id: str
-    entity_label: Optional[str] = None
+    entity_label: str | None = None
     mapping_type: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str
-    target_name: Optional[str] = None
+    target_name: str | None = None
     created_at: str
     updated_at: str
 
@@ -30,21 +28,21 @@ class EntityDatasourceMapping(BaseModel):
 class RdbmsColumnMapping(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
-    id: Optional[str] = None
+    id: str | None = None
     property_name: str
-    column_id: Optional[str] = None
+    column_id: str | None = None
     column_name: str
-    alias: Optional[str] = None
-    transformation: Optional[str] = None
-    ordinal_position: Optional[int] = None
+    alias: str | None = None
+    transformation: str | None = None
+    ordinal_position: int | None = None
 
 
 class RdbmsMappingExtension(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
-    table_id: Optional[str] = None
+    table_id: str | None = None
     table_name: str
-    table_schema: Optional[str] = None
+    table_schema: str | None = None
 
 
 class EntityDatasourceMappingDetail(BaseModel):
@@ -53,22 +51,22 @@ class EntityDatasourceMappingDetail(BaseModel):
     id: str
     ontology_id: str
     datasource_id: str
-    datasource_name: Optional[str] = None
+    datasource_name: str | None = None
     entity_id: str
-    entity_label: Optional[str] = None
+    entity_label: str | None = None
     mapping_type: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str
-    target_name: Optional[str] = None
-    generated_query: Optional[str] = None
-    rdbms: Optional[RdbmsMappingExtension] = None
-    column_mappings: Optional[List[RdbmsColumnMapping]] = None
+    target_name: str | None = None
+    generated_query: str | None = None
+    rdbms: RdbmsMappingExtension | None = None
+    column_mappings: list[RdbmsColumnMapping] | None = None
     created_at: str
     updated_at: str
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
+    created_by: str | None = None
+    updated_by: str | None = None
 
 
 class MappingsPagedResult(BaseModel):
     page: Page
-    items: List[EntityDatasourceMapping]
+    items: list[EntityDatasourceMapping]

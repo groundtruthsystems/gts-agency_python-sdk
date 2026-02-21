@@ -1,5 +1,3 @@
-from typing import Optional, List
-
 from pydantic import BaseModel, ConfigDict
 
 from agency_sdk.delegates.datasets_dto import Page
@@ -16,13 +14,13 @@ class DatasourceSummary(BaseModel):
     id: str
     organization_id: int
     name: str
-    display_name: Optional[str] = None
-    description: Optional[str] = None
+    display_name: str | None = None
+    description: str | None = None
     datasource_type: str
     status: str
-    table_count: Optional[int] = None
-    last_sync_at: Optional[str] = None
-    last_sync_status: Optional[str] = None
+    table_count: int | None = None
+    last_sync_at: str | None = None
+    last_sync_status: str | None = None
     created_at: str
     updated_at: str
 
@@ -33,41 +31,41 @@ class DatasourceDetail(BaseModel):
     id: str
     organization_id: int
     name: str
-    display_name: Optional[str] = None
-    description: Optional[str] = None
+    display_name: str | None = None
+    description: str | None = None
     datasource_type: str
     status: str
-    table_count: Optional[int] = None
-    last_sync_at: Optional[str] = None
-    last_sync_status: Optional[str] = None
-    last_sync_error: Optional[str] = None
-    host: Optional[str] = None
-    port: Optional[int] = None
-    database_name: Optional[str] = None
-    username: Optional[str] = None
-    connection_options: Optional[str] = None
-    last_connection_test: Optional[str] = None
-    last_connection_error: Optional[str] = None
+    table_count: int | None = None
+    last_sync_at: str | None = None
+    last_sync_status: str | None = None
+    last_sync_error: str | None = None
+    host: str | None = None
+    port: int | None = None
+    database_name: str | None = None
+    username: str | None = None
+    connection_options: str | None = None
+    last_connection_test: str | None = None
+    last_connection_error: str | None = None
     created_at: str
     updated_at: str
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
+    created_by: str | None = None
+    updated_by: str | None = None
 
 
 class DatasourcesPagedResult(BaseModel):
     page: Page
-    items: List[DatasourceSummary]
+    items: list[DatasourceSummary]
 
 
 class DatasourceTable(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
     table_name: str
-    table_schema: Optional[str] = None
-    table_type: Optional[str] = None
-    table_comment: Optional[str] = None
-    row_count: Optional[int] = None
-    synced_at: Optional[str] = None
+    table_schema: str | None = None
+    table_type: str | None = None
+    table_comment: str | None = None
+    row_count: int | None = None
+    synced_at: str | None = None
 
 
 class DatasourceTableColumn(BaseModel):
@@ -77,8 +75,8 @@ class DatasourceTableColumn(BaseModel):
     ordinal_position: int
     data_type: str
     is_nullable: bool
-    column_default: Optional[str] = None
-    column_comment: Optional[str] = None
+    column_default: str | None = None
+    column_comment: str | None = None
 
 
 class DatasourceTableConstraint(BaseModel):
@@ -86,24 +84,24 @@ class DatasourceTableConstraint(BaseModel):
 
     constraint_name: str
     constraint_type: str
-    column_names: List[str]
-    referenced_table: Optional[str] = None
-    referenced_column: Optional[str] = None
+    column_names: list[str]
+    referenced_table: str | None = None
+    referenced_column: str | None = None
 
 
 class DatasourceTableDetail(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
     table_name: str
-    table_schema: Optional[str] = None
-    table_type: Optional[str] = None
-    table_comment: Optional[str] = None
-    row_count: Optional[int] = None
-    synced_at: Optional[str] = None
-    columns: List[DatasourceTableColumn]
-    constraints: List[DatasourceTableConstraint]
+    table_schema: str | None = None
+    table_type: str | None = None
+    table_comment: str | None = None
+    row_count: int | None = None
+    synced_at: str | None = None
+    columns: list[DatasourceTableColumn]
+    constraints: list[DatasourceTableConstraint]
 
 
 class DatasourceTablesPagedResult(BaseModel):
     page: Page
-    items: List[DatasourceTable]
+    items: list[DatasourceTable]

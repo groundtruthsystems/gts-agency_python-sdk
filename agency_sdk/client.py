@@ -7,18 +7,22 @@ from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 
 class AgencyClient:
 
-    def __init__(self, token_supplier: CredentialsSupplier, base_url: str = 'http://localhost:8080/realms/agency/protocol/openid-connect/token'):
-        self.base_url = base_url.rstrip('/')
+    def __init__(
+        self,
+        token_supplier: CredentialsSupplier,
+        base_url: str = "http://localhost:9003",
+    ):
+        self.base_url = base_url.rstrip("/")
         self.token_supplier = token_supplier
         self.dataset_client = AgencyDatasetsClient(token_supplier=token_supplier, base_url=self.base_url)
         self.datasource_client = AgencyDatasourceClient(token_supplier=token_supplier, base_url=self.base_url)
         self.ontology_client = AgencyOntologyClient(token_supplier=token_supplier, base_url=self.base_url)
         self.prompt_client = AgencyPromptsClient(token_supplier=token_supplier, base_url=self.base_url)
 
-    def prompts(self):
+    def prompts(self) -> AgencyPromptsClient:
         return self.prompt_client
 
-    def dataset(self):
+    def dataset(self) -> AgencyDatasetsClient:
         return self.dataset_client
 
     def datasource(self) -> AgencyDatasourceClient:

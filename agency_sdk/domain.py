@@ -1,11 +1,8 @@
 import datetime
-from datetime import UTC
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from pydantic.class_validators import validator
-from pydantic.main import BaseModel
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 class PromptType(Enum):
@@ -26,7 +23,7 @@ class MessageContent(BaseModel):
     role: MessageRole
     content_type: ContentType
     content: str
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: dict[str, Any] | None = None
 
 
 class PromptCollection(BaseModel):
@@ -36,32 +33,34 @@ class PromptCollection(BaseModel):
 
 class PromptContent(BaseModel):
     type: str = "message"
-    message: Optional[MessageContent] = None
-    collections: Optional[PromptCollection] = None
+    message: MessageContent | None = None
+    collections: PromptCollection | None = None
 
 
 class PromptPayload(BaseModel):
     name: str
-    description: Optional[str] = None
-    type: Optional[PromptType] = PromptType.MESSAGE
-    tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    description: str | None = None
+    type: PromptType | None = PromptType.MESSAGE
+    tags: list[str] | None = None
+    metadata: dict[str, Any] | None = None
     content: PromptContent
+
 
 class Pagination(BaseModel):
     page: int
     size: int
 
+
 class SearchRequest(BaseModel):
     organisation: int
-    tags: Optional[list[str]]
-    pagination: Optional[Pagination]
+    tags: list[str] | None = None
+    pagination: Pagination | None = None
 
 
 class PromptsCommand(BaseModel):
     command: str
     organisation: int
-    payload: Optional[PromptPayload] = None
+    payload: PromptPayload | None = None
 
 
 class CreatePromptCommand(PromptsCommand):
@@ -72,7 +71,8 @@ class CreatePromptCommand(PromptsCommand):
 class PromptCommand(BaseModel):
     command: str
     organisation: int
-    payload: Optional[PromptPayload] = None
+    payload: PromptPayload | None = None
+
 
 class UpdatePromptCommand(PromptCommand):
     command: str = "update"
@@ -81,23 +81,12 @@ class UpdatePromptCommand(PromptCommand):
 
 class PublishPromptCommand(PromptCommand):
     command: str = "publish"
-    payload: Optional[Dict] = None
-
+    payload: dict | None = None
 
 
 class DeletePromptCommand(PromptCommand):
     command: str = "delete"
-    payload: Optional[Dict] = None
-
-
-class PromptSummary(BaseModel):
-    id: str
-    name: str
-    description: str
-    tags: list[str]
-    published_version: Optional[int] = None
-    unpublished_version: Optional[int] = None
-    modified_on: datetime.datetime
+    payload: dict | None = None
 
 
 class Page(BaseModel):
@@ -105,36 +94,47 @@ class Page(BaseModel):
     page: int
     size: int
 
+
+class PromptSummary(BaseModel):
+    id: str
+    name: str
+    description: str
+    tags: list[str]
+    published_version: int | None = None
+    unpublished_version: int | None = None
+    modified_on: datetime.datetime
+
+
 class PromptPagedResult(BaseModel):
     page: Page
     items: list[PromptSummary]
 
 
-
 class PromptMessageSpecification(BaseModel):
-    role: str = None
-    content_type: Optional[str] = None
+    role: str | None = None
+    content_type: str | None = None
     content: str
-    parameters: Optional[Any] = None  # Equivalent to Option<Value>
+    parameters: Any | None = None
+
 
 class PromptCollectionSpecification(BaseModel):
     system: PromptMessageSpecification
-    messages: List[PromptMessageSpecification]
+    messages: list[PromptMessageSpecification]
 
 
 class PromptSpecification(BaseModel):
-    type_: str = Field(alias="type")  # Handle Rust's r#type
-    message: Optional[PromptMessageSpecification] = None
-    collections: Optional[PromptCollectionSpecification] = None
+    type_: str = Field(alias="type")
+    message: PromptMessageSpecification | None = None
+    collections: PromptCollectionSpecification | None = None
 
 
 class PromptResponse(BaseModel):
     id: str
     name: str
     description: str
-    content: PromptSpecification  # Equivalent to serde_json::Value
-    tags: Any  # Equivalent to serde_json::Value
-    version: int  # i64 maps to int
-    status: int  # i64 maps to int
-    metadata: Dict[str, Any]  # HashMap<String, Value>
+    content: PromptSpecification
+    tags: Any
+    version: int
+    status: int
+    metadata: dict[str, Any]
     audit: Any
