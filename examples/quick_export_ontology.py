@@ -39,7 +39,7 @@ def main():
         turtle_export = ontology_client.export(
             ontology_id=ontology_id,
             organisation_id=organisation_id,
-            format="turtle",
+            export_format="turtle",
         )
         print(f"Turtle export ({len(turtle_export)} chars):")
         print(turtle_export[:500])
@@ -50,7 +50,7 @@ def main():
         ison_export = ontology_client.export(
             ontology_id=ontology_id,
             organisation_id=organisation_id,
-            format="ison",
+            export_format="ison",
         )
         print(f"ison export ({len(ison_export)} chars):")
         print(ison_export[:500])
