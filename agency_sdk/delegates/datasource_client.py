@@ -10,7 +10,6 @@ from agency_sdk.delegates.datasource_dto import (
 
 
 class AgencyDatasourceClient:
-
     def __init__(self, token_supplier: CredentialsSupplier, base_url: str = "http://localhost:9003"):
         self.base_url = base_url.rstrip("/")
         self.token_supplier = token_supplier

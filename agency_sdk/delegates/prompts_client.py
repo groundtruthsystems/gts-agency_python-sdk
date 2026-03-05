@@ -15,7 +15,6 @@ from agency_sdk.domain import (
 
 
 class AgencyPromptsClient:
-
     def __init__(self, token_supplier: CredentialsSupplier, base_url: str = "http://localhost:9003"):
         self.base_url = base_url.rstrip("/")
         self.token_supplier = token_supplier

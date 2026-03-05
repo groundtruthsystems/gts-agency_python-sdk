@@ -3,10 +3,10 @@ from agency_sdk.delegates.datasets_client import AgencyDatasetsClient
 from agency_sdk.delegates.datasource_client import AgencyDatasourceClient
 from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
+from agency_sdk.delegates.rules_client import AgencyRulesClient
 
 
 class AgencyClient:
-
     def __init__(
         self,
         token_supplier: CredentialsSupplier,
@@ -18,6 +18,7 @@ class AgencyClient:
         self.datasource_client = AgencyDatasourceClient(token_supplier=token_supplier, base_url=self.base_url)
         self.ontology_client = AgencyOntologyClient(token_supplier=token_supplier, base_url=self.base_url)
         self.prompt_client = AgencyPromptsClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.rules_client = AgencyRulesClient(token_supplier=token_supplier, base_url=self.base_url)
 
     def prompts(self) -> AgencyPromptsClient:
         return self.prompt_client
@@ -30,3 +31,6 @@ class AgencyClient:
 
     def ontology(self) -> AgencyOntologyClient:
         return self.ontology_client
+
+    def rules(self) -> AgencyRulesClient:
+        return self.rules_client
