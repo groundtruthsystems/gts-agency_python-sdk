@@ -22,7 +22,7 @@ class CredentialsSupplier:
             "client_secret": self.client_secret,
         }
 
-        response = requests.post(self.auth_base_url, data=form_data)
+        response = requests.post(self.auth_base_url, data=form_data, timeout=30)
         response.raise_for_status()
 
         token_data = response.json()

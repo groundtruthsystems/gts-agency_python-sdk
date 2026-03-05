@@ -1,4 +1,3 @@
-import urllib.request
 from pathlib import Path
 
 import requests
@@ -35,6 +34,7 @@ class AgencyDatasetsClient:
             },
             json=data,
             params=params,
+            timeout=30,
         )
         response.raise_for_status()
         return response.json() if response.content else {}
@@ -129,4 +129,6 @@ class AgencyDatasetsClient:
 
     def _download_file(self, signed_url: str, target_path: Path) -> None:
         """Download a file from a signed URL to the target path."""
-        urllib.request.urlretrieve(signed_url, target_path)
+        response = requests.get(signed_url, timeout=60)
+        response.raise_for_status()
+        target_path.write_bytes(response.content)

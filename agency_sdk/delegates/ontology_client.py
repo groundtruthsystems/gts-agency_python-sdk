@@ -24,6 +24,7 @@ class AgencyOntologyClient:
                 "Authorization": f"Bearer {self.token_supplier.bearer_token()}",
             },
             params=params,
+            timeout=30,
         )
         response.raise_for_status()
         return response
@@ -44,6 +45,7 @@ class AgencyOntologyClient:
                 "Content-Type": "application/json",
             },
             params=params,
+            timeout=30,
         )
         response.raise_for_status()
         return response.json() if response.content else {}

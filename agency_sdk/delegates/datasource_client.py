@@ -30,6 +30,7 @@ class AgencyDatasourceClient:
                 "Content-Type": "application/json",
             },
             params=params,
+            timeout=30,
         )
         response.raise_for_status()
         return response.json() if response.content else {}
