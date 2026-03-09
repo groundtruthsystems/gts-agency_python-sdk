@@ -6,7 +6,7 @@ from agency_sdk.delegates.ontology_dto import QueryFilter
 
 
 def main():
-    auth_base_url = os.getenv("AGENCY_AUTH_URL", "http://localhost:8080")
+    auth_base_url = os.getenv("AGENCY_AUTH_URL", "http://localhost:8080/realms/agency/protocol/openid-connect/token")
     base_url = os.getenv("AGENCY_API_URL", "http://localhost:13001")
     organisation_id = int(os.getenv("AGENCY_ORG_ID", "2"))
 
