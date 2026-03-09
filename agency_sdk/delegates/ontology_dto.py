@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 from agency_sdk.delegates.datasets_dto import Page
@@ -70,3 +72,40 @@ class EntityDatasourceMappingDetail(BaseModel):
 class MappingsPagedResult(BaseModel):
     page: Page
     items: list[EntityDatasourceMapping]
+
+
+class QueryFilter(BaseModel):
+    """A filter condition for an entity data query."""
+
+    property: str
+    operator: str
+    value: Any | None = None
+
+
+class QueryRequest(BaseModel):
+    """Request body for the entity data _query endpoint."""
+
+    filters: list[QueryFilter] = []
+    page: int = 0
+    size: int = 25
+
+
+class QueryMappingInfo(BaseModel):
+    """Resolved mapping metadata returned with query results."""
+
+    model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
+
+    id: str
+    datasource_id: str
+    datasource_name: str
+    entity_label: str | None = None
+    status: str
+    generated_query: str | None = None
+
+
+class QueryResult(BaseModel):
+    """Response from the entity data _query endpoint."""
+
+    items: list[dict[str, Any]]
+    page: Page
+    mapping: QueryMappingInfo

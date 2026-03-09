@@ -1,7 +1,13 @@
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
-from agency_sdk.delegates.ontology_dto import EntityDatasourceMappingDetail, MappingsPagedResult
+from agency_sdk.delegates.ontology_dto import (
+    EntityDatasourceMappingDetail,
+    MappingsPagedResult,
+    QueryFilter,
+    QueryRequest,
+    QueryResult,
+)
 
 
 class AgencyOntologyClient:
@@ -33,6 +39,7 @@ class AgencyOntologyClient:
         self,
         method: str,
         endpoint: str,
+        data: dict | None = None,
         params: dict | None = None,
     ) -> dict:
         """Make an HTTP request to the API and return parsed JSON."""
@@ -44,6 +51,7 @@ class AgencyOntologyClient:
                 "Authorization": f"Bearer {self.token_supplier.bearer_token()}",
                 "Content-Type": "application/json",
             },
+            json=data,
             params=params,
             timeout=30,
         )
@@ -104,4 +112,37 @@ class AgencyOntologyClient:
         params = {"o": str(organisation_id)}
         return EntityDatasourceMappingDetail(
             **self._make_json_request("GET", f"/{ontology_id}/mappings/{mapping_id}", params=params)
+        )
+
+    def query_entity(
+        self,
+        ontology_id: str,
+        entity_id: str,
+        organisation_id: int,
+        filters: list[QueryFilter] | None = None,
+        page: int = 0,
+        size: int = 25,
+    ) -> QueryResult:
+        """Query entity data through its active entity-datasource mapping.
+
+        Args:
+            ontology_id: The ontology identifier.
+            entity_id: The entity identifier within the ontology.
+            organisation_id: The organisation identifier.
+            filters: Filter conditions combined with AND. Defaults to no filters.
+            page: Zero-indexed page number. Defaults to 0.
+            size: Results per page (max 100). Defaults to 25.
+
+        Returns:
+            Query results with items, pagination info, and resolved mapping metadata.
+        """
+        params = {"o": str(organisation_id)}
+        body = QueryRequest(filters=filters or [], page=page, size=size)
+        return QueryResult(
+            **self._make_json_request(
+                "POST",
+                f"/{ontology_id}/entities/{entity_id}/data/_query",
+                data=body.model_dump(mode="json"),
+                params=params,
+            )
         )
