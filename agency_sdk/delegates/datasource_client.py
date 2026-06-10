@@ -1,3 +1,5 @@
+from typing import Any
+
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
@@ -18,8 +20,8 @@ class AgencyDatasourceClient:
         self,
         method: str,
         endpoint: str,
-        params: dict | None = None,
-    ) -> dict:
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make an HTTP request to the API."""
         url = f"{self.base_url}/api/datasources{endpoint}"
         response = requests.request(
@@ -33,7 +35,8 @@ class AgencyDatasourceClient:
             timeout=30,
         )
         response.raise_for_status()
-        return response.json() if response.content else {}
+        result: dict[str, Any] = response.json() if response.content else {}
+        return result
 
     def list(self, organisation_id: int, page: int = 0, size: int = 10) -> DatasourcesPagedResult:
         """List all datasources for an organisation."""

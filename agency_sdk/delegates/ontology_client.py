@@ -1,3 +1,5 @@
+from typing import Any
+
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
@@ -19,7 +21,7 @@ class AgencyOntologyClient:
         self,
         method: str,
         endpoint: str,
-        params: dict | None = None,
+        params: dict[str, Any] | None = None,
     ) -> requests.Response:
         """Make an HTTP request to the API and return the raw response."""
         url = f"{self.base_url}/api/ontologies{endpoint}"
@@ -39,9 +41,9 @@ class AgencyOntologyClient:
         self,
         method: str,
         endpoint: str,
-        data: dict | None = None,
-        params: dict | None = None,
-    ) -> dict:
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make an HTTP request to the API and return parsed JSON."""
         url = f"{self.base_url}/api/ontologies{endpoint}"
         response = requests.request(
@@ -56,7 +58,8 @@ class AgencyOntologyClient:
             timeout=30,
         )
         response.raise_for_status()
-        return response.json() if response.content else {}
+        result: dict[str, Any] = response.json() if response.content else {}
+        return result
 
     def export(
         self,
@@ -86,7 +89,8 @@ class AgencyOntologyClient:
         if version is not None:
             params["version"] = version
         response = self._make_request("GET", f"/{ontology_id}/export", params=params)
-        return response.text
+        text: str = response.text
+        return text
 
     def list_mappings(
         self,

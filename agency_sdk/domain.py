@@ -81,12 +81,12 @@ class UpdatePromptCommand(PromptCommand):
 
 class PublishPromptCommand(PromptCommand):
     command: str = "publish"
-    payload: dict | None = None
+    payload: PromptPayload | None = None
 
 
 class DeletePromptCommand(PromptCommand):
     command: str = "delete"
-    payload: dict | None = None
+    payload: PromptPayload | None = None
 
 
 class Page(BaseModel):

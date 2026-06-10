@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -20,9 +21,9 @@ class AgencyDatasetsClient:
         self,
         method: str,
         endpoint: str,
-        data: dict | None = None,
-        params: dict | None = None,
-    ) -> dict:
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make an HTTP request to the API."""
         url = f"{self.base_url}/api/datasets{endpoint}"
         response = requests.request(
@@ -37,7 +38,8 @@ class AgencyDatasetsClient:
             timeout=30,
         )
         response.raise_for_status()
-        return response.json() if response.content else {}
+        result: dict[str, Any] = response.json() if response.content else {}
+        return result
 
     def list(self, organisation_id: int, page: int = 0, size: int = 10) -> DatasetsPagedResult:
         """List all datasets for an organisation."""

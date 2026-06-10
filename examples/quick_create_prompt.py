@@ -3,25 +3,34 @@
 import os
 from agency_sdk.client import CredentialsSupplier, AgencyClient
 from agency_sdk.domain import (
-    CreatePromptCommand, UpdatePromptCommand, PublishPromptCommand,
-    PromptPayload, PromptContent, MessageContent, MessageRole, ContentType, SearchRequest, Pagination
+    CreatePromptCommand,
+    UpdatePromptCommand,
+    PublishPromptCommand,
+    PromptPayload,
+    PromptContent,
+    MessageContent,
+    MessageRole,
+    ContentType,
+    SearchRequest,
+    Pagination,
 )
+
 
 def main():
     auth_base_url = os.getenv("AGENCY_AUTH_URL", "http://localhost:8080")
     base_url = os.getenv("AGENCY_API_URL", "http://localhost:13001")
     organisation_id = int(os.getenv("AGENCY_ORG_ID", "2"))
-    
+
     # 1. Set up authentication
     credentials = CredentialsSupplier(
         auth_base_url=auth_base_url,
         client_id=os.getenv("AGENCY_CLIENT_ID", "your-client-id"),
-        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret")
+        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret"),
     )
-    
+
     client = AgencyClient(token_supplier=credentials, base_url=base_url)
     prompts_client = client.prompts()
-    
+
     print(f"Token: {credentials.bearer_token()}")
     #
     # # 2. Search for prompts
@@ -94,12 +103,7 @@ def main():
     # update_response = prompts_client.update(prompt_id, update_command)
     # print(f"Update Response Body: {update_response}")
 
-
-    get_response = prompts_client.get(
-        prompt_id=prompt_id,
-        organisation_id=2,
-        version="latest"
-    )
+    get_response = prompts_client.get(prompt_id=prompt_id, organisation_id=2, version="latest")
     print(f"Get Response Body: {get_response}")
 
     # # 6. Publish the prompt
