@@ -22,7 +22,8 @@ Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
 |---|---|---|
 | `mypy` | 1.4.1 | Type checking, **strict mode** for all production code; `agency_sdk.test.*` relaxed |
 | `black` | 23.12.1 | Formatting, line length **120** |
-| `pytest` | 7.4.0 | Test runner (configured; suite being established) |
+| `pytest` | 7.4.0 | Test runner; offline suite in `agency_sdk/test/` stubs `requests` via monkeypatch |
+| `pytest-cov` | 4.1.0 | Coverage measurement for the >80% workflow gate (added 2026-06-10, files_client track) |
 | `pre-commit` | 3.8.0 | Git hook management |
 
 ## Build & Distribution

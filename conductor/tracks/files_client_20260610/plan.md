@@ -5,7 +5,7 @@ commit after every task with a Git Notes summary.
 
 ## Phase 1: Test Scaffolding & DTOs
 
-- [ ] Task: Create test package scaffolding
+- [~] Task: Create test package scaffolding
     - [ ] Create `agency_sdk/test/__init__.py` (first test package in the repo; mypy overrides for `agency_sdk.test.*` already exist in pyproject)
     - [ ] Add a shared stub/monkeypatch helper for `requests` so all client tests run offline
 - [ ] Task: Files DTOs
