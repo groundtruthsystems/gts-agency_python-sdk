@@ -20,6 +20,36 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+class TestCreateFolder:
+    def test_create_folder_posts_json_body(self, client, stub_requests):
+        stub_requests.queue(json_data=FOLDER_ENTRY_JSON)
+
+        result = client.create_folder(organisation_id=2, name="guidelines")
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/files/_folder"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert call.kwargs["json"] == {"folder_path": "", "name": "guidelines"}
+        assert result.is_folder is True
+        assert result.name == "guidelines"
+
+    def test_create_folder_under_parent_path(self, client, stub_requests):
+        stub_requests.queue(json_data=FOLDER_ENTRY_JSON)
+
+        client.create_folder(organisation_id=2, name="2026", folder_path="guidelines")
+
+        assert stub_requests.calls[0].kwargs["json"] == {"folder_path": "guidelines", "name": "2026"}
+
+    def test_create_folder_propagates_409_conflict(self, client, stub_requests):
+        import requests
+
+        stub_requests.queue(json_data={"message": "already exists"}, status_code=409)
+
+        with pytest.raises(requests.HTTPError):
+            client.create_folder(organisation_id=2, name="guidelines")
+
+
 class TestDelete:
     def test_delete_file_hits_id_endpoint_and_returns_none(self, client, stub_requests):
         stub_requests.queue(json_data={"status": "deleted"})

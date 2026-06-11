@@ -5,7 +5,7 @@ from typing import Any
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
-from agency_sdk.delegates.files_dto import FilesPagedResult, SignedUrlResponse
+from agency_sdk.delegates.files_dto import FileEntry, FilesPagedResult, SignedUrlResponse
 
 
 class AgencyFilesClient:
@@ -66,6 +66,23 @@ class AgencyFilesClient:
         if expires is not None:
             params["expires"] = str(expires)
         return SignedUrlResponse(**self._make_request("GET", f"/{file_id}/_signed-url", params=params))
+
+    def create_folder(self, organisation_id: int, name: str, folder_path: str = "") -> FileEntry:
+        """Create a virtual folder.
+
+        Args:
+            organisation_id: The organisation ID.
+            name: Name of the new folder. Must not be empty or contain
+                '/', '\\' or '..' (server-validated, 400).
+            folder_path: Parent folder path ("" = root).
+
+        Raises:
+            requests.HTTPError: 409 if a file or folder with that name already
+                exists in the parent folder.
+        """
+        params = {"o": str(organisation_id)}
+        data = {"folder_path": folder_path, "name": name}
+        return FileEntry(**self._make_request("POST", "/_folder", data=data, params=params))
 
     def delete_file(self, file_id: str, organisation_id: int) -> None:
         """Soft-delete a single file.
