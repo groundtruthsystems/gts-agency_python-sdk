@@ -26,7 +26,7 @@ commit after every task with a Git Notes summary.
     - [ ] Implement: both delete methods
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Client Read & Delete Paths' (Protocol in workflow.md) `d470057`
 
-## Phase 3: Write Paths & gtsf:// Resolution
+## Phase 3: Write Paths & gtsf:// Resolution [checkpoint: 22a53a2]
 
 - [x] Task: `create_folder()` `ad57113`
     - [ ] Write Tests: `POST /api/files/_folder` body `{"folder_path", "name"}`, `FileEntry` response
@@ -40,7 +40,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `download()` `1836889`
     - [ ] Write Tests: signed-url fetch then streamed GET to target path, parent dirs created, bytes written match, returns `FileEntry`
     - [ ] Implement: `download()` with `stream=True` + `iter_content`
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Write Paths & gtsf:// Resolution' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Write Paths & gtsf:// Resolution' (Protocol in workflow.md) `22a53a2`
 
 ## Phase 4: Facade, Cleanup & Companion Artifacts
 
