@@ -1,11 +1,15 @@
 """Client for the tenant file storage API (/api/files)."""
 
-from typing import Any
+import contextlib
+import mimetypes
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, BinaryIO
 
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
-from agency_sdk.delegates.files_dto import FileEntry, FilesPagedResult, SignedUrlResponse
+from agency_sdk.delegates.files_dto import FileEntry, FilesPagedResult, SignedUrlResponse, UploadResult
 
 
 class AgencyFilesClient:
@@ -66,6 +70,44 @@ class AgencyFilesClient:
         if expires is not None:
             params["expires"] = str(expires)
         return SignedUrlResponse(**self._make_request("GET", f"/{file_id}/_signed-url", params=params))
+
+    def upload(self, organisation_id: int, file_paths: Sequence[str | Path], path: str = "") -> UploadResult:
+        """Upload one or more local files to a logical folder.
+
+        Each file is sent as a multipart "file" field with its content type
+        guessed from the filename. Server limits: 100 MiB per file AND per
+        request body (multiple files share the body cap). Uploading a name
+        that already exists in the folder overwrites it (the previous entry
+        is soft-deleted server-side).
+
+        Args:
+            organisation_id: The organisation ID.
+            file_paths: Local paths of the files to upload.
+            path: Destination folder path ("" = root).
+
+        Raises:
+            ValueError: If file_paths is empty (before any network call).
+        """
+        if not file_paths:
+            raise ValueError("file_paths must not be empty")
+        url = f"{self.base_url}/api/files/_upload"
+        params = {"o": str(organisation_id), "path": path}
+        with contextlib.ExitStack() as stack:
+            files: list[tuple[str, tuple[str, BinaryIO, str | None]]] = []
+            for raw_path in file_paths:
+                file_path = Path(raw_path)
+                handle = stack.enter_context(file_path.open("rb"))
+                content_type, _ = mimetypes.guess_type(file_path.name)
+                files.append(("file", (file_path.name, handle, content_type)))
+            response = requests.post(
+                url,
+                headers={"Authorization": f"Bearer {self.token_supplier.bearer_token()}"},
+                params=params,
+                files=files,
+                timeout=300,
+            )
+        response.raise_for_status()
+        return UploadResult(**response.json())
 
     def create_folder(self, organisation_id: int, name: str, folder_path: str = "") -> FileEntry:
         """Create a virtual folder.

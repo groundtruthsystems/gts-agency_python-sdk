@@ -20,6 +20,49 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+class TestUpload:
+    def test_upload_sends_repeated_file_multipart_fields(self, client, stub_requests, tmp_path):
+        report = tmp_path / "report.txt"
+        report.write_bytes(b"hello")
+        blob = tmp_path / "data.unknownext"
+        blob.write_bytes(b"\x00\x01")
+        stub_requests.queue(json_data={"uploaded": [FILE_ENTRY_JSON, FOLDER_ENTRY_JSON]})
+
+        result = client.upload(organisation_id=2, file_paths=[report, str(blob)], path="guidelines")
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/files/_upload"
+        assert call.kwargs["params"] == {"o": "2", "path": "guidelines"}
+        assert call.kwargs["timeout"] == 300
+
+        files = call.kwargs["files"]
+        assert [field for field, _ in files] == ["file", "file"]
+        assert files[0][1][0] == "report.txt"
+        assert files[0][1][2] == "text/plain"
+        assert files[1][1][0] == "data.unknownext"
+        assert files[1][1][2] is None
+        assert len(result.uploaded) == 2
+
+    def test_upload_has_no_json_content_type_header(self, client, stub_requests, tmp_path):
+        f = tmp_path / "a.txt"
+        f.write_bytes(b"x")
+        stub_requests.queue(json_data={"uploaded": [FILE_ENTRY_JSON]})
+
+        client.upload(organisation_id=2, file_paths=[f])
+
+        headers = stub_requests.calls[0].kwargs["headers"]
+        assert headers["Authorization"] == "Bearer test-token"
+        assert "Content-Type" not in headers
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "2", "path": ""}
+
+    def test_upload_rejects_empty_file_list_before_network(self, client, stub_requests):
+        with pytest.raises(ValueError):
+            client.upload(organisation_id=2, file_paths=[])
+
+        assert stub_requests.calls == []
+
+
 class TestCreateFolder:
     def test_create_folder_posts_json_body(self, client, stub_requests):
         stub_requests.queue(json_data=FOLDER_ENTRY_JSON)
