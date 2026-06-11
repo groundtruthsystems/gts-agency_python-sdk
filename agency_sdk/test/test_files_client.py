@@ -20,6 +20,32 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+class TestDownload:
+    def test_download_streams_signed_url_to_target(self, client, stub_requests, tmp_path):
+        stub_requests.queue(json_data=SIGNED_URL_JSON)
+        stub_requests.queue(content_bytes=b"%PDF-1.7 fake content")
+        target = tmp_path / "nested" / "dir" / "out.pdf"
+
+        entry = client.download(file_id="abc-123", organisation_id=2, target_path=target)
+
+        signed_call, blob_call = stub_requests.calls
+        assert signed_call.url == "http://cp.test/api/files/abc-123/_signed-url"
+        assert blob_call.method == "GET"
+        assert blob_call.url == SIGNED_URL_JSON["signed_url"]
+        assert blob_call.kwargs["stream"] is True
+        assert blob_call.kwargs["timeout"] == 300
+        assert target.read_bytes() == b"%PDF-1.7 fake content"
+        assert entry.name == "report.pdf"
+
+    def test_download_accepts_string_target_path(self, client, stub_requests, tmp_path):
+        stub_requests.queue(json_data=SIGNED_URL_JSON)
+        stub_requests.queue(content_bytes=b"x")
+
+        client.download(file_id="abc-123", organisation_id=2, target_path=str(tmp_path / "plain.bin"))
+
+        assert (tmp_path / "plain.bin").read_bytes() == b"x"
+
+
 class TestResolveGtsfUri:
     def test_resolves_valid_uri_via_signed_url_endpoint(self, client, stub_requests):
         stub_requests.queue(json_data=SIGNED_URL_JSON)

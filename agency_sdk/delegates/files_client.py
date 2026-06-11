@@ -151,6 +151,26 @@ class AgencyFilesClient:
             raise ValueError(f"Invalid gtsf:// file id: {uri!r}")
         return self.signed_url(file_id=file_id, organisation_id=organisation_id, expires=expires)
 
+    def download(self, file_id: str, organisation_id: int, target_path: str | Path) -> FileEntry:
+        """Download a file to a local path via its signed URL (streamed).
+
+        Fetches a signed URL, then streams the blob from object storage in
+        chunks (files can be up to 100 MiB). Parent directories are created
+        as needed.
+
+        Returns:
+            The downloaded file's metadata.
+        """
+        resolved = self.signed_url(file_id=file_id, organisation_id=organisation_id)
+        target = Path(target_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        response = requests.get(resolved.signed_url, stream=True, timeout=300)
+        response.raise_for_status()
+        with target.open("wb") as handle:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                handle.write(chunk)
+        return resolved.file
+
     def delete_file(self, file_id: str, organisation_id: int) -> None:
         """Soft-delete a single file.
 

@@ -37,7 +37,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `resolve_gtsf_uri()` `41008c6`
     - [ ] Write Tests: accept/reject matrix — valid `gtsf://<id>`; rejects bad scheme, empty id, embedded `/`, uppercase scheme — all `ValueError` raised before any network call
     - [ ] Implement: strict parser delegating to `signed_url()`
-- [ ] Task: `download()`
+- [~] Task: `download()`
     - [ ] Write Tests: signed-url fetch then streamed GET to target path, parent dirs created, bytes written match, returns `FileEntry`
     - [ ] Implement: `download()` with `stream=True` + `iter_content`
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Write Paths & gtsf:// Resolution' (Protocol in workflow.md)
