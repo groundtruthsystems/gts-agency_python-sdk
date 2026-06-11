@@ -20,6 +20,38 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+class TestDelete:
+    def test_delete_file_hits_id_endpoint_and_returns_none(self, client, stub_requests):
+        stub_requests.queue(json_data={"status": "deleted"})
+
+        result = client.delete_file(file_id="abc-123", organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.method == "DELETE"
+        assert call.url == "http://cp.test/api/files/abc-123"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert result is None
+
+    def test_delete_folder_requires_path_param(self, client, stub_requests):
+        stub_requests.queue(json_data={"status": "deleted"})
+
+        result = client.delete_folder(organisation_id=2, path="guidelines/2026")
+
+        call = stub_requests.calls[0]
+        assert call.method == "DELETE"
+        assert call.url == "http://cp.test/api/files/_folder"
+        assert call.kwargs["params"] == {"o": "2", "path": "guidelines/2026"}
+        assert result is None
+
+    def test_delete_file_propagates_400_for_folder_ids(self, client, stub_requests):
+        import requests
+
+        stub_requests.queue(json_data={"message": "Use folder delete for folders"}, status_code=400)
+
+        with pytest.raises(requests.HTTPError):
+            client.delete_file(file_id="folder-id", organisation_id=2)
+
+
 SIGNED_URL_JSON = {
     "signed_url": "https://storage.googleapis.com/files/abc?X-Goog-Signature=sig",
     "expires_at": "2026-06-10T12:15:00Z",

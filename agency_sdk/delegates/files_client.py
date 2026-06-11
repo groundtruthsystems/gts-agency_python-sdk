@@ -66,3 +66,23 @@ class AgencyFilesClient:
         if expires is not None:
             params["expires"] = str(expires)
         return SignedUrlResponse(**self._make_request("GET", f"/{file_id}/_signed-url", params=params))
+
+    def delete_file(self, file_id: str, organisation_id: int) -> None:
+        """Soft-delete a single file.
+
+        Raises:
+            requests.HTTPError: 404 if the file does not exist, 400 if the id
+                refers to a folder (use delete_folder instead).
+        """
+        params = {"o": str(organisation_id)}
+        self._make_request("DELETE", f"/{file_id}", params=params)
+
+    def delete_folder(self, organisation_id: int, path: str) -> None:
+        """Recursively soft-delete a virtual folder and all its contents.
+
+        Args:
+            organisation_id: The organisation ID.
+            path: Full path of the folder to delete.
+        """
+        params = {"o": str(organisation_id), "path": path}
+        self._make_request("DELETE", "/_folder", params=params)
