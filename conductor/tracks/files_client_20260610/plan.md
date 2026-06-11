@@ -42,7 +42,7 @@ commit after every task with a Git Notes summary.
     - [ ] Implement: `download()` with `stream=True` + `iter_content`
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Write Paths & gtsf:// Resolution' (Protocol in workflow.md) `22a53a2`
 
-## Phase 4: Facade, Cleanup & Companion Artifacts
+## Phase 4: Facade, Cleanup & Companion Artifacts [checkpoint: 50a6c1f]
 
 - [x] Task: Facade integration `48043e6`
     - [ ] Write Tests: `AgencyClient.files()` returns an `AgencyFilesClient` sharing `token_supplier` and `base_url`
@@ -57,4 +57,4 @@ commit after every task with a Git Notes summary.
     - [ ] Run `black --check agency_sdk/ examples/` — exit 0
     - [ ] Run `bandit -r agency_sdk/` — no findings
     - [ ] Run `pytest --cov=agency_sdk --cov-report=term-missing` — new modules >80%
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Facade, Cleanup & Companion Artifacts' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Facade, Cleanup & Companion Artifacts' (Protocol in workflow.md) `50a6c1f`
