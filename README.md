@@ -110,3 +110,6 @@ python examples/quick_execute_rule.py
 python examples/quick_files.py
 ```
 
+To verify the SDK end to end against the local platform stack
+(`gts-local-environment`), follow [docs/local_e2e.md](docs/local_e2e.md).
+

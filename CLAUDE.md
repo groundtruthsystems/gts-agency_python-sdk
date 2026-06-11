@@ -47,7 +47,7 @@ pytest
 
 **Shared type:** `Page` is defined in `datasets_dto.py` and imported by other DTO modules for pagination.
 
-**Tests:** Offline suite in `agency_sdk/test/`; `conftest.py` stubs `requests` via monkeypatch so no test touches the network. mypy is relaxed for `agency_sdk.test.*` per pyproject overrides.
+**Tests:** Offline suite in `agency_sdk/test/`; `conftest.py` stubs `requests` via monkeypatch so no test touches the network. mypy is relaxed for `agency_sdk.test.*` per pyproject overrides. End-to-end verification against the local stack: `docs/local_e2e.md`.
 
 ## Conventions
 
