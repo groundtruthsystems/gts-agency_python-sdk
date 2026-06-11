@@ -48,7 +48,7 @@ commit after every task with a Git Notes summary.
     - [ ] Write Tests: `AgencyClient.files()` returns an `AgencyFilesClient` sharing `token_supplier` and `base_url`
     - [ ] Implement: compose `AgencyFilesClient` in `client.py`, add `files()` accessor
 - [x] Task: Drive-by cleanup — remove debug `print(result)` from `rules_client.py` `execute()` `85da857`
-- [ ] Task: Companion artifacts (Delegate Delivery Checklist)
+- [x] Task: Companion artifacts (Delegate Delivery Checklist) `5b9a968`
     - [ ] Write `examples/quick_files.py` — self-verifying lifecycle script (E2E-ready for the follow-up track)
     - [ ] Update README (Delegate Clients list + files usage snippet)
     - [ ] Update CLAUDE.md (register `files_client.py` / `files_dto.py` in the architecture section)
