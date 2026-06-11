@@ -3,7 +3,7 @@
 Methodology: TDD per `conductor/workflow.md` (Red → Green → Refactor), >80% coverage,
 commit after every task with a Git Notes summary.
 
-## Phase 1: Test Scaffolding & DTOs
+## Phase 1: Test Scaffolding & DTOs [checkpoint: ade8546]
 
 - [x] Task: Create test package scaffolding `a1d9e00`
     - [ ] Create `agency_sdk/test/__init__.py` (first test package in the repo; mypy overrides for `agency_sdk.test.*` already exist in pyproject)
@@ -11,7 +11,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: Files DTOs `881e898`
     - [ ] Write Tests: deserialisation of `FileEntry`, `FilesPagedResult`, `UploadResult`, `SignedUrlResponse` from JSON samples transcribed from the Rust DTOs (incl. `content_type: null`, root `folder_path: ""`)
     - [ ] Implement: `agency_sdk/delegates/files_dto.py` reusing `Page` from `datasets_dto`
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Test Scaffolding & DTOs' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Test Scaffolding & DTOs' (Protocol in workflow.md) `ade8546`
 
 ## Phase 2: Client Read & Delete Paths
 
