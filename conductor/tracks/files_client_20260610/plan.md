@@ -52,7 +52,7 @@ commit after every task with a Git Notes summary.
     - [ ] Write `examples/quick_files.py` — self-verifying lifecycle script (E2E-ready for the follow-up track)
     - [ ] Update README (Delegate Clients list + files usage snippet)
     - [ ] Update CLAUDE.md (register `files_client.py` / `files_dto.py` in the architecture section)
-- [ ] Task: Static gates & coverage
+- [x] Task: Static gates & coverage `0d0f55d`
     - [ ] Run `mypy agency_sdk/` (strict) — exit 0
     - [ ] Run `black --check agency_sdk/ examples/` — exit 0
     - [ ] Run `bandit -r agency_sdk/` — no findings
