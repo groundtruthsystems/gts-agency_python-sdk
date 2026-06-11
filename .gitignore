@@ -7,3 +7,6 @@ gts_ontology_python_client.egg-info/
 agency_sdk/__pycache__/
 agency_sdk/delegates/__pycache__/
 /examples/build/
+__pycache__/
+.coverage
+*.egg-info/
