@@ -44,7 +44,7 @@ commit after every task with a Git Notes summary.
 
 ## Phase 4: Facade, Cleanup & Companion Artifacts
 
-- [ ] Task: Facade integration
+- [x] Task: Facade integration `48043e6`
     - [ ] Write Tests: `AgencyClient.files()` returns an `AgencyFilesClient` sharing `token_supplier` and `base_url`
     - [ ] Implement: compose `AgencyFilesClient` in `client.py`, add `files()` accessor
 - [ ] Task: Drive-by cleanup — remove debug `print(result)` from `rules_client.py` `execute()`
