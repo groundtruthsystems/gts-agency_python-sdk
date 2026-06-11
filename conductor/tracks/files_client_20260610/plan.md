@@ -28,7 +28,7 @@ commit after every task with a Git Notes summary.
 
 ## Phase 3: Write Paths & gtsf:// Resolution
 
-- [~] Task: `create_folder()`
+- [x] Task: `create_folder()` `ad57113`
     - [ ] Write Tests: `POST /api/files/_folder` body `{"folder_path", "name"}`, `FileEntry` response
     - [ ] Implement: `create_folder()`
 - [ ] Task: `upload()` (multipart)
