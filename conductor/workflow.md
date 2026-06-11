@@ -156,7 +156,7 @@ black agency_sdk/ examples/      # format
 black --check agency_sdk/ examples/
 mypy agency_sdk/
 pytest agency_sdk/test/
-bandit -r agency_sdk/             # CI parity (security gate)
+bandit -r agency_sdk/ -x agency_sdk/test   # CI parity; tests excluded (B101 asserts are expected in pytest)
 ```
 
 ## Testing Requirements
