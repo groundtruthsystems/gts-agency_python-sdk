@@ -31,7 +31,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `create_folder()` `ad57113`
     - [ ] Write Tests: `POST /api/files/_folder` body `{"folder_path", "name"}`, `FileEntry` response
     - [ ] Implement: `create_folder()`
-- [~] Task: `upload()` (multipart)
+- [x] Task: `upload()` (multipart) `7c6a07e`
     - [ ] Write Tests: `POST /api/files/_upload?o&path`, repeated `file` multipart fields with filename + guessed content type, no JSON content-type header, 300 s timeout, multiple files in one request
     - [ ] Implement: `upload()` with `contextlib.ExitStack`-managed handles and `mimetypes` guessing
 - [ ] Task: `resolve_gtsf_uri()`
