@@ -1,4 +1,8 @@
-"""Client for the tenant file storage API (/api/files)."""
+"""Client for the tenant file storage API (/api/files).
+
+Includes resolution of ``gtsf://<file_id>`` URIs, the convention used in GTS
+configurations and rule annotations to reference stored files.
+"""
 
 import contextlib
 import mimetypes
@@ -10,6 +14,8 @@ import requests
 
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.files_dto import FileEntry, FilesPagedResult, SignedUrlResponse, UploadResult
+
+GTSF_SCHEME = "gtsf://"
 
 
 class AgencyFilesClient:
@@ -125,6 +131,25 @@ class AgencyFilesClient:
         params = {"o": str(organisation_id)}
         data = {"folder_path": folder_path, "name": name}
         return FileEntry(**self._make_request("POST", "/_folder", data=data, params=params))
+
+    def resolve_gtsf_uri(self, uri: str, organisation_id: int, expires: int | None = None) -> SignedUrlResponse:
+        """Resolve a ``gtsf://<file_id>`` URI to a signed download URL plus metadata.
+
+        Args:
+            uri: A strict ``gtsf://<file_id>`` URI (lowercase scheme, single
+                path-less file id).
+            organisation_id: The organisation ID.
+            expires: Optional URL lifetime in seconds (see signed_url).
+
+        Raises:
+            ValueError: If the URI is malformed; raised before any network call.
+        """
+        if not uri.startswith(GTSF_SCHEME):
+            raise ValueError(f"Not a gtsf:// URI: {uri!r}")
+        file_id = uri[len(GTSF_SCHEME) :]
+        if not file_id or "/" in file_id:
+            raise ValueError(f"Invalid gtsf:// file id: {uri!r}")
+        return self.signed_url(file_id=file_id, organisation_id=organisation_id, expires=expires)
 
     def delete_file(self, file_id: str, organisation_id: int) -> None:
         """Soft-delete a single file.

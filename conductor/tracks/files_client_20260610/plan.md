@@ -34,7 +34,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `upload()` (multipart) `7c6a07e`
     - [ ] Write Tests: `POST /api/files/_upload?o&path`, repeated `file` multipart fields with filename + guessed content type, no JSON content-type header, 300 s timeout, multiple files in one request
     - [ ] Implement: `upload()` with `contextlib.ExitStack`-managed handles and `mimetypes` guessing
-- [ ] Task: `resolve_gtsf_uri()`
+- [~] Task: `resolve_gtsf_uri()`
     - [ ] Write Tests: accept/reject matrix — valid `gtsf://<id>`; rejects bad scheme, empty id, embedded `/`, uppercase scheme — all `ValueError` raised before any network call
     - [ ] Implement: strict parser delegating to `signed_url()`
 - [ ] Task: `download()`

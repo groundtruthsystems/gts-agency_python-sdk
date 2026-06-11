@@ -20,6 +20,42 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+class TestResolveGtsfUri:
+    def test_resolves_valid_uri_via_signed_url_endpoint(self, client, stub_requests):
+        stub_requests.queue(json_data=SIGNED_URL_JSON)
+
+        result = client.resolve_gtsf_uri("gtsf://550e8400-e29b-41d4-a716-446655440000", organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.url == "http://cp.test/api/files/550e8400-e29b-41d4-a716-446655440000/_signed-url"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert result.signed_url == SIGNED_URL_JSON["signed_url"]
+
+    def test_resolve_forwards_expires(self, client, stub_requests):
+        stub_requests.queue(json_data=SIGNED_URL_JSON)
+
+        client.resolve_gtsf_uri("gtsf://abc-123", organisation_id=2, expires=120)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "2", "expires": "120"}
+
+    @pytest.mark.parametrize(
+        "bad_uri",
+        [
+            "https://example.com/file",  # wrong scheme
+            "gtsf://",  # empty id
+            "gtsf://abc/123",  # embedded slash
+            "GTSF://abc-123",  # uppercase scheme (strict lowercase)
+            "abc-123",  # bare id, no scheme
+            "",  # empty string
+        ],
+    )
+    def test_rejects_malformed_uris_before_any_network_call(self, client, stub_requests, bad_uri):
+        with pytest.raises(ValueError):
+            client.resolve_gtsf_uri(bad_uri, organisation_id=2)
+
+        assert stub_requests.calls == []
+
+
 class TestUpload:
     def test_upload_sends_repeated_file_multipart_fields(self, client, stub_requests, tmp_path):
         report = tmp_path / "report.txt"
