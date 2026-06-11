@@ -15,7 +15,7 @@ commit after every task with a Git Notes summary.
 
 ## Phase 2: Client Read & Delete Paths
 
-- [ ] Task: `AgencyFilesClient` core with `list()`
+- [x] Task: `AgencyFilesClient` core with `list()` `6dbadc3`
     - [ ] Write Tests: URL `/api/files`, params `o/path/p/s` (defaults `path=""`, `size=50`), Bearer header, paged result parsing
     - [ ] Implement: client class, `_make_request` helper, `list()`
 - [ ] Task: `signed_url()`
