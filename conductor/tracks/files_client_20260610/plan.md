@@ -13,7 +13,7 @@ commit after every task with a Git Notes summary.
     - [ ] Implement: `agency_sdk/delegates/files_dto.py` reusing `Page` from `datasets_dto`
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Test Scaffolding & DTOs' (Protocol in workflow.md) `ade8546`
 
-## Phase 2: Client Read & Delete Paths
+## Phase 2: Client Read & Delete Paths [checkpoint: d470057]
 
 - [x] Task: `AgencyFilesClient` core with `list()` `6dbadc3`
     - [ ] Write Tests: URL `/api/files`, params `o/path/p/s` (defaults `path=""`, `size=50`), Bearer header, paged result parsing
@@ -24,7 +24,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `delete_file()` and `delete_folder()` `4b375c6`
     - [ ] Write Tests: `DELETE /api/files/{id}?o` and `DELETE /api/files/_folder?o&path`, both returning `None`
     - [ ] Implement: both delete methods
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Client Read & Delete Paths' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Client Read & Delete Paths' (Protocol in workflow.md) `d470057`
 
 ## Phase 3: Write Paths & gtsf:// Resolution
 
