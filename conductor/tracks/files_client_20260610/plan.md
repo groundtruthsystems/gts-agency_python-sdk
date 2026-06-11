@@ -47,7 +47,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: Facade integration `48043e6`
     - [ ] Write Tests: `AgencyClient.files()` returns an `AgencyFilesClient` sharing `token_supplier` and `base_url`
     - [ ] Implement: compose `AgencyFilesClient` in `client.py`, add `files()` accessor
-- [~] Task: Drive-by cleanup — remove debug `print(result)` from `rules_client.py` `execute()`
+- [x] Task: Drive-by cleanup — remove debug `print(result)` from `rules_client.py` `execute()` `85da857`
 - [ ] Task: Companion artifacts (Delegate Delivery Checklist)
     - [ ] Write `examples/quick_files.py` — self-verifying lifecycle script (E2E-ready for the follow-up track)
     - [ ] Update README (Delegate Clients list + files usage snippet)
