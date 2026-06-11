@@ -21,7 +21,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `signed_url()` `4fed5dd`
     - [ ] Write Tests: URL `/api/files/{id}/_signed-url`, `expires` omitted vs set, response parsing; HTTP error propagation (404/400 → `requests.HTTPError`)
     - [ ] Implement: `signed_url()`
-- [~] Task: `delete_file()` and `delete_folder()`
+- [x] Task: `delete_file()` and `delete_folder()` `4b375c6`
     - [ ] Write Tests: `DELETE /api/files/{id}?o` and `DELETE /api/files/_folder?o&path`, both returning `None`
     - [ ] Implement: both delete methods
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Client Read & Delete Paths' (Protocol in workflow.md)
