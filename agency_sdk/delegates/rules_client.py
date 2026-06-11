@@ -53,7 +53,6 @@ class AgencyRulesClient:
     def execute(self, rule_id: str, request: ExecuteRequest) -> ExecutionResult:
         data = request.model_dump(mode="json", by_alias=True)
         result = self._make_request("POST", f"/{rule_id}/_execute", data=data)
-        print(result)
         return ExecutionResult(**result)
 
     def list_executions(
