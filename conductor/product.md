@@ -30,15 +30,15 @@ Compared to calling the REST APIs directly, the SDK provides:
    touch tokens.
 3. **High-level workflow encapsulation** — multi-step API orchestrations are exposed
    as single methods (e.g. `clone_dataset` recursive download; `gtsf://` URI
-   resolution for the upcoming files client).
+   resolution and streamed `download()` in the files client).
 
 ## Current Focus
 
 **Track platform API coverage.** The platform evolves first; the SDK follows. The
-single most urgent gap is the tenant file storage API
-(groundtruthsystems/gts-agency_python-sdk#1): a files delegate client covering list,
-upload, folder management, deletion, signed-URL retrieval, and `gtsf://<file_id>`
-URI resolution.
+tenant file storage client (groundtruthsystems/gts-agency_python-sdk#1) shipped on
+2026-06-11 with offline protocol tests and static gates; its real end-to-end
+verification against the gts-local-environment stack is the current focus, followed
+by continued coverage of new platform APIs.
 
 ## Non-Goals
 
