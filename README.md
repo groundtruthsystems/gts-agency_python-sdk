@@ -1,6 +1,6 @@
 # Agency Python SDK
 
-Python client SDK for the GTS Agency platform. Provides typed HTTP clients for datasets, datasources, ontologies, prompts, and rules APIs.
+Python client SDK for the GTS Agency platform. Provides typed HTTP clients for datasets, datasources, files, ontologies, prompts, and rules APIs.
 
 ## Installation
 
@@ -43,6 +43,7 @@ Access each API domain through the facade:
 
 - `client.dataset()` — datasets CRUD, filesystem traversal, clone
 - `client.datasource()` — datasource and table introspection
+- `client.files()` — tenant file storage: list, upload, folder management, delete, signed URLs, `gtsf://` URI resolution, streamed download
 - `client.ontology()` — ontology export (JSON, Turtle, ISON) and entity-datasource mappings
 - `client.prompts()` — prompt CRUD via command pattern
 - `client.rules()` — rule listing, detail, execution, and execution history
@@ -73,6 +74,26 @@ print(f"Result: {response.result}")
 executions = rules.list_executions(rule_id="rule-id", organisation_id=2)
 ```
 
+### Files Example
+
+```python
+files = client.files()
+
+# Upload into a folder (multipart; up to 100 MiB per file and per request)
+result = files.upload(organisation_id=2, file_paths=["report.pdf"], path="guidelines")
+file_id = result.uploaded[0].id
+
+# Resolve a gtsf:// reference (as found in configurations and rule annotations)
+signed = files.resolve_gtsf_uri(f"gtsf://{file_id}", organisation_id=2)
+print(f"Download until {signed.expires_at}: {signed.signed_url}")
+
+# Or download directly (streamed to disk via the signed URL)
+files.download(file_id=file_id, organisation_id=2, target_path="./report.pdf")
+```
+
+See [docs/files_storage_flows.md](docs/files_storage_flows.md) for the full
+upload/download architecture.
+
 ## Examples
 
 ```bash
@@ -86,5 +107,6 @@ python examples/quick_clone_dataset.py
 python examples/quick_create_prompt.py
 python examples/quick_export_ontology.py
 python examples/quick_execute_rule.py
+python examples/quick_files.py
 ```
 
