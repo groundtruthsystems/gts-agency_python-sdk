@@ -18,7 +18,7 @@ commit after every task with a Git Notes summary.
 - [x] Task: `AgencyFilesClient` core with `list()` `6dbadc3`
     - [ ] Write Tests: URL `/api/files`, params `o/path/p/s` (defaults `path=""`, `size=50`), Bearer header, paged result parsing
     - [ ] Implement: client class, `_make_request` helper, `list()`
-- [~] Task: `signed_url()`
+- [x] Task: `signed_url()` `4fed5dd`
     - [ ] Write Tests: URL `/api/files/{id}/_signed-url`, `expires` omitted vs set, response parsing; HTTP error propagation (404/400 → `requests.HTTPError`)
     - [ ] Implement: `signed_url()`
 - [ ] Task: `delete_file()` and `delete_folder()`
