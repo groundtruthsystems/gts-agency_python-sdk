@@ -5,7 +5,7 @@ from typing import Any
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
-from agency_sdk.delegates.files_dto import FilesPagedResult
+from agency_sdk.delegates.files_dto import FilesPagedResult, SignedUrlResponse
 
 
 class AgencyFilesClient:
@@ -48,3 +48,21 @@ class AgencyFilesClient:
         """
         params = {"o": str(organisation_id), "path": path, "p": str(page), "s": str(size)}
         return FilesPagedResult(**self._make_request("GET", "", params=params))
+
+    def signed_url(self, file_id: str, organisation_id: int, expires: int | None = None) -> SignedUrlResponse:
+        """Get a temporary signed download URL for a file.
+
+        Args:
+            file_id: The file identifier.
+            organisation_id: The organisation ID.
+            expires: URL lifetime in seconds. Server default is 900 (15 minutes),
+                clamped server-side to [1, 604800] (7 days).
+
+        Raises:
+            requests.HTTPError: 404 if the file does not exist, 400 if the id
+                refers to a folder.
+        """
+        params = {"o": str(organisation_id)}
+        if expires is not None:
+            params["expires"] = str(expires)
+        return SignedUrlResponse(**self._make_request("GET", f"/{file_id}/_signed-url", params=params))
