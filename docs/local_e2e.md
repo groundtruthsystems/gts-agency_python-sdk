@@ -130,3 +130,14 @@ The HTTP status in step 2 triages most problems:
 | 500 on upload | control plane → object storage failure — MinIO bucket/access key/hostname |
 | `ConnectionError` host `minio` (step 7, host runs) | presigned-URL hostname not resolvable — see step 5 |
 | 404 on `/api/files` | control-plane image predates the files feature — pull a newer image |
+| 403 "HTTPS required" from Keycloak (host runs only; in-network fine) | Docker Desktop is mislabelling the source IP of host→container connections as a public address, so the realm's `sslRequired: external` rejects plain HTTP — a Docker Desktop networking-stack state fault (observed on 4.71 after a crash-restart; fixed by upgrading to 4.77) |
+
+To confirm the 403 case, check what source address a container sees for a
+host-originated connection — anything other than a private address (normally
+`192.168.65.1`) means Docker needs an upgrade/restart, not Keycloak a config change:
+
+```bash
+docker run --rm -d --name srcprobe -p 18080:8000 python:3.12-slim python -m http.server 8000
+curl -s -o /dev/null http://127.0.0.1:18080/ && sleep 1 && docker logs srcprobe | tail -1
+docker rm -f srcprobe
+```
