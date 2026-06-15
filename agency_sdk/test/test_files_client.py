@@ -20,10 +20,20 @@ def client(fake_credentials):
     return AgencyFilesClient(token_supplier=fake_credentials, base_url="http://cp.test/")
 
 
+def signed_url_for(content: bytes) -> dict:
+    """A signed-url response whose file size_bytes matches the given content."""
+    return {
+        "signed_url": "https://storage.googleapis.com/files/abc?X-Goog-Signature=sig",
+        "expires_at": "2026-06-10T12:15:00Z",
+        "file": {**FILE_ENTRY_JSON, "size_bytes": len(content)},
+    }
+
+
 class TestDownload:
     def test_download_streams_signed_url_to_target(self, client, stub_requests, tmp_path):
-        stub_requests.queue(json_data=SIGNED_URL_JSON)
-        stub_requests.queue(content_bytes=b"%PDF-1.7 fake content")
+        content = b"%PDF-1.7 fake content"
+        stub_requests.queue(json_data=signed_url_for(content))
+        stub_requests.queue(content_bytes=content)
         target = tmp_path / "nested" / "dir" / "out.pdf"
 
         entry = client.download(file_id="abc-123", organisation_id=2, target_path=target)
@@ -31,19 +41,27 @@ class TestDownload:
         signed_call, blob_call = stub_requests.calls
         assert signed_call.url == "http://cp.test/api/files/abc-123/_signed-url"
         assert blob_call.method == "GET"
-        assert blob_call.url == SIGNED_URL_JSON["signed_url"]
         assert blob_call.kwargs["stream"] is True
         assert blob_call.kwargs["timeout"] == 300
-        assert target.read_bytes() == b"%PDF-1.7 fake content"
+        assert target.read_bytes() == content
         assert entry.name == "report.pdf"
 
     def test_download_accepts_string_target_path(self, client, stub_requests, tmp_path):
-        stub_requests.queue(json_data=SIGNED_URL_JSON)
-        stub_requests.queue(content_bytes=b"x")
+        content = b"x"
+        stub_requests.queue(json_data=signed_url_for(content))
+        stub_requests.queue(content_bytes=content)
 
         client.download(file_id="abc-123", organisation_id=2, target_path=str(tmp_path / "plain.bin"))
 
-        assert (tmp_path / "plain.bin").read_bytes() == b"x"
+        assert (tmp_path / "plain.bin").read_bytes() == content
+
+    def test_download_raises_on_truncated_stream(self, client, stub_requests, tmp_path):
+        # signed URL advertises a larger size than the bytes actually streamed
+        stub_requests.queue(json_data=signed_url_for(b"x" * 100))
+        stub_requests.queue(content_bytes=b"x" * 40)
+
+        with pytest.raises(IOError):
+            client.download(file_id="abc-123", organisation_id=2, target_path=tmp_path / "short.bin")
 
 
 class TestResolveGtsfUri:

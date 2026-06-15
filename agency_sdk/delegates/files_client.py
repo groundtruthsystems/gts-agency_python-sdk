@@ -161,19 +161,32 @@ class AgencyFilesClient:
 
         Fetches a signed URL, then streams the blob from object storage in
         chunks (files can be up to 100 MiB). Parent directories are created
-        as needed.
+        as needed. After streaming, the number of bytes written is verified
+        against the file's known size to catch a silently truncated download
+        (e.g. a mid-stream connection drop).
 
         Returns:
             The downloaded file's metadata.
+
+        Raises:
+            IOError: If the number of bytes written does not match the
+                expected file size.
         """
         resolved = self.signed_url(file_id=file_id, organisation_id=organisation_id)
         target = Path(target_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         response = requests.get(resolved.signed_url, stream=True, timeout=300)
         response.raise_for_status()
+        bytes_written = 0
         with target.open("wb") as handle:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 handle.write(chunk)
+                bytes_written += len(chunk)
+        if bytes_written != resolved.file.size_bytes:
+            raise IOError(
+                f"Truncated download for file {file_id}: wrote {bytes_written} bytes, "
+                f"expected {resolved.file.size_bytes}"
+            )
         return resolved.file
 
     def delete_file(self, file_id: str, organisation_id: int) -> None:
