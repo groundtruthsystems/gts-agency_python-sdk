@@ -1,8 +1,0 @@
-{
-  "track_id": "files_client_20260610",
-  "type": "feature",
-  "status": "completed",
-  "created_at": "2026-06-10T21:34:29Z",
-  "updated_at": "2026-06-11T22:40:00Z",
-  "description": "Implement the files delegate client (issue #1) with static checks and offline protocol tests; real E2E verification deferred to a follow-up track."
-}
