@@ -86,6 +86,11 @@ class AgencyFilesClient:
         that already exists in the folder overwrites it (the previous entry
         is soft-deleted server-side).
 
+        Memory: ``requests`` does not stream file handles; it reads each file
+        fully and assembles the whole multipart body in memory, so peak usage
+        is roughly twice the total bytes uploaded during encoding (the server
+        100 MiB cap bounds this). Mind this under concurrency.
+
         Args:
             organisation_id: The organisation ID.
             file_paths: Local paths of the files to upload.
