@@ -11,5 +11,7 @@ __pycache__/
 .coverage
 *.egg-info/
 
-# Conductor transient setup state (machine-generated, not project knowledge)
+# conductor/ is intentional, version-controlled project context (product
+# definition, tech stack, conventions, workflow), per the parent gts-agency
+# repo's convention. Only the transient setup-wizard state is ignored:
 conductor/setup_state.json

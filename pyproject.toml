@@ -23,6 +23,10 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["agency_sdk/test"]
 
+[tool.coverage.run]
+source = ["agency_sdk"]
+omit = ["agency_sdk/test/*"]
+
 [tool.setuptools.packages]
 find = {}
 

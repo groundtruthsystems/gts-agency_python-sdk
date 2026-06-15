@@ -14,6 +14,12 @@ PAGED_JSON = {
     "items": [FILE_ENTRY_JSON, FOLDER_ENTRY_JSON],
 }
 
+SIGNED_URL_JSON = {
+    "signed_url": "https://storage.googleapis.com/files/abc?X-Goog-Signature=sig",
+    "expires_at": "2026-06-10T12:15:00Z",
+    "file": FILE_ENTRY_JSON,
+}
+
 
 @pytest.fixture
 def client(fake_credentials):
@@ -203,13 +209,6 @@ class TestDelete:
 
         with pytest.raises(requests.HTTPError):
             client.delete_file(file_id="folder-id", organisation_id=2)
-
-
-SIGNED_URL_JSON = {
-    "signed_url": "https://storage.googleapis.com/files/abc?X-Goog-Signature=sig",
-    "expires_at": "2026-06-10T12:15:00Z",
-    "file": FILE_ENTRY_JSON,
-}
 
 
 class TestSignedUrl:
