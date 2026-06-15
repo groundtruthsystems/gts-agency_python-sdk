@@ -10,3 +10,6 @@ agency_sdk/delegates/__pycache__/
 __pycache__/
 .coverage
 *.egg-info/
+
+# Conductor transient setup state (machine-generated, not project knowledge)
+conductor/setup_state.json
