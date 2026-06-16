@@ -26,8 +26,9 @@ class CredentialsSupplier:
         response.raise_for_status()
 
         token_data = response.json()
-        self._cached_token = token_data["access_token"]
-        return self._cached_token
+        token: str = token_data["access_token"]
+        self._cached_token = token
+        return token
 
     def _is_token_expired(self) -> bool:
         """Check if the cached token is expired."""
@@ -36,6 +37,6 @@ class CredentialsSupplier:
 
         try:
             decoded = jwt.decode(self._cached_token, options={"verify_signature": False})
-            return decoded.get("exp", 0) <= time.time()
+            return bool(decoded.get("exp", 0) <= time.time())
         except Exception:
             return True

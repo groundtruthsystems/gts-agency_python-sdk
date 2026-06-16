@@ -1,3 +1,5 @@
+from typing import Any
+
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
@@ -23,9 +25,9 @@ class AgencyPromptsClient:
         self,
         method: str,
         endpoint: str,
-        data: dict | None = None,
-        params: dict | None = None,
-    ) -> dict:
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make an HTTP request to the API."""
         url = f"{self.base_url}/api/prompts{endpoint}"
         response = requests.request(
@@ -40,13 +42,14 @@ class AgencyPromptsClient:
             timeout=30,
         )
         response.raise_for_status()
-        return response.json() if response.content else {}
+        result: dict[str, Any] = response.json() if response.content else {}
+        return result
 
-    def command(self, command: PromptsCommand) -> dict:
+    def command(self, command: PromptsCommand) -> dict[str, Any]:
         """Execute a command on the prompts API."""
         return self._make_request("POST", "/_command", data=command.model_dump(mode="json"))
 
-    def create(self, command: CreatePromptCommand) -> dict:
+    def create(self, command: CreatePromptCommand) -> dict[str, Any]:
         """Create a new prompt."""
         return self.command(command)
 
@@ -54,19 +57,19 @@ class AgencyPromptsClient:
         """Execute a search on the prompts API."""
         return PromptPagedResult(**self._make_request("POST", "/_search", data=request.model_dump(mode="json")))
 
-    def prompt_command(self, prompt_id: str, command: PromptCommand) -> dict:
+    def prompt_command(self, prompt_id: str, command: PromptCommand) -> dict[str, Any]:
         """Execute a command on a specific prompt."""
         return self._make_request("POST", f"/{prompt_id}/_command", data=command.model_dump(mode="json"))
 
-    def update(self, prompt_id: str, command: UpdatePromptCommand) -> dict:
+    def update(self, prompt_id: str, command: UpdatePromptCommand) -> dict[str, Any]:
         """Update an existing prompt."""
         return self.prompt_command(prompt_id, command)
 
-    def publish(self, prompt_id: str, command: PublishPromptCommand) -> dict:
+    def publish(self, prompt_id: str, command: PublishPromptCommand) -> dict[str, Any]:
         """Publish a prompt."""
         return self.prompt_command(prompt_id, command)
 
-    def delete(self, prompt_id: str, command: DeletePromptCommand) -> dict:
+    def delete(self, prompt_id: str, command: DeletePromptCommand) -> dict[str, Any]:
         """Delete a prompt."""
         return self.prompt_command(prompt_id, command)
 

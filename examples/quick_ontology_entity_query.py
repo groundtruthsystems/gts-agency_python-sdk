@@ -14,7 +14,7 @@ def main():
     credentials = CredentialsSupplier(
         auth_base_url=auth_base_url,
         client_id=os.getenv("AGENCY_CLIENT_ID", "your-client-id"),
-        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret")
+        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret"),
     )
 
     client = AgencyClient(token_supplier=credentials, base_url=base_url)
@@ -59,6 +59,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

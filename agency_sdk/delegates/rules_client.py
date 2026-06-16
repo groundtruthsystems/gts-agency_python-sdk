@@ -1,3 +1,5 @@
+from typing import Any
+
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
@@ -19,9 +21,9 @@ class AgencyRulesClient:
         self,
         method: str,
         endpoint: str,
-        data: dict | None = None,
-        params: dict | None = None,
-    ) -> dict:
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         url = f"{self.base_url}/api/rules{endpoint}"
         response = requests.request(
             method=method,
@@ -35,7 +37,8 @@ class AgencyRulesClient:
             timeout=30,
         )
         response.raise_for_status()
-        return response.json() if response.content else {}
+        result: dict[str, Any] = response.json() if response.content else {}
+        return result
 
     def list(self, organisation_id: int, page: int = 0, size: int = 10) -> RulesPagedResult:
         params = {"o": str(organisation_id), "s": str(size), "p": str(page)}
@@ -50,7 +53,6 @@ class AgencyRulesClient:
     def execute(self, rule_id: str, request: ExecuteRequest) -> ExecutionResult:
         data = request.model_dump(mode="json", by_alias=True)
         result = self._make_request("POST", f"/{rule_id}/_execute", data=data)
-        print(result)
         return ExecutionResult(**result)
 
     def list_executions(

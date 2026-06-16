@@ -15,9 +15,17 @@ dependencies = [
 dev = [
     "mypy==1.4.1",
     "pytest==7.4.0",
+    "pytest-cov==4.1.0",
     "pre-commit==3.8.0",
     "black==23.12.1"
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["agency_sdk/test"]
+
+[tool.coverage.run]
+source = ["agency_sdk"]
+omit = ["agency_sdk/test/*"]
 
 [tool.setuptools.packages]
 find = {}

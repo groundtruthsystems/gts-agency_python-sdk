@@ -13,7 +13,7 @@ def main():
     credentials = CredentialsSupplier(
         auth_base_url=auth_base_url,
         client_id=os.getenv("AGENCY_CLIENT_ID", "your-client-id"),
-        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret")
+        client_secret=os.getenv("AGENCY_CLIENT_SECRET", "your-client-secret"),
     )
 
     client = AgencyClient(token_supplier=credentials, base_url=base_url)
@@ -44,7 +44,6 @@ def main():
         print(f"Turtle export ({len(turtle_export)} chars):")
         print(turtle_export[:500])
 
-
         # Export as Turtle/OWL
         print(f"\nExporting ontology '{ontology_id}' as ison...")
         ison_export = ontology_client.export(
@@ -74,7 +73,9 @@ def main():
         )
         print(f"Found {mappings_result.page.total} mapping(s)")
         for mapping in mappings_result.items:
-            print(f"  - [{mapping.mapping_type}] {mapping.entity_label or mapping.entity_id} -> {mapping.datasource_name or mapping.datasource_id} (status: {mapping.status})")
+            print(
+                f"  - [{mapping.mapping_type}] {mapping.entity_label or mapping.entity_id} -> {mapping.datasource_name or mapping.datasource_id} (status: {mapping.status})"
+            )
 
             # Get mapping detail
             detail = ontology_client.get_mapping(
@@ -93,6 +94,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

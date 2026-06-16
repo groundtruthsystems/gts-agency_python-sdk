@@ -46,9 +46,9 @@ class RuleVersion(BaseModel):
     id: str
     version: str
     status: str
-    jdm_content: dict | None = None
-    input_schema: dict | None = None
-    output_schema: dict | None = None
+    jdm_content: dict[str, Any] | None = None
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
     created_at: str
     created_by: str | None = None
     updated_at: str
@@ -73,7 +73,7 @@ class ExecuteRequest(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
     organisation: int
-    context: dict
+    context: dict[str, Any]
     trace: bool = False
     version_id: str | None = None
 
@@ -82,10 +82,10 @@ class ExecutionResult(BaseModel):
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
 
     execution_id: str
-    result: dict | None = None
+    result: dict[str, Any] | None = None
     performance: Any | None = None
     duration_ms: int | None = None
-    trace: dict | None = None
+    trace: dict[str, Any] | None = None
 
 
 class ExecutionHistory(BaseModel):
@@ -94,8 +94,8 @@ class ExecutionHistory(BaseModel):
     id: str
     decision_model_id: str
     decision_model_version_id: str
-    input_context: dict | None = None
-    output_result: dict | None = None
+    input_context: dict[str, Any] | None = None
+    output_result: dict[str, Any] | None = None
     duration_ms: int | None = None
     status: str
     error_message: str | None = None
