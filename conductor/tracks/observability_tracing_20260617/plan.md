@@ -67,14 +67,14 @@ Protocol at the end of every phase.
 - [x] Task: Refactor; verify coverage / mypy / black (908a6b1)
 - [x] Task: Conductor - User Manual Verification 'Phase 5: agent_run & facade integration' (Protocol in workflow.md) (c4bf7b4)
 
-## Phase 6: Langfuse client helper (FR8)
+## Phase 6: Langfuse client helper (FR8) [checkpoint: pending]
 
-- [ ] Task: Write failing tests (langfuse import stubbed)
-    - [ ] `langfuse_client()` returns `None` when the package or keys are absent
-    - [ ] When present, the constructed client is authenticated via `_HttpxBearerAuth` and the shared span exporter
-- [ ] Task: Implement `langfuse_client()` with lazy import (Green)
-- [ ] Task: Refactor; verify coverage / mypy / black
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: Langfuse client helper' (Protocol in workflow.md)
+- [x] Task: Write failing tests (langfuse import stubbed) (aa0723f)
+    - [x] `langfuse_client()` returns `None` when the package or keys are absent
+    - [x] When present, the constructed client is authenticated via `_HttpxBearerAuth` and the shared span exporter
+- [x] Task: Implement `langfuse_client()` with lazy import (Green) (aa0723f)
+- [x] Task: Refactor; verify coverage / mypy / black (aa0723f)
+- [~] Task: Conductor - User Manual Verification 'Phase 6: Langfuse client helper' (Protocol in workflow.md)
 
 ## Phase 7: Example, docs & release polish
 
