@@ -8,12 +8,16 @@ Python client SDK for the GTS Agency platform. Provides typed HTTP clients for d
 
 - **Python:** >=3.12
 - **Key deps:** requests, pydantic (v2), pyjwt
+- **Optional deps:** `[observability]` extra — opentelemetry-sdk, otlp-http exporter, instrumentation-logging, langfuse (lazy-imported)
 
 ## Commands
 
 ```bash
 # Install with dev dependencies
 pip install -e ".[dev]"
+
+# Install with dev + optional observability deps (needed to run observability tests)
+pip install -e ".[dev,observability]"
 
 # Type checking (strict mode)
 mypy agency_sdk/
@@ -46,6 +50,8 @@ pytest
 **DTOs:** All models use Pydantic v2 `BaseModel`. Datasource, ontology, and rules DTOs use `ConfigDict(alias_generator=_to_camel, populate_by_name=True)` for camelCase JSON mapping. Prompt/dataset/files DTOs use snake_case matching the API.
 
 **Shared type:** `Page` is defined in `datasets_dto.py` and imported by other DTO modules for pagination.
+
+**Observability (optional):** `agency_sdk/observability/` (`bootstrap.py` + `auth.py`) adds OTLP tracing/logging to a Langfuse backend, reached via `AgencyClient.observability(...)`. Heavy OpenTelemetry/Langfuse imports are deferred to the lifecycle methods so importing the SDK never pulls them. The per-request bearer hooks (`auth.py`) and exporters reuse the shared `CredentialsSupplier`. Use `obs.init()` then `with obs.agent_run(name, **attrs):` (see `docs/observability.md`, design in `docs/observability_design.md`).
 
 **Tests:** Offline suite in `agency_sdk/test/`; `conftest.py` stubs `requests` via monkeypatch so no test touches the network. mypy is relaxed for `agency_sdk.test.*` per pyproject overrides. End-to-end verification against the local stack: `docs/local_e2e.md`.
 
