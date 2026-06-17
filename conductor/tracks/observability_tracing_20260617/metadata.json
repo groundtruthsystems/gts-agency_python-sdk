@@ -1,0 +1,8 @@
+{
+  "track_id": "observability_tracing_20260617",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-06-17T18:39:03Z",
+  "updated_at": "2026-06-17T18:39:03Z",
+  "description": "Research and design how gts-demo-agent wires OpenTelemetry tracing/logging, then fold that capability into the SDK so any agent can enable OTLP tracing via AgencyClient.observability(), reusing the shared CredentialsSupplier."
+}
