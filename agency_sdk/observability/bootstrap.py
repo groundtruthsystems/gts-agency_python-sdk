@@ -11,6 +11,7 @@ this module imports cleanly without the ``[observability]`` extra installed.
 
 from __future__ import annotations
 
+import base64
 import logging
 from typing import TYPE_CHECKING
 
@@ -42,6 +43,8 @@ class Observability:
         processor: str = "simple",
         logs_path: str = DEFAULT_LOGS_PATH,
         traces_path: str = DEFAULT_TRACES_PATH,
+        logs_endpoint: str | None = None,
+        traces_endpoint: str | None = None,
         extra_headers: str | None = None,
         langfuse_public_key: str | None = None,
         langfuse_secret_key: str | None = None,
@@ -57,8 +60,63 @@ class Observability:
         self.processor = processor
         self.logs_path = logs_path
         self.traces_path = traces_path
+        self.logs_endpoint = logs_endpoint
+        self.traces_endpoint = traces_endpoint
         self.extra_headers = extra_headers
         self.langfuse_public_key = langfuse_public_key
         self.langfuse_secret_key = langfuse_secret_key
         self.langfuse_host = langfuse_host or host
         self.logger = logger or logging.getLogger(__name__)
+
+    # -- auth / header / endpoint helpers -------------------------------------
+
+    def _safe_token(self) -> str | None:
+        """Return a fresh bearer token from the shared credentials, or None.
+
+        Never raises: a transient auth failure degrades to an untraced export
+        rather than crashing the exporter, so observability stays best-effort.
+        """
+        try:
+            return self.credentials.bearer_token()
+        except Exception as exc:  # noqa: BLE001 - observability must not crash the caller
+            self.logger.warning("Observability token fetch failed: %s", exc)
+            return None
+
+    def build_headers(self) -> dict[str, str]:
+        """Static OTLP headers including the seed Authorization.
+
+        Precedence: an explicit ``Authorization`` in ``extra_headers`` > a bearer
+        token from the shared credentials > Langfuse Basic (base64 of
+        ``public:secret``). When credentials are active, the per-request auth hook
+        refreshes the header on every export; this static value is only the seed.
+        ``x-org-id`` is always set.
+        """
+        headers: dict[str, str] = {}
+
+        if self.extra_headers:
+            for item in self.extra_headers.split(","):
+                if "=" in item:
+                    key, value = item.split("=", 1)
+                    headers[key.strip()] = value.strip()
+
+        if "Authorization" not in headers:
+            token = self._safe_token()
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+
+        if "Authorization" not in headers and self.langfuse_public_key and self.langfuse_secret_key:
+            auth_b64 = base64.b64encode(
+                f"{self.langfuse_public_key}:{self.langfuse_secret_key}".encode("utf-8")
+            ).decode("utf-8")
+            headers["Authorization"] = f"Bearer {auth_b64}"
+
+        headers["x-org-id"] = self.org_id
+        return headers
+
+    def _resolve_endpoint(self, explicit: str | None, path: str) -> str | None:
+        """An explicit per-signal endpoint wins; else ``host`` + the signal path."""
+        if explicit:
+            return explicit
+        if self.host:
+            return self.host if self.host.endswith(path) else self.host.rstrip("/") + path
+        return None

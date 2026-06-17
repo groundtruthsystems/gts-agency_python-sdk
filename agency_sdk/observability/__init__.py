@@ -16,6 +16,7 @@ Install the extra with::
     pip install gts-agency-python-sdk[observability]
 """
 
+from agency_sdk.observability.auth import BearerTokenAuth, make_httpx_bearer_auth
 from agency_sdk.observability.bootstrap import (
     DEFAULT_LOGS_PATH,
     DEFAULT_TRACES_PATH,
@@ -50,6 +51,8 @@ __all__ = [
     "Observability",
     "ObservabilityNotInstalled",
     "require_observability_deps",
+    "BearerTokenAuth",
+    "make_httpx_bearer_auth",
     "DEFAULT_LOGS_PATH",
     "DEFAULT_TRACES_PATH",
 ]
