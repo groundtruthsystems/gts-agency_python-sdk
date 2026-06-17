@@ -40,6 +40,14 @@ Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
   pair under `agency_sdk/delegates/`.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
+  - *Planned (2026-06-17, observability track):* add an early-refresh buffer
+    (`refresh_buffer`, default 30 s) so a token is treated as expired shortly
+    before its real `exp`. Rationale: the observability OTLP per-request auth hook
+    re-reads this token on every export in a long-running process; refreshing at
+    the exact `exp` risks stamping a token that expires in transit. Backward
+    compatible — it only refreshes slightly sooner. An `insecure`/`verify=False`
+    option was considered and **deferred** (token endpoint is plain HTTP locally;
+    exporter-level TLS control, if needed, belongs in the observability module).
 - **HTTP conventions:** every delegate owns a `_make_request` helper; errors
   propagate via `raise_for_status()`; 30 s default timeout; query parameter
   abbreviations `o` (org), `s` (size), `p` (page), `v` (version).
