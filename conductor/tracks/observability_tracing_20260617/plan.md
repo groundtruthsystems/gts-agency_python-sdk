@@ -31,7 +31,7 @@ Protocol at the end of every phase.
 - [x] Task: Verify coverage, mypy strict, black for new files (f91d761)
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Optional dependency & module scaffolding' (Protocol in workflow.md) (66ece16)
 
-## Phase 3: Auth layer & token unification (Mechanisms 2, 3, 4) [checkpoint: pending]
+## Phase 3: Auth layer & token unification (Mechanisms 2, 3, 4) [checkpoint: 0712118]
 
 - [x] Task: Write failing tests for the auth hooks and header chain (3938586)
     - [x] `_RequestsBearerAuth` stamps a fresh `Authorization` from `CredentialsSupplier` on every `__call__`
@@ -41,7 +41,7 @@ Protocol at the end of every phase.
 - [x] Task: Implement `auth.py` and the header/endpoint helpers (Green) (3938586)
 - [x] Task: Implement agreed `CredentialsSupplier` changes (if any) with their own tests (3938586)
 - [x] Task: Refactor; verify coverage / mypy / black (3938586)
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Auth layer & token unification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Auth layer & token unification' (Protocol in workflow.md) (0712118)
 
 ## Phase 4: Telemetry pipeline & log/trace correlation (Mechanisms 1, 6)
 
