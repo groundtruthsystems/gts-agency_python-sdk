@@ -56,16 +56,16 @@ Protocol at the end of every phase.
 - [x] Task: Refactor; verify coverage / mypy / black (400d03c)
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Telemetry pipeline & log/trace correlation' (Protocol in workflow.md) (a496ffe)
 
-## Phase 5: `agent_run` context manager & facade integration (Mechanism 5)
+## Phase 5: `agent_run` context manager & facade integration (Mechanism 5) [checkpoint: pending]
 
-- [ ] Task: Write failing tests
-    - [ ] `agent_run(name, **attrs)` opens a root span, sets attributes, and yields it
-    - [ ] When tracing is off (`init()` returned `None`), `agent_run` is a `nullcontext` and code still runs
-    - [ ] Child spans and logs opened inside `agent_run` share the root trace_id
-    - [ ] `AgencyClient.observability(...)` returns an `Observability` bound to the client's shared `CredentialsSupplier`; repeated calls return the same instance; OTLP host defaults to the client `base_url`, overridable
-- [ ] Task: Implement `agent_run` and `AgencyClient.observability()` (Green)
-- [ ] Task: Refactor; verify coverage / mypy / black
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: agent_run & facade integration' (Protocol in workflow.md)
+- [x] Task: Write failing tests (908a6b1)
+    - [x] `agent_run(name, **attrs)` opens a root span, sets attributes, and yields it
+    - [x] When tracing is off (`init()` returned `None`), `agent_run` is a `nullcontext` and code still runs
+    - [x] Child spans and logs opened inside `agent_run` share the root trace_id
+    - [x] `AgencyClient.observability(...)` returns an `Observability` bound to the client's shared `CredentialsSupplier`; repeated calls return the same instance; OTLP host defaults to the client `base_url`, overridable
+- [x] Task: Implement `agent_run` and `AgencyClient.observability()` (Green) (908a6b1)
+- [x] Task: Refactor; verify coverage / mypy / black (908a6b1)
+- [~] Task: Conductor - User Manual Verification 'Phase 5: agent_run & facade integration' (Protocol in workflow.md)
 
 ## Phase 6: Langfuse client helper (FR8)
 
