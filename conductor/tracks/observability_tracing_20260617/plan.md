@@ -76,7 +76,7 @@ Protocol at the end of every phase.
 - [x] Task: Refactor; verify coverage / mypy / black (aa0723f)
 - [x] Task: Conductor - User Manual Verification 'Phase 6: Langfuse client helper' (Protocol in workflow.md) (362d253)
 
-## Phase 7: Example, docs & release polish [checkpoint: pending]
+## Phase 7: Example, docs & release polish [checkpoint: 99fe6e8]
 
 - [x] Task: Add `examples/quick_observability.py` (3-line setup + `agent_run`, self-verifying where possible) (8987fa1)
 - [x] Task: Documentation (8987fa1)
@@ -85,4 +85,4 @@ Protocol at the end of every phase.
 - [x] Task: Final gate run and version bump (8987fa1)
     - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check`, `bandit -r agency_sdk/ -x agency_sdk/test`
     - [x] Bump version in `pyproject.toml`
-- [~] Task: Conductor - User Manual Verification 'Phase 7: Example, docs & release polish' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 7: Example, docs & release polish' (Protocol in workflow.md) (99fe6e8)
