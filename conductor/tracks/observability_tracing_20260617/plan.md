@@ -43,7 +43,7 @@ Protocol at the end of every phase.
 - [x] Task: Refactor; verify coverage / mypy / black (3938586)
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Auth layer & token unification' (Protocol in workflow.md) (0712118)
 
-## Phase 4: Telemetry pipeline & log/trace correlation (Mechanisms 1, 6) [checkpoint: pending]
+## Phase 4: Telemetry pipeline & log/trace correlation (Mechanisms 1, 6) [checkpoint: a496ffe]
 
 - [x] Task: Write failing tests with OTel in-memory exporters (400d03c)
     - [x] `init()` builds a real recording `TracerProvider` + `LoggerProvider`; a started span has a valid (non-zero) span context
@@ -54,7 +54,7 @@ Protocol at the end of every phase.
     - [x] Providers, OTLP span/log exporters wired through the auth hooks, processor choice
     - [x] `LoggingInstrumentor().instrument()` + root `LoggingHandler`
 - [x] Task: Refactor; verify coverage / mypy / black (400d03c)
-- [~] Task: Conductor - User Manual Verification 'Phase 4: Telemetry pipeline & log/trace correlation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Telemetry pipeline & log/trace correlation' (Protocol in workflow.md) (a496ffe)
 
 ## Phase 5: `agent_run` context manager & facade integration (Mechanism 5)
 
