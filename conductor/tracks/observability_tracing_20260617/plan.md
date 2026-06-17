@@ -76,13 +76,13 @@ Protocol at the end of every phase.
 - [x] Task: Refactor; verify coverage / mypy / black (aa0723f)
 - [x] Task: Conductor - User Manual Verification 'Phase 6: Langfuse client helper' (Protocol in workflow.md) (362d253)
 
-## Phase 7: Example, docs & release polish
+## Phase 7: Example, docs & release polish [checkpoint: pending]
 
-- [ ] Task: Add `examples/quick_observability.py` (3-line setup + `agent_run`, self-verifying where possible)
-- [ ] Task: Documentation
-    - [ ] Add SDK `docs/observability.md` (setup, preserved mechanisms, migration from the demo's inline bootstrap)
-    - [ ] Update `README.md`, `CLAUDE.md`, `conductor/product.md`, `conductor/tech-stack.md`
-- [ ] Task: Final gate run and version bump
-    - [ ] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check`, `bandit -r agency_sdk/ -x agency_sdk/test`
-    - [ ] Bump version in `pyproject.toml`
-- [ ] Task: Conductor - User Manual Verification 'Phase 7: Example, docs & release polish' (Protocol in workflow.md)
+- [x] Task: Add `examples/quick_observability.py` (3-line setup + `agent_run`, self-verifying where possible) (8987fa1)
+- [x] Task: Documentation (8987fa1)
+    - [x] Add SDK `docs/observability.md` (setup, preserved mechanisms, migration from the demo's inline bootstrap)
+    - [x] Update `README.md`, `CLAUDE.md`; `conductor/product.md` + `conductor/tech-stack.md` handled by the doc-sync step (tech-stack credentials note already landed in Phase 1)
+- [x] Task: Final gate run and version bump (8987fa1)
+    - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check`, `bandit -r agency_sdk/ -x agency_sdk/test`
+    - [x] Bump version in `pyproject.toml`
+- [~] Task: Conductor - User Manual Verification 'Phase 7: Example, docs & release polish' (Protocol in workflow.md)
