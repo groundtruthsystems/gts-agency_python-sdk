@@ -20,16 +20,16 @@ Protocol at the end of every phase.
     - [x] If changing the credentials contract, record the decision in `tech-stack.md` with a dated note (workflow rule 7)
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Research & Design' (Protocol in workflow.md) (687e935)
 
-## Phase 2: Optional dependency & module scaffolding
+## Phase 2: Optional dependency & module scaffolding [checkpoint: pending]
 
-- [ ] Task: Write failing tests for packaging & lazy-import behaviour
-    - [ ] `import agency_sdk` and an existing API client construct succeed with the extra NOT installed
-    - [ ] `AgencyClient.observability(...)` raises a clear, actionable error naming `[observability]` when deps are missing
-- [ ] Task: Implement the extra and package skeleton (Green)
-    - [ ] Add `[project.optional-dependencies] observability = [...]` to `pyproject.toml`; add `[observability]` to the dev test env
-    - [ ] Create `agency_sdk/observability/__init__.py` with the lazy-import guard and public exports
-- [ ] Task: Verify coverage, mypy strict, black for new files
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Optional dependency & module scaffolding' (Protocol in workflow.md)
+- [x] Task: Write failing tests for packaging & lazy-import behaviour (f91d761)
+    - [x] `import agency_sdk` and an existing API client construct succeed with the extra NOT installed
+    - [x] `AgencyClient.observability(...)` raises a clear, actionable error naming `[observability]` when deps are missing
+- [x] Task: Implement the extra and package skeleton (Green) (f91d761)
+    - [x] Add `[project.optional-dependencies] observability = [...]` to `pyproject.toml`; add `[observability]` to the dev test env
+    - [x] Create `agency_sdk/observability/__init__.py` with the lazy-import guard and public exports
+- [x] Task: Verify coverage, mypy strict, black for new files (f91d761)
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Optional dependency & module scaffolding' (Protocol in workflow.md)
 
 ## Phase 3: Auth layer & token unification (Mechanisms 2, 3, 4)
 
