@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import atexit
 import base64
+import contextlib
 import logging
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 from agency_sdk.observability.auth import BearerTokenAuth
@@ -26,7 +28,7 @@ if TYPE_CHECKING:
     from opentelemetry.sdk._logs.export import LogRecordProcessor
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SpanProcessor
-    from opentelemetry.trace import Tracer
+    from opentelemetry.trace import Span, Tracer
 
 # Langfuse's OTLP signal paths; overridable for other OTLP backends.
 DEFAULT_LOGS_PATH = "/api/public/otel/v1/logs"
@@ -248,6 +250,23 @@ class Observability:
 
         self._tracer = tracer_provider.get_tracer(self.service_name)
         return self._tracer
+
+    @contextlib.contextmanager
+    def agent_run(self, name: str, **attributes: Any) -> Iterator[Span | None]:
+        """Open a recording root span for an agent run (Mechanism 5).
+
+        Encodes the "open a root span first" rule so logs and child spans created
+        inside the block correlate under one trace. Degrades to a no-op yielding
+        ``None`` when tracing is off (``init`` not called or returned ``None``), so
+        the same ``with`` block runs untraced rather than crashing.
+        """
+        if self._tracer is None:
+            yield None
+            return
+        with self._tracer.start_as_current_span(name) as span:
+            for key, value in attributes.items():
+                span.set_attribute(key, value)
+            yield span
 
     def shutdown(self) -> None:
         """Detach the log handler and flush/close both providers. Idempotent."""

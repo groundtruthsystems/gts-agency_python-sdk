@@ -145,3 +145,50 @@ def test_init_returns_none_on_exporter_failure(monkeypatch, otel_isolation):
     assert result is None  # graceful degradation, no exception
     # No global side effects when setup fails.
     assert list(logging.getLogger().handlers) == handlers_before
+
+
+# -- agent_run (Mechanism 5) --------------------------------------------------
+
+
+def test_agent_run_opens_root_span_with_attributes(monkeypatch, otel_isolation):
+    obs, span_exporter, _ = _obs_with_inmemory(monkeypatch)
+    obs.init()
+
+    with obs.agent_run("agent.x", correlation_id="cid-1", team="echo") as span:
+        assert span is not None
+        assert span.is_recording()
+
+    obs.shutdown()
+    root = next(s for s in span_exporter.get_finished_spans() if s.name == "agent.x")
+    assert root.attributes["correlation_id"] == "cid-1"
+    assert root.attributes["team"] == "echo"
+
+
+def test_agent_run_is_nullcontext_when_tracing_off():
+    obs = Observability(_StaticCreds(), "gts-x")  # init() never called -> no tracer
+
+    ran = False
+    with obs.agent_run("agent.x", k="v") as span:
+        assert span is None
+        ran = True
+
+    assert ran  # body still executes, untraced
+
+
+def test_child_spans_and_logs_share_root_trace_id(monkeypatch, otel_isolation):
+    obs, _, log_exporter = _obs_with_inmemory(monkeypatch)
+    tracer = obs.init()
+    logging.getLogger().setLevel(logging.DEBUG)
+
+    with obs.agent_run("agent.x") as root:
+        root_trace_id = root.get_span_context().trace_id
+        with tracer.start_as_current_span("child") as child:
+            assert child.get_span_context().trace_id == root_trace_id
+        logging.getLogger("obs.test.nested").warning("inside-run")
+
+    obs._logger_provider.force_flush()
+    matched = [r for r in log_exporter.get_finished_logs() if r.log_record.body == "inside-run"]
+    obs.shutdown()
+
+    assert matched
+    assert matched[0].log_record.trace_id == root_trace_id

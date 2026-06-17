@@ -68,3 +68,11 @@ def test_observability_returns_bound_cached_instance(fake_credentials):
     assert obs.service_version == "1.2.3"
     assert obs.host == "http://cp.test"  # defaults to (rstripped) client base_url
     assert client.observability("gts-test") is obs  # idempotent / cached
+
+
+def test_observability_host_is_overridable(fake_credentials):
+    client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test")
+
+    obs = client.observability("gts-test", host="http://otel.other:4318")
+
+    assert obs.host == "http://otel.other:4318"
