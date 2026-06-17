@@ -4,7 +4,7 @@ Methodology: TDD per `workflow.md` (Red → Green → Refactor), >80% coverage,
 mypy strict / black / bandit gates, and the Phase Completion Verification
 Protocol at the end of every phase.
 
-## Phase 1: Research & Design [checkpoint: pending]
+## Phase 1: Research & Design [checkpoint: 687e935]
 
 - [x] Task: Consolidate research findings from `gts-demo-agent` (c48d604)
     - [x] Re-read `docs/observability.md` Part 1 & 2 and `demo/common/observability.py`, `demo/agency.py`
@@ -18,7 +18,7 @@ Protocol at the end of every phase.
 - [x] Task: Decide and document any `CredentialsSupplier` changes (c48d604)
     - [x] Assess need for an early-refresh buffer (avoid mid-flight expiry on the export path) and an `insecure`/verify option
     - [x] If changing the credentials contract, record the decision in `tech-stack.md` with a dated note (workflow rule 7)
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Research & Design' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Research & Design' (Protocol in workflow.md) (687e935)
 
 ## Phase 2: Optional dependency & module scaffolding
 
