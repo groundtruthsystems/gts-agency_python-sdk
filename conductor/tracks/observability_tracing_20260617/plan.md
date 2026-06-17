@@ -4,21 +4,21 @@ Methodology: TDD per `workflow.md` (Red → Green → Refactor), >80% coverage,
 mypy strict / black / bandit gates, and the Phase Completion Verification
 Protocol at the end of every phase.
 
-## Phase 1: Research & Design
+## Phase 1: Research & Design [checkpoint: pending]
 
-- [ ] Task: Consolidate research findings from `gts-demo-agent`
-    - [ ] Re-read `docs/observability.md` Part 1 & 2 and `demo/common/observability.py`, `demo/agency.py`
-    - [ ] Catalogue the 6 load-bearing mechanisms and mark which transfer verbatim vs adapt for the facade
-- [ ] Task: Author the SDK design document `docs/observability_design.md`
-    - [ ] Module layout (`agency_sdk/observability/`: `bootstrap.py`, `auth.py`, `__init__.py`) and public API surface
-    - [ ] Facade contract: `AgencyClient.observability(service_name, service_version=..., **opts)` signature, host/env resolution, instance caching
-    - [ ] Token-unification design: per-request hooks call `CredentialsSupplier.bearer_token()`; the demo's `KeycloakTokenProvider` is dropped
-    - [ ] Dependency strategy: `[observability]` extra contents + lazy-import / graceful-degradation rules
-    - [ ] Testing strategy: offline (requests+httpx stubbed), OTel in-memory exporters, what each phase tests
-- [ ] Task: Decide and document any `CredentialsSupplier` changes
-    - [ ] Assess need for an early-refresh buffer (avoid mid-flight expiry on the export path) and an `insecure`/verify option
-    - [ ] If changing the credentials contract, record the decision in `tech-stack.md` with a dated note (workflow rule 7)
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Research & Design' (Protocol in workflow.md)
+- [x] Task: Consolidate research findings from `gts-demo-agent` (c48d604)
+    - [x] Re-read `docs/observability.md` Part 1 & 2 and `demo/common/observability.py`, `demo/agency.py`
+    - [x] Catalogue the 6 load-bearing mechanisms and mark which transfer verbatim vs adapt for the facade
+- [x] Task: Author the SDK design document `docs/observability_design.md` (c48d604)
+    - [x] Module layout (`agency_sdk/observability/`: `bootstrap.py`, `auth.py`, `__init__.py`) and public API surface
+    - [x] Facade contract: `AgencyClient.observability(service_name, service_version=..., **opts)` signature, host/env resolution, instance caching
+    - [x] Token-unification design: per-request hooks call `CredentialsSupplier.bearer_token()`; the demo's `KeycloakTokenProvider` is dropped
+    - [x] Dependency strategy: `[observability]` extra contents + lazy-import / graceful-degradation rules
+    - [x] Testing strategy: offline (requests+httpx stubbed), OTel in-memory exporters, what each phase tests
+- [x] Task: Decide and document any `CredentialsSupplier` changes (c48d604)
+    - [x] Assess need for an early-refresh buffer (avoid mid-flight expiry on the export path) and an `insecure`/verify option
+    - [x] If changing the credentials contract, record the decision in `tech-stack.md` with a dated note (workflow rule 7)
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Research & Design' (Protocol in workflow.md)
 
 ## Phase 2: Optional dependency & module scaffolding
 
