@@ -11,12 +11,22 @@ this module imports cleanly without the ``[observability]`` extra installed.
 
 from __future__ import annotations
 
+import atexit
 import base64
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from agency_sdk.observability.auth import BearerTokenAuth
 
 if TYPE_CHECKING:
     from agency_sdk.credentials import CredentialsSupplier
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk._logs import LoggerProvider
+    from opentelemetry.sdk._logs.export import LogRecordProcessor
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SpanProcessor
+    from opentelemetry.trace import Tracer
 
 # Langfuse's OTLP signal paths; overridable for other OTLP backends.
 DEFAULT_LOGS_PATH = "/api/public/otel/v1/logs"
@@ -67,6 +77,11 @@ class Observability:
         self.langfuse_secret_key = langfuse_secret_key
         self.langfuse_host = langfuse_host or host
         self.logger = logger or logging.getLogger(__name__)
+
+        self._tracer_provider: TracerProvider | None = None
+        self._logger_provider: LoggerProvider | None = None
+        self._tracer: Tracer | None = None
+        self._log_handler: logging.Handler | None = None
 
     # -- auth / header / endpoint helpers -------------------------------------
 
@@ -120,3 +135,126 @@ class Observability:
         if self.host:
             return self.host if self.host.endswith(path) else self.host.rstrip("/") + path
         return None
+
+    # -- exporter / processor construction ------------------------------------
+
+    def _exporter_kwargs(self, endpoint: str | None) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {}
+        if endpoint:
+            kwargs["endpoint"] = endpoint
+        headers = self.build_headers()
+        if headers:
+            kwargs["headers"] = headers
+        return kwargs
+
+    def _attach_dynamic_auth(self, exporter: Any) -> None:
+        """Refresh the bearer token on every export for this exporter (Mechanism 2).
+
+        OTLP HTTP exporters freeze their static headers into a ``requests.Session``;
+        ``requests`` calls ``session.auth`` on every request, so routing the token
+        through :class:`BearerTokenAuth` keeps a long-running process from sending an
+        expired token.
+        """
+        session = getattr(exporter, "_session", None)
+        if session is not None:
+            session.auth = BearerTokenAuth(self._safe_token)
+
+    def make_span_exporter(self) -> OTLPSpanExporter:
+        """An OTLP span exporter for the traces endpoint, with refreshing auth."""
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        endpoint = self._resolve_endpoint(self.traces_endpoint, self.traces_path)
+        exporter = OTLPSpanExporter(**self._exporter_kwargs(endpoint))
+        self._attach_dynamic_auth(exporter)
+        return exporter
+
+    def make_log_exporter(self) -> OTLPLogExporter:
+        """An OTLP log exporter for the logs endpoint, with refreshing auth."""
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+
+        endpoint = self._resolve_endpoint(self.logs_endpoint, self.logs_path)
+        exporter = OTLPLogExporter(**self._exporter_kwargs(endpoint))
+        self._attach_dynamic_auth(exporter)
+        return exporter
+
+    def _make_span_processor(self, exporter: Any) -> SpanProcessor:
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+
+        if self.processor == "batch":
+            return BatchSpanProcessor(exporter)
+        return SimpleSpanProcessor(exporter)
+
+    def _make_log_processor(self, exporter: Any) -> LogRecordProcessor:
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor, SimpleLogRecordProcessor
+
+        if self.processor == "batch":
+            return BatchLogRecordProcessor(exporter)
+        return SimpleLogRecordProcessor(exporter)
+
+    # -- lifecycle ------------------------------------------------------------
+
+    @property
+    def tracer_provider(self) -> TracerProvider | None:
+        return self._tracer_provider
+
+    def init(self) -> Tracer | None:
+        """Configure OTLP log + trace export and return a tracer for manual spans.
+
+        Builds a real recording ``TracerProvider`` and a ``LoggerProvider`` (both
+        held explicitly, not registered globally — correlation is driven by the OTel
+        context), bridges stdlib logging to OTLP via ``LoggingInstrumentor`` + a root
+        ``LoggingHandler`` so log records carry the active span's trace/span ids, and
+        returns the tracer. Returns ``None`` if exporter setup fails so the caller
+        keeps running untraced rather than crashing.
+        """
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+
+        resource = Resource.create(
+            {
+                "service.name": self.service_name,
+                "service.version": self.service_version,
+                "deployment.environment": self.environment,
+            }
+        )
+
+        # Build exporters and providers first; any failure leaves us fully untraced
+        # with no global side effects (no instrumentation, no root handler).
+        try:
+            log_exporter = self.make_log_exporter()
+            span_exporter = self.make_span_exporter()
+            logger_provider = LoggerProvider(resource=resource)
+            logger_provider.add_log_record_processor(self._make_log_processor(log_exporter))
+            tracer_provider = TracerProvider(resource=resource)
+            tracer_provider.add_span_processor(self._make_span_processor(span_exporter))
+        except Exception as exc:  # noqa: BLE001 - observability must not crash the caller
+            self.logger.warning("Failed to initialize OTLP exporters: %s", exc)
+            return None
+
+        self._logger_provider = logger_provider
+        self._tracer_provider = tracer_provider
+        atexit.register(logger_provider.shutdown)
+        atexit.register(tracer_provider.shutdown)
+
+        # LoggingInstrumentor injects trace/span ids into stdlib LogRecords; the
+        # LoggingHandler exports those records to the LoggerProvider. Both read the
+        # active span from the OTel context at emit time (so a span must be active).
+        LoggingInstrumentor().instrument()
+        handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+        logging.getLogger().addHandler(handler)
+        self._log_handler = handler
+
+        self._tracer = tracer_provider.get_tracer(self.service_name)
+        return self._tracer
+
+    def shutdown(self) -> None:
+        """Detach the log handler and flush/close both providers. Idempotent."""
+        if self._log_handler is not None:
+            logging.getLogger().removeHandler(self._log_handler)
+            self._log_handler = None
+        if self._logger_provider is not None:
+            self._logger_provider.shutdown()
+        if self._tracer_provider is not None:
+            self._tracer_provider.shutdown()
