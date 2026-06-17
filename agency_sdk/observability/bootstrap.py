@@ -18,10 +18,11 @@ import logging
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
-from agency_sdk.observability.auth import BearerTokenAuth
+from agency_sdk.observability.auth import BearerTokenAuth, make_httpx_bearer_auth
 
 if TYPE_CHECKING:
     from agency_sdk.credentials import CredentialsSupplier
+    from langfuse import Langfuse
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk._logs import LoggerProvider
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
 # Langfuse's OTLP signal paths; overridable for other OTLP backends.
 DEFAULT_LOGS_PATH = "/api/public/otel/v1/logs"
 DEFAULT_TRACES_PATH = "/api/public/otel/v1/traces"
+
+_DEFAULT_HTTP_TIMEOUT = 20.0
 
 
 class Observability:
@@ -267,6 +270,35 @@ class Observability:
             for key, value in attributes.items():
                 span.set_attribute(key, value)
             yield span
+
+    def langfuse_client(self) -> Langfuse | None:
+        """Construct a Langfuse client authenticated like the exporters (or None).
+
+        Returns ``None`` when the project keys or the ``langfuse`` package are
+        absent. Otherwise both the Langfuse transport and its span exporter are
+        routed through the shared refreshing bearer token, so prompt management /
+        scoring authenticate with the same credentials as the OTLP exporters.
+        """
+        if not (self.langfuse_public_key and self.langfuse_secret_key):
+            return None
+        try:
+            import httpx
+            from langfuse import Langfuse
+        except Exception as exc:  # noqa: BLE001 - missing optional package degrades to None
+            self.logger.warning("Langfuse client unavailable: %s", exc)
+            return None
+
+        httpx_client = httpx.Client(
+            timeout=_DEFAULT_HTTP_TIMEOUT,
+            auth=make_httpx_bearer_auth(self._safe_token),
+        )
+        return Langfuse(
+            public_key=self.langfuse_public_key,
+            secret_key=self.langfuse_secret_key,
+            host=self.langfuse_host,
+            httpx_client=httpx_client,
+            span_exporter=self.make_span_exporter(),
+        )
 
     def shutdown(self) -> None:
         """Detach the log handler and flush/close both providers. Idempotent."""
