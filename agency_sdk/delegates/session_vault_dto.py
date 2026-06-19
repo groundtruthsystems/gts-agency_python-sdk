@@ -3,6 +3,13 @@
 The session vault is an organisation- and session-scoped key/value store of
 serializable JSON, backed by object storage. Each entry carries a
 classification controlling encryption and read access.
+
+Wire format: the vault endpoints serialise with plain snake_case field names
+(no camelCase), so these models use raw snake_case fields with no alias
+generator. This intentionally follows the same convention as ``files_dto.py``
+and ``datasets_dto.py`` — not the ``alias_generator=_to_camel`` convention used
+by the camelCase APIs (datasource, ontology, rules). See CLAUDE.md ("DTOs")
+for the split.
 """
 
 from typing import Any

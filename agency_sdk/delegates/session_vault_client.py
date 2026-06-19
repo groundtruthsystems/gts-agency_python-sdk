@@ -53,6 +53,9 @@ class AgencySessionVaultClient:
         self,
         method: str,
         endpoint: str,
+        # vault accepts any JSON value (dict, list, scalar) as the body, unlike the
+        # other delegate clients (e.g. AgencyRulesClient) which only ever send dicts
+        # and so type this as ``dict[str, Any] | None``.
         data: Any = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
