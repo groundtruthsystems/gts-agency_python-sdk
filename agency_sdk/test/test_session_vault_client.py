@@ -45,6 +45,13 @@ class TestList:
         assert [e.key for e in result.entries] == ["checkpoint", "notes"]
         assert result.entries[0].size == 128
 
+    def test_list_empty_vault(self, client, stub_requests):
+        stub_requests.queue(json_data={"entries": []})
+
+        result = client.list(organisation_id=2, session_id=SESSION_ID)
+
+        assert result.entries == []
+
 
 class TestGet:
     def test_get_without_reveal_omits_param(self, client, stub_requests):
@@ -106,6 +113,17 @@ class TestSet:
         assert call.kwargs["params"] == {"o": "2", "classification": "public"}
         # A list value is sent verbatim as the body.
         assert call.kwargs["json"] == ["a", "b", "c"]
+
+    @pytest.mark.parametrize("value", ["a plain string", 42, 3.14, True, None])
+    def test_set_sends_scalar_values_verbatim(self, client, stub_requests, value):
+        stub_requests.queue(json_data={"key": "scalar", "classification": "restricted"})
+
+        client.set(organisation_id=2, session_id=SESSION_ID, key="scalar", value=value)
+
+        call = stub_requests.calls[0]
+        assert call.method == "PUT"
+        # Any JSON-serializable scalar is sent as the raw body, not wrapped.
+        assert call.kwargs["json"] == value
 
     def test_set_invalid_key_raises_before_network(self, client, stub_requests):
         with pytest.raises(ValueError):
