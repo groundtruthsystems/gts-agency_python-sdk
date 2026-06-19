@@ -117,14 +117,14 @@ def main() -> int:
         print(f"4. vault has {len(listing.entries)} entries: {keys}")
 
         # 5. Delete an entry and confirm it is gone.
-        # vault.delete(organisation_id, session_id, "notes")
-        # remaining = sorted(e.key for e in vault.list(organisation_id, session_id).entries)
-        # assert "notes" not in remaining, remaining
-        # print(f"5. deleted 'notes'; remaining: {remaining}")
-        #
-        # # 6. Complete the session — reaching a terminal state clears the vault.
-        # _complete_session(base_url, credentials.bearer_token(), organisation_id, session_id)
-        # print("6. session completed (vault cleaned up on terminal state)")
+        vault.delete(organisation_id, session_id, "notes")
+        remaining = sorted(e.key for e in vault.list(organisation_id, session_id).entries)
+        assert "notes" not in remaining, remaining
+        print(f"5. deleted 'notes'; remaining: {remaining}")
+
+        # 6. Complete the session — reaching a terminal state clears the vault.
+        _complete_session(base_url, credentials.bearer_token(), organisation_id, session_id)
+        print("6. session completed (vault cleaned up on terminal state)")
 
         ok = True
     except Exception:
