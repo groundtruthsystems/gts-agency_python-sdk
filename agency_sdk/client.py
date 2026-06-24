@@ -1,3 +1,4 @@
+import threading
 from typing import TYPE_CHECKING
 
 from agency_sdk.credentials import CredentialsSupplier
@@ -29,6 +30,7 @@ class AgencyClient:
         self.files_client = AgencyFilesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
+        self._observability_lock = threading.Lock()
 
     def prompts(self) -> AgencyPromptsClient:
         return self.prompt_client
@@ -79,16 +81,22 @@ class AgencyClient:
         require_observability_deps()
         observability = self._observability
         if observability is None:
-            observability = Observability(
-                credentials=self.token_supplier,
-                service_name=service_name,
-                service_version=service_version,
-                host=host or self.base_url,
-                environment=environment,
-                org_id=org_id,
-                processor=processor,
-                langfuse_public_key=langfuse_public_key,
-                langfuse_secret_key=langfuse_secret_key,
-            )
-            self._observability = observability
+            # Double-checked locking: serialize concurrent first-time builds so a
+            # single Observability is constructed and cached (repeated calls return
+            # the same instance, even under concurrency).
+            with self._observability_lock:
+                observability = self._observability
+                if observability is None:
+                    observability = Observability(
+                        credentials=self.token_supplier,
+                        service_name=service_name,
+                        service_version=service_version,
+                        host=host or self.base_url,
+                        environment=environment,
+                        org_id=org_id,
+                        processor=processor,
+                        langfuse_public_key=langfuse_public_key,
+                        langfuse_secret_key=langfuse_secret_key,
+                    )
+                    self._observability = observability
         return observability
