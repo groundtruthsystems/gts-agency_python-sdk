@@ -105,4 +105,15 @@ Protocol at the end of every phase.
 - [x] Task: Verify coverage / mypy / black / bandit (09d1342)
 - [x] Task: Conductor - User Manual Verification 'Phase 9: Code-review follow-ups' (Protocol in workflow.md) (09d1342)
 
-> M1 (handler.flush) and L2 (batch thread join) reviewed and judged non-issues; L1/M3/M4/L3 left as optional design/style improvements. See PR #5 analysis.
+> M1 (handler.flush) and L2 (batch thread join) reviewed and judged non-issues. See PR #5 analysis.
+
+## Phase 10: Code-review design/style follow-ups (PR #5)
+
+- [x] Task: L1 — make `Classification` a `StrEnum` (27d3ef2)
+    - [x] Test: members equal their string values, `DEFAULT` is `RESTRICTED`, `str()` yields the bare value
+    - [x] Implement: convert the plain class to `enum.StrEnum` (drop-in; members stay `str`)
+- [ ] Task: M3 — extract a shared `BaseDelegateClient` (`__init__` + `_make_request`/`_request`); specialize ontology (raw `Response`) and session_vault (`data: Any`)
+- [ ] Task: M4 — group `Observability` constructor knobs (approach pending user scope decision)
+- [ ] Task: L3 — delegate signature consistency (scope pending user decision; public-API/cross-track)
+- [ ] Task: Verify coverage / mypy / black / bandit
+- [ ] Task: Conductor - User Manual Verification 'Phase 10: Code-review design/style follow-ups' (Protocol in workflow.md)
