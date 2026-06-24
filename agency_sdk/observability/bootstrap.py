@@ -230,9 +230,12 @@ class Observability:
         try:
             log_exporter = self.make_log_exporter()
             span_exporter = self.make_span_exporter()
-            logger_provider = LoggerProvider(resource=resource)
+            # shutdown_on_exit=False: the providers' own atexit hooks would fire
+            # alongside (and after) ours, re-shutting them down. We own the lifecycle
+            # via the single idempotent self.shutdown registered below.
+            logger_provider = LoggerProvider(resource=resource, shutdown_on_exit=False)
             logger_provider.add_log_record_processor(self._make_log_processor(log_exporter))
-            tracer_provider = TracerProvider(resource=resource)
+            tracer_provider = TracerProvider(resource=resource, shutdown_on_exit=False)
             tracer_provider.add_span_processor(self._make_span_processor(span_exporter))
         except Exception as exc:  # noqa: BLE001 - observability must not crash the caller
             self.logger.warning("Failed to initialize OTLP exporters: %s", exc)
@@ -240,8 +243,10 @@ class Observability:
 
         self._logger_provider = logger_provider
         self._tracer_provider = tracer_provider
-        atexit.register(logger_provider.shutdown)
-        atexit.register(tracer_provider.shutdown)
+        # Drive shutdown through the (idempotent) instance method, not the raw
+        # providers, so an explicit shutdown() plus this atexit hook never close a
+        # provider twice.
+        atexit.register(self.shutdown)
 
         # LoggingInstrumentor injects trace/span ids into stdlib LogRecords; the
         # LoggingHandler exports those records to the LoggerProvider. Both read the
@@ -301,11 +306,19 @@ class Observability:
         )
 
     def shutdown(self) -> None:
-        """Detach the log handler and flush/close both providers. Idempotent."""
+        """Detach the log handler and flush/close both providers.
+
+        Idempotent: provider references are cleared after the first shutdown, so a
+        second explicit call and the atexit hook registered in :meth:`init` are both
+        no-ops rather than shutting a provider down twice.
+        """
         if self._log_handler is not None:
             logging.getLogger().removeHandler(self._log_handler)
             self._log_handler = None
         if self._logger_provider is not None:
             self._logger_provider.shutdown()
+            self._logger_provider = None
         if self._tracer_provider is not None:
             self._tracer_provider.shutdown()
+            self._tracer_provider = None
+        self._tracer = None

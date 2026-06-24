@@ -131,6 +131,38 @@ def test_tracer_provider_property_reflects_lifecycle(monkeypatch, otel_isolation
     obs.shutdown()
 
 
+def test_shutdown_is_idempotent(monkeypatch, otel_isolation):
+    obs, _, _ = _obs_with_inmemory(monkeypatch)
+    obs.init()
+    logger_provider, tracer_provider = obs._logger_provider, obs._tracer_provider
+    counts = {"log": 0, "trace": 0}
+    monkeypatch.setattr(logger_provider, "shutdown", lambda: counts.__setitem__("log", counts["log"] + 1))
+    monkeypatch.setattr(tracer_provider, "shutdown", lambda: counts.__setitem__("trace", counts["trace"] + 1))
+
+    obs.shutdown()
+    obs.shutdown()  # a second explicit call (and the atexit path) must be a no-op
+
+    assert counts == {"log": 1, "trace": 1}
+    assert obs._logger_provider is None
+    assert obs._tracer_provider is None
+
+
+def test_init_registers_instance_shutdown_with_atexit(monkeypatch, otel_isolation):
+    import agency_sdk.observability.bootstrap as bootstrap
+
+    registered: list = []
+    monkeypatch.setattr(bootstrap.atexit, "register", lambda fn, *a, **k: registered.append(fn))
+
+    obs, _, _ = _obs_with_inmemory(monkeypatch)
+    obs.init()
+
+    # atexit drives the instance shutdown (idempotent), not the raw providers directly.
+    assert obs.shutdown in registered
+    assert obs._logger_provider.shutdown not in registered
+    assert obs._tracer_provider.shutdown not in registered
+    obs.shutdown()
+
+
 def test_init_returns_none_on_exporter_failure(monkeypatch, otel_isolation):
     obs = Observability(_StaticCreds(), "gts-test", host="http://cp.test")
 
