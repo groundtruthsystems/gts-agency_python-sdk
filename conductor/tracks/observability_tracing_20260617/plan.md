@@ -95,12 +95,14 @@ Protocol at the end of every phase.
     - [x] Verify coverage / mypy / black / bandit
 - [x] Task: Conductor - User Manual Verification 'Phase 8: Post-completion fixes' (Protocol in workflow.md) (0ff4c59)
 
-## Phase 9: Code-review follow-ups (PR #5)
+## Phase 9: Code-review follow-ups (PR #5) [checkpoint: 09d1342]
 
-- [~] Task: H1 — make `AgencyClient.observability()` thread-safe (double-checked lock)
-    - [~] Write failing test: concurrent calls construct exactly one `Observability` and all return the same instance
-    - [~] Implement: add a `threading.Lock`; double-checked locking around the lazy build
-- [~] Task: M2 — add session vault facade tests (cross-cutting; SDK repo)
-    - [~] `client.session_vault()` returns `AgencySessionVaultClient` bound to `token_supplier`/`base_url`; repeated calls return the same instance
-- [~] Task: Verify coverage / mypy / black / bandit
-- [~] Task: Conductor - User Manual Verification 'Phase 9: Code-review follow-ups' (Protocol in workflow.md)
+- [x] Task: H1 — make `AgencyClient.observability()` thread-safe (double-checked lock) (09d1342)
+    - [x] Write failing test: concurrent calls construct exactly one `Observability` and all return the same instance
+    - [x] Implement: add a `threading.Lock`; double-checked locking around the lazy build
+- [x] Task: M2 — add session vault facade tests (cross-cutting; SDK repo) (09d1342)
+    - [x] `client.session_vault()` returns `AgencySessionVaultClient` bound to `token_supplier`/`base_url`; repeated calls return the same instance
+- [x] Task: Verify coverage / mypy / black / bandit (09d1342)
+- [x] Task: Conductor - User Manual Verification 'Phase 9: Code-review follow-ups' (Protocol in workflow.md) (09d1342)
+
+> M1 (handler.flush) and L2 (batch thread join) reviewed and judged non-issues; L1/M3/M4/L3 left as optional design/style improvements. See PR #5 analysis.
