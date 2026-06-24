@@ -77,8 +77,9 @@ class AgencyClient:
         from agency_sdk.observability import Observability, require_observability_deps
 
         require_observability_deps()
-        if self._observability is None:
-            self._observability = Observability(
+        observability = self._observability
+        if observability is None:
+            observability = Observability(
                 credentials=self.token_supplier,
                 service_name=service_name,
                 service_version=service_version,
@@ -89,4 +90,5 @@ class AgencyClient:
                 langfuse_public_key=langfuse_public_key,
                 langfuse_secret_key=langfuse_secret_key,
             )
-        return self._observability
+            self._observability = observability
+        return observability
