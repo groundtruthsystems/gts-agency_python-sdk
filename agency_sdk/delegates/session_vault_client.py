@@ -14,9 +14,7 @@ and may view ``confidential`` only via an audited reveal (``reveal=True``).
 
 from typing import Any
 
-import requests
-
-from agency_sdk.credentials import CredentialsSupplier
+from agency_sdk.delegates.base_client import BaseDelegateClient
 from agency_sdk.delegates.session_vault_dto import (
     VaultEntryResponse,
     VaultListResponse,
@@ -44,41 +42,10 @@ def _validate_key(key: str) -> None:
         raise ValueError(f"Invalid vault key: {key!r}")
 
 
-class AgencySessionVaultClient:
-    def __init__(self, token_supplier: CredentialsSupplier, base_url: str = "http://localhost:9003"):
-        self.base_url = base_url.rstrip("/")
-        self.token_supplier = token_supplier
-
-    def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        # vault accepts any JSON value (dict, list, scalar) as the body, unlike the
-        # other delegate clients (e.g. AgencyRulesClient) which only ever send dicts
-        # and so type this as ``dict[str, Any] | None``.
-        data: Any = None,
-        params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Make an HTTP request to the session vault API.
-
-        ``data`` may be any JSON value (dict, list, or scalar) because vault
-        writes send the raw value as the request body.
-        """
-        url = f"{self.base_url}/api/sessions{endpoint}"
-        response = requests.request(
-            method=method,
-            url=url,
-            headers={
-                "Authorization": f"Bearer {self.token_supplier.bearer_token()}",
-                "Content-Type": "application/json",
-            },
-            json=data,
-            params=params,
-            timeout=30,
-        )
-        response.raise_for_status()
-        result: dict[str, Any] = response.json() if response.content else {}
-        return result
+class AgencySessionVaultClient(BaseDelegateClient):
+    # vault writes send the raw JSON value (dict, list, or scalar) as the body; the
+    # base _make_request already types ``data`` as ``Any``, so no override is needed.
+    api_path = "/api/sessions"
 
     def list(self, organisation_id: int, session_id: str) -> VaultListResponse:
         """List all entries in a session vault (metadata only — no values).
