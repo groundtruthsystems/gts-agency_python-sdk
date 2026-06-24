@@ -76,7 +76,7 @@ class AgencyClient:
         ``ObservabilityNotInstalled`` (an ``ImportError``) with an install hint
         when it is absent.
         """
-        from agency_sdk.observability import Observability, require_observability_deps
+        from agency_sdk.observability import Observability, TelemetryConfig, require_observability_deps
 
         require_observability_deps()
         observability = self._observability
@@ -91,12 +91,14 @@ class AgencyClient:
                         credentials=self.token_supplier,
                         service_name=service_name,
                         service_version=service_version,
-                        host=host or self.base_url,
-                        environment=environment,
-                        org_id=org_id,
-                        processor=processor,
-                        langfuse_public_key=langfuse_public_key,
-                        langfuse_secret_key=langfuse_secret_key,
+                        config=TelemetryConfig(
+                            host=host or self.base_url,
+                            environment=environment,
+                            org_id=org_id,
+                            processor=processor,
+                            langfuse_public_key=langfuse_public_key,
+                            langfuse_secret_key=langfuse_secret_key,
+                        ),
                     )
                     self._observability = observability
         return observability

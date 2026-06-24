@@ -16,6 +16,7 @@ import base64
 import contextlib
 import logging
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from agency_sdk.observability.auth import BearerTokenAuth, make_httpx_bearer_auth
@@ -38,12 +39,37 @@ DEFAULT_TRACES_PATH = "/api/public/otel/v1/traces"
 _DEFAULT_HTTP_TIMEOUT = 20.0
 
 
+@dataclass
+class TelemetryConfig:
+    """Telemetry export knobs for :class:`Observability` (everything but identity).
+
+    Grouped into one object so the bootstrap is constructed from
+    ``Observability(credentials, service_name, service_version, config=...)`` rather
+    than a long parameter list. ``AgencyClient.observability(...)`` builds this for
+    you from its curated keyword arguments.
+    """
+
+    host: str | None = None
+    environment: str = "development"
+    org_id: str = "2"
+    processor: str = "simple"
+    logs_path: str = DEFAULT_LOGS_PATH
+    traces_path: str = DEFAULT_TRACES_PATH
+    logs_endpoint: str | None = None
+    traces_endpoint: str | None = None
+    extra_headers: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+
+
 class Observability:
     """Bootstraps OTLP log + trace export, authenticated via the SDK credentials.
 
     The per-request OTLP/Langfuse auth hooks read their bearer token from the
     shared ``CredentialsSupplier``, so one cached token serves both the API client
-    and the telemetry exporters.
+    and the telemetry exporters. Export behaviour is configured via
+    :class:`TelemetryConfig`.
     """
 
     def __init__(
@@ -52,35 +78,29 @@ class Observability:
         service_name: str,
         service_version: str = "unknown-0",
         *,
-        host: str | None = None,
-        environment: str = "development",
-        org_id: str = "2",
-        processor: str = "simple",
-        logs_path: str = DEFAULT_LOGS_PATH,
-        traces_path: str = DEFAULT_TRACES_PATH,
-        logs_endpoint: str | None = None,
-        traces_endpoint: str | None = None,
-        extra_headers: str | None = None,
-        langfuse_public_key: str | None = None,
-        langfuse_secret_key: str | None = None,
-        langfuse_host: str | None = None,
+        config: TelemetryConfig | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
+        config = config if config is not None else TelemetryConfig()
         self.credentials = credentials
         self.service_name = service_name
         self.service_version = service_version
-        self.host = host
-        self.environment = environment
-        self.org_id = org_id
-        self.processor = processor
-        self.logs_path = logs_path
-        self.traces_path = traces_path
-        self.logs_endpoint = logs_endpoint
-        self.traces_endpoint = traces_endpoint
-        self.extra_headers = extra_headers
-        self.langfuse_public_key = langfuse_public_key
-        self.langfuse_secret_key = langfuse_secret_key
-        self.langfuse_host = langfuse_host or host
+        self.config = config
+
+        # Unpacked for direct access in the hot paths below; the config object is the
+        # single source these are derived from.
+        self.host = config.host
+        self.environment = config.environment
+        self.org_id = config.org_id
+        self.processor = config.processor
+        self.logs_path = config.logs_path
+        self.traces_path = config.traces_path
+        self.logs_endpoint = config.logs_endpoint
+        self.traces_endpoint = config.traces_endpoint
+        self.extra_headers = config.extra_headers
+        self.langfuse_public_key = config.langfuse_public_key
+        self.langfuse_secret_key = config.langfuse_secret_key
+        self.langfuse_host = config.langfuse_host or config.host
         self.logger = logger or logging.getLogger(__name__)
 
         self._tracer_provider: TracerProvider | None = None

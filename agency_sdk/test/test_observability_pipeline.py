@@ -19,7 +19,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from agency_sdk.observability.auth import BearerTokenAuth
-from agency_sdk.observability.bootstrap import Observability
+from agency_sdk.observability.bootstrap import Observability, TelemetryConfig
 
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
@@ -49,12 +49,32 @@ def otel_isolation():
 
 
 def _obs_with_inmemory(monkeypatch, processor="simple"):
-    obs = Observability(_StaticCreds(), "gts-test", host="http://cp.test", processor=processor)
+    obs = Observability(_StaticCreds(), "gts-test", config=TelemetryConfig(host="http://cp.test", processor=processor))
     span_exporter = InMemorySpanExporter()
     log_exporter = InMemoryLogExporter()
     monkeypatch.setattr(obs, "make_span_exporter", lambda: span_exporter)
     monkeypatch.setattr(obs, "make_log_exporter", lambda: log_exporter)
     return obs, span_exporter, log_exporter
+
+
+def test_telemetry_config_defaults_and_unpacking():
+    # Default config: untraced-host, simple processor, org "2".
+    default = Observability(_StaticCreds(), "gts-x")
+    assert default.host is None
+    assert default.processor == "simple"
+    assert default.org_id == "2"
+    assert default.langfuse_host is None
+
+    # Supplied config is unpacked onto the instance; langfuse_host falls back to host.
+    obs = Observability(
+        _StaticCreds(),
+        "gts-x",
+        config=TelemetryConfig(host="http://h:1", processor="batch", org_id="7"),
+    )
+    assert obs.host == "http://h:1"
+    assert obs.processor == "batch"
+    assert obs.org_id == "7"
+    assert obs.langfuse_host == "http://h:1"
 
 
 def test_init_builds_recording_providers(monkeypatch, otel_isolation):
@@ -93,7 +113,7 @@ def test_processor_choice_simple_default_and_batch():
     log_exp = InMemoryLogExporter()
 
     simple = Observability(_StaticCreds(), "s")  # default
-    batch = Observability(_StaticCreds(), "s", processor="batch")
+    batch = Observability(_StaticCreds(), "s", config=TelemetryConfig(processor="batch"))
 
     assert isinstance(simple._make_span_processor(span_exp), SimpleSpanProcessor)
     assert isinstance(simple._make_log_processor(log_exp), SimpleLogRecordProcessor)
@@ -107,7 +127,7 @@ def test_processor_choice_simple_default_and_batch():
 
 
 def test_make_span_exporter_attaches_refreshing_auth():
-    obs = Observability(_StaticCreds(), "gts-test", host="http://cp.test")
+    obs = Observability(_StaticCreds(), "gts-test", config=TelemetryConfig(host="http://cp.test"))
 
     exporter = obs.make_span_exporter()
 
@@ -115,7 +135,7 @@ def test_make_span_exporter_attaches_refreshing_auth():
 
 
 def test_make_log_exporter_attaches_refreshing_auth():
-    obs = Observability(_StaticCreds(), "gts-test", host="http://cp.test")
+    obs = Observability(_StaticCreds(), "gts-test", config=TelemetryConfig(host="http://cp.test"))
 
     exporter = obs.make_log_exporter()
 
@@ -164,7 +184,7 @@ def test_init_registers_instance_shutdown_with_atexit(monkeypatch, otel_isolatio
 
 
 def test_init_returns_none_on_exporter_failure(monkeypatch, otel_isolation):
-    obs = Observability(_StaticCreds(), "gts-test", host="http://cp.test")
+    obs = Observability(_StaticCreds(), "gts-test", config=TelemetryConfig(host="http://cp.test"))
 
     def boom():
         raise RuntimeError("exporter down")

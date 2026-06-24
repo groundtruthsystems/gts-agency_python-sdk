@@ -21,6 +21,7 @@ from agency_sdk.observability.bootstrap import (
     DEFAULT_LOGS_PATH,
     DEFAULT_TRACES_PATH,
     Observability,
+    TelemetryConfig,
 )
 
 _INSTALL_HINT = (
@@ -49,6 +50,7 @@ def require_observability_deps() -> None:
 
 __all__ = [
     "Observability",
+    "TelemetryConfig",
     "ObservabilityNotInstalled",
     "require_observability_deps",
     "BearerTokenAuth",

@@ -11,7 +11,7 @@ import types
 
 import httpx
 
-from agency_sdk.observability.bootstrap import Observability
+from agency_sdk.observability.bootstrap import Observability, TelemetryConfig
 
 
 class _StaticCreds:
@@ -20,7 +20,7 @@ class _StaticCreds:
 
 
 def test_langfuse_client_none_without_keys():
-    obs = Observability(_StaticCreds(), "gts-x", host="http://cp.test")  # no langfuse keys
+    obs = Observability(_StaticCreds(), "gts-x", config=TelemetryConfig(host="http://cp.test"))  # no langfuse keys
     assert obs.langfuse_client() is None
 
 
@@ -29,9 +29,11 @@ def test_langfuse_client_none_when_package_missing(monkeypatch):
     obs = Observability(
         _StaticCreds(),
         "gts-x",
-        host="http://cp.test",
-        langfuse_public_key="pk",
-        langfuse_secret_key="sk",
+        config=TelemetryConfig(
+            host="http://cp.test",
+            langfuse_public_key="pk",
+            langfuse_secret_key="sk",
+        ),
     )
     assert obs.langfuse_client() is None
 
@@ -50,9 +52,11 @@ def test_langfuse_client_built_with_bearer_auth_and_span_exporter(monkeypatch):
     obs = Observability(
         _StaticCreds(),
         "gts-x",
-        host="http://cp.test",
-        langfuse_public_key="pk",
-        langfuse_secret_key="sk",
+        config=TelemetryConfig(
+            host="http://cp.test",
+            langfuse_public_key="pk",
+            langfuse_secret_key="sk",
+        ),
     )
 
     client = obs.langfuse_client()

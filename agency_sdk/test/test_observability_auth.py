@@ -14,6 +14,7 @@ from agency_sdk.observability.bootstrap import (
     DEFAULT_LOGS_PATH,
     DEFAULT_TRACES_PATH,
     Observability,
+    TelemetryConfig,
 )
 
 
@@ -35,7 +36,7 @@ class _StaticCreds:
 
 
 def _obs(creds: object, **kw: object) -> Observability:
-    return Observability(credentials=creds, service_name="gts-test", **kw)  # type: ignore[arg-type]
+    return Observability(creds, "gts-test", config=TelemetryConfig(**kw))  # type: ignore[arg-type]
 
 
 # -- requests hook ------------------------------------------------------------
