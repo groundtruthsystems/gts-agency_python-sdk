@@ -107,13 +107,13 @@ Protocol at the end of every phase.
 
 > M1 (handler.flush) and L2 (batch thread join) reviewed and judged non-issues. See PR #5 analysis.
 
-## Phase 10: Code-review design/style follow-ups (PR #5)
+## Phase 10: Code-review design/style follow-ups (PR #5) [checkpoint: e4a3cd3]
 
 - [x] Task: L1 — make `Classification` a `StrEnum` (27d3ef2)
     - [x] Test: members equal their string values, `DEFAULT` is `RESTRICTED`, `str()` yields the bare value
     - [x] Implement: convert the plain class to `enum.StrEnum` (drop-in; members stay `str`)
-- [ ] Task: M3 — extract a shared `BaseDelegateClient` (`__init__` + `_make_request`/`_request`); specialize ontology (raw `Response`) and session_vault (`data: Any`)
-- [ ] Task: M4 — group `Observability` constructor knobs (approach pending user scope decision)
-- [ ] Task: L3 — delegate signature consistency (scope pending user decision; public-API/cross-track)
-- [ ] Task: Verify coverage / mypy / black / bandit
-- [ ] Task: Conductor - User Manual Verification 'Phase 10: Code-review design/style follow-ups' (Protocol in workflow.md)
+- [x] Task: M3 — extract a shared `BaseDelegateClient` (`__init__` + `_request`/`_make_request`); ontology calls `_request(json_content_type=False)` for the raw `Response` (cbd84a5)
+- [x] Task: M4 — introduce a `TelemetryConfig` dataclass grouping the OTLP/Langfuse/processor knobs (e4a3cd3)
+- [x] Task: L3 — out of scope (deferred). Real diff is public param ordering across 6 other-track delegates + examples + downstream; breaking cross-track API change, not this track's remit (user decision)
+- [x] Task: Verify coverage / mypy / black / bandit (e4a3cd3)
+- [x] Task: Conductor - User Manual Verification 'Phase 10: Code-review design/style follow-ups' (Protocol in workflow.md) (e4a3cd3)
