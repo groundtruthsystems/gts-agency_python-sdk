@@ -7,6 +7,7 @@ from agency_sdk.delegates.files_client import AgencyFilesClient
 from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
+from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
 
 if TYPE_CHECKING:
     from agency_sdk.observability import Observability
@@ -26,6 +27,7 @@ class AgencyClient:
         self.prompt_client = AgencyPromptsClient(token_supplier=token_supplier, base_url=self.base_url)
         self.rules_client = AgencyRulesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.files_client = AgencyFilesClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
 
     def prompts(self) -> AgencyPromptsClient:
@@ -45,6 +47,9 @@ class AgencyClient:
 
     def files(self) -> AgencyFilesClient:
         return self.files_client
+
+    def session_vault(self) -> AgencySessionVaultClient:
+        return self.session_vault_client
 
     def observability(
         self,
