@@ -94,3 +94,13 @@ Protocol at the end of every phase.
     - [x] Implement: build providers with `shutdown_on_exit=False`; register `atexit.register(self.shutdown)`; null provider refs after shutdown so it is truly idempotent; correct the `shutdown()` docstring
     - [x] Verify coverage / mypy / black / bandit
 - [x] Task: Conductor - User Manual Verification 'Phase 8: Post-completion fixes' (Protocol in workflow.md) (0ff4c59)
+
+## Phase 9: Code-review follow-ups (PR #5)
+
+- [~] Task: H1 — make `AgencyClient.observability()` thread-safe (double-checked lock)
+    - [~] Write failing test: concurrent calls construct exactly one `Observability` and all return the same instance
+    - [~] Implement: add a `threading.Lock`; double-checked locking around the lazy build
+- [~] Task: M2 — add session vault facade tests (cross-cutting; SDK repo)
+    - [~] `client.session_vault()` returns `AgencySessionVaultClient` bound to `token_supplier`/`base_url`; repeated calls return the same instance
+- [~] Task: Verify coverage / mypy / black / bandit
+- [~] Task: Conductor - User Manual Verification 'Phase 9: Code-review follow-ups' (Protocol in workflow.md)
