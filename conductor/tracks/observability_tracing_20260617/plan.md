@@ -86,3 +86,11 @@ Protocol at the end of every phase.
     - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check`, `bandit -r agency_sdk/ -x agency_sdk/test`
     - [x] Bump version in `pyproject.toml`
 - [x] Task: Conductor - User Manual Verification 'Phase 7: Example, docs & release polish' (Protocol in workflow.md) (99fe6e8)
+
+## Phase 8: Post-completion fixes
+
+- [~] Task: Fix double provider shutdown (atexit + explicit `shutdown()`)
+    - [~] Write failing tests: `shutdown()` is idempotent (each provider's `shutdown` runs once across repeated calls + the atexit path); `init()` registers `self.shutdown` via atexit, not the raw provider `.shutdown` methods
+    - [~] Implement: register `atexit.register(self.shutdown)`; null provider refs after shutdown so it is truly idempotent; correct the `shutdown()` docstring
+    - [~] Verify coverage / mypy / black / bandit
+- [~] Task: Conductor - User Manual Verification 'Phase 8: Post-completion fixes' (Protocol in workflow.md)
