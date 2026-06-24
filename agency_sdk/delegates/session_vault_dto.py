@@ -12,18 +12,23 @@ by the camelCase APIs (datasource, ontology, rules). See CLAUDE.md ("DTOs")
 for the split.
 """
 
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class Classification:
+class Classification(StrEnum):
     """Vault entry classification levels.
 
     ``public``/``internal`` are stored as plaintext and viewable by any org
     member; ``confidential``/``restricted`` are encrypted at rest. Agents always
     read plaintext; humans never see ``restricted`` and may view
     ``confidential`` only via an audited reveal.
+
+    A ``StrEnum`` so members are ``str`` (``Classification.PUBLIC == "public"``,
+    ``str(Classification.PUBLIC) == "public"``) and serialise directly as query
+    params, while giving callers a typed, enumerable set of valid values.
     """
 
     PUBLIC = "public"
@@ -32,6 +37,7 @@ class Classification:
     RESTRICTED = "restricted"
 
     #: The default classification when none is supplied (most protective).
+    #: An alias of ``RESTRICTED`` (``Classification.DEFAULT is Classification.RESTRICTED``).
     DEFAULT = RESTRICTED
 
 
