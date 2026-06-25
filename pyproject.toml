@@ -1,6 +1,6 @@
 [project]
 name = "gts-agency_python-sdk"
-version = "0.0.1rc9"
+version = "0.0.1rc10"
 description = ""
 requires-python = ">=3.12"
 authors = [{name="Ground Control Systems", email="engineering@groundcontrolsystems.com"}]
