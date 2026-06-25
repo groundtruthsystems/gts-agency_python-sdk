@@ -31,6 +31,10 @@ Compared to calling the REST APIs directly, the SDK provides:
 3. **High-level workflow encapsulation** — multi-step API orchestrations are exposed
    as single methods (e.g. `clone_dataset` recursive download; `gtsf://` URI
    resolution and streamed `download()` in the files client).
+4. **Optional observability** — opt-in OpenTelemetry tracing and stdlib-log
+   correlation, shipped to a Langfuse backend via `client.observability(...)`,
+   reusing the SDK's `CredentialsSupplier` so one cached token serves both API
+   calls and telemetry. Heavy dependencies stay behind the `[observability]` extra.
 
 ## Current Focus
 
@@ -39,6 +43,9 @@ tenant file storage client (groundtruthsystems/gts-agency_python-sdk#1) shipped 
 2026-06-11 with offline protocol tests and static gates; its real end-to-end
 verification against the gts-local-environment stack is the current focus, followed
 by continued coverage of new platform APIs.
+
+Optional OpenTelemetry tracing/logging support (the `[observability]` extra and
+`AgencyClient.observability(...)`) shipped on 2026-06-17.
 
 ## Non-Goals
 

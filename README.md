@@ -14,6 +14,12 @@ For development:
 pip install -e ".[dev]"
 ```
 
+Optional OpenTelemetry tracing support (Langfuse backend):
+
+```bash
+pip install gts-agency-python-sdk[observability]
+```
+
 ## Configuration
 
 The examples in this repository use the following environment variables for authentication and configuration:
@@ -94,6 +100,24 @@ files.download(file_id=file_id, organisation_id=2, target_path="./report.pdf")
 See [docs/files_storage_flows.md](docs/files_storage_flows.md) for the full
 upload/download architecture.
 
+### Observability Example
+
+Opt-in OpenTelemetry tracing + log correlation, shipped to a Langfuse backend and
+authenticated with the same credentials as the API client. Requires the
+`[observability]` extra.
+
+```python
+obs = client.observability("gts-myagent")   # reuses credentials; host defaults to base_url
+tracer = obs.init()                          # exporters live; stdlib logging bridged
+
+with obs.agent_run("agent.myagent", correlation_id=cid) as span:
+    logger.info("doing work")                # stamped with the span's trace id
+    result = do_work()
+```
+
+See [docs/observability.md](docs/observability.md) for the full setup, the API,
+and migration from a per-agent bootstrap.
+
 ## Examples
 
 ```bash
@@ -108,6 +132,7 @@ python examples/quick_create_prompt.py
 python examples/quick_export_ontology.py
 python examples/quick_execute_rule.py
 python examples/quick_files.py
+python examples/quick_observability.py   # requires the [observability] extra
 ```
 
 To verify the SDK end to end against the local platform stack

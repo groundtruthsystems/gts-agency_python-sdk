@@ -1,8 +1,4 @@
-from typing import Any
-
-import requests
-
-from agency_sdk.credentials import CredentialsSupplier
+from agency_sdk.delegates.base_client import BaseDelegateClient
 from agency_sdk.delegates.ontology_dto import (
     EntityDatasourceMappingDetail,
     MappingsPagedResult,
@@ -12,54 +8,8 @@ from agency_sdk.delegates.ontology_dto import (
 )
 
 
-class AgencyOntologyClient:
-    def __init__(self, token_supplier: CredentialsSupplier, base_url: str = "http://localhost:9003"):
-        self.base_url = base_url.rstrip("/")
-        self.token_supplier = token_supplier
-
-    def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        params: dict[str, Any] | None = None,
-    ) -> requests.Response:
-        """Make an HTTP request to the API and return the raw response."""
-        url = f"{self.base_url}/api/ontologies{endpoint}"
-        response = requests.request(
-            method=method,
-            url=url,
-            headers={
-                "Authorization": f"Bearer {self.token_supplier.bearer_token()}",
-            },
-            params=params,
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response
-
-    def _make_json_request(
-        self,
-        method: str,
-        endpoint: str,
-        data: dict[str, Any] | None = None,
-        params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Make an HTTP request to the API and return parsed JSON."""
-        url = f"{self.base_url}/api/ontologies{endpoint}"
-        response = requests.request(
-            method=method,
-            url=url,
-            headers={
-                "Authorization": f"Bearer {self.token_supplier.bearer_token()}",
-                "Content-Type": "application/json",
-            },
-            json=data,
-            params=params,
-            timeout=30,
-        )
-        response.raise_for_status()
-        result: dict[str, Any] = response.json() if response.content else {}
-        return result
+class AgencyOntologyClient(BaseDelegateClient):
+    api_path = "/api/ontologies"
 
     def export(
         self,
@@ -88,7 +38,7 @@ class AgencyOntologyClient:
             params["branch"] = branch
         if version is not None:
             params["version"] = version
-        response = self._make_request("GET", f"/{ontology_id}/export", params=params)
+        response = self._request("GET", f"/{ontology_id}/export", params=params, json_content_type=False)
         text: str = response.text
         return text
 
@@ -104,7 +54,7 @@ class AgencyOntologyClient:
         params: dict[str, str] = {"o": str(organisation_id), "s": str(size), "p": str(page)}
         if entity_id is not None:
             params["entity_id"] = entity_id
-        return MappingsPagedResult(**self._make_json_request("GET", f"/{ontology_id}/mappings", params=params))
+        return MappingsPagedResult(**self._make_request("GET", f"/{ontology_id}/mappings", params=params))
 
     def get_mapping(
         self,
@@ -115,7 +65,7 @@ class AgencyOntologyClient:
         """Get a specific entity-datasource mapping."""
         params = {"o": str(organisation_id)}
         return EntityDatasourceMappingDetail(
-            **self._make_json_request("GET", f"/{ontology_id}/mappings/{mapping_id}", params=params)
+            **self._make_request("GET", f"/{ontology_id}/mappings/{mapping_id}", params=params)
         )
 
     def query_entity(
@@ -143,7 +93,7 @@ class AgencyOntologyClient:
         params = {"o": str(organisation_id)}
         body = QueryRequest(filters=filters or [], page=page, size=size)
         return QueryResult(
-            **self._make_json_request(
+            **self._make_request(
                 "POST",
                 f"/{ontology_id}/entities/{entity_id}/data/_query",
                 data=body.model_dump(mode="json"),

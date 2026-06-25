@@ -5,10 +5,22 @@ import requests
 
 
 class CredentialsSupplier:
-    def __init__(self, auth_base_url: str, client_id: str, client_secret: str):
+    def __init__(
+        self,
+        auth_base_url: str,
+        client_id: str,
+        client_secret: str,
+        *,
+        refresh_buffer: float = 30.0,
+    ):
         self.auth_base_url = auth_base_url.rstrip("/")
         self.client_id = client_id
         self.client_secret = client_secret
+        # Refresh this many seconds before the real expiry so a token is never
+        # used mid-flight. Matters for the observability OTLP per-request auth
+        # hook, which re-reads this token on every export in a long-running
+        # process.
+        self.refresh_buffer = refresh_buffer
         self._cached_token: str | None = None
 
     def bearer_token(self) -> str:
@@ -37,6 +49,6 @@ class CredentialsSupplier:
 
         try:
             decoded = jwt.decode(self._cached_token, options={"verify_signature": False})
-            return bool(decoded.get("exp", 0) <= time.time())
+            return bool(decoded.get("exp", 0) <= time.time() + self.refresh_buffer)
         except Exception:
             return True

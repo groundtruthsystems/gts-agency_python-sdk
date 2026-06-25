@@ -16,6 +16,19 @@
 
 Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
 
+## Optional Dependencies
+
+Installed via the `[observability]` extra
+(`pip install gts-agency-python-sdk[observability]`); all imported lazily, so the
+SDK core never requires them:
+
+| Dependency | Version | Role |
+|---|---|---|
+| `opentelemetry-sdk` | ≥ 1.27.0 | Tracer/Logger providers + span/log processors |
+| `opentelemetry-exporter-otlp-proto-http` | ≥ 1.27.0 | OTLP HTTP span/log exporters |
+| `opentelemetry-instrumentation-logging` | ≥ 0.48b0 | Inject trace/span ids into stdlib log records |
+| `langfuse` | ≥ 3.8.1 | Langfuse client (prompt mgmt/scoring); brings `httpx` |
+
 ## Development Tooling
 
 | Tool | Version | Role |
@@ -38,8 +51,20 @@ Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
 - **Pattern:** single-package client library. `AgencyClient` (`client.py`) is a
   facade composing per-domain delegate clients; each domain is a client + DTO module
   pair under `agency_sdk/delegates/`.
+- **Observability (optional):** `agency_sdk/observability/` (`bootstrap.py` +
+  `auth.py`) adds OTLP tracing/logging to a Langfuse backend via
+  `AgencyClient.observability(...)`; OpenTelemetry/Langfuse imports are deferred to
+  the lifecycle methods, and the per-request bearer hooks reuse `CredentialsSupplier`.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
+  - *Implemented (2026-06-17, observability track):* an early-refresh buffer
+    (`refresh_buffer`, default 30 s) treats a token as expired shortly before its
+    real `exp`. Rationale: the observability OTLP per-request auth hook
+    re-reads this token on every export in a long-running process; refreshing at
+    the exact `exp` risks stamping a token that expires in transit. Backward
+    compatible — it only refreshes slightly sooner. An `insecure`/`verify=False`
+    option was considered and **deferred** (token endpoint is plain HTTP locally;
+    exporter-level TLS control, if needed, belongs in the observability module).
 - **HTTP conventions:** every delegate owns a `_make_request` helper; errors
   propagate via `raise_for_status()`; 30 s default timeout; query parameter
   abbreviations `o` (org), `s` (size), `p` (page), `v` (version).

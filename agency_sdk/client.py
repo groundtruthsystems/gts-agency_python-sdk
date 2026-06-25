@@ -1,3 +1,6 @@
+import threading
+from typing import TYPE_CHECKING
+
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.datasets_client import AgencyDatasetsClient
 from agency_sdk.delegates.datasource_client import AgencyDatasourceClient
@@ -6,6 +9,9 @@ from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
 from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
+
+if TYPE_CHECKING:
+    from agency_sdk.observability import Observability
 
 
 class AgencyClient:
@@ -23,6 +29,8 @@ class AgencyClient:
         self.rules_client = AgencyRulesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.files_client = AgencyFilesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
+        self._observability: "Observability | None" = None
+        self._observability_lock = threading.Lock()
 
     def prompts(self) -> AgencyPromptsClient:
         return self.prompt_client
@@ -44,3 +52,53 @@ class AgencyClient:
 
     def session_vault(self) -> AgencySessionVaultClient:
         return self.session_vault_client
+
+    def observability(
+        self,
+        service_name: str,
+        service_version: str = "unknown-0",
+        *,
+        host: str | None = None,
+        environment: str = "development",
+        org_id: str = "2",
+        processor: str = "simple",
+        langfuse_public_key: str | None = None,
+        langfuse_secret_key: str | None = None,
+    ) -> "Observability":
+        """Build (once) the OTLP observability bootstrap bound to this client.
+
+        Reuses the client's shared ``CredentialsSupplier`` so a single cached
+        token serves both the API client and the telemetry exporters, and
+        defaults the OTLP/Langfuse host to this client's ``base_url``. Repeated
+        calls return the same instance.
+
+        Requires the optional ``[observability]`` extra; raises
+        ``ObservabilityNotInstalled`` (an ``ImportError``) with an install hint
+        when it is absent.
+        """
+        from agency_sdk.observability import Observability, TelemetryConfig, require_observability_deps
+
+        require_observability_deps()
+        observability = self._observability
+        if observability is None:
+            # Double-checked locking: serialize concurrent first-time builds so a
+            # single Observability is constructed and cached (repeated calls return
+            # the same instance, even under concurrency).
+            with self._observability_lock:
+                observability = self._observability
+                if observability is None:
+                    observability = Observability(
+                        credentials=self.token_supplier,
+                        service_name=service_name,
+                        service_version=service_version,
+                        config=TelemetryConfig(
+                            host=host or self.base_url,
+                            environment=environment,
+                            org_id=org_id,
+                            processor=processor,
+                            langfuse_public_key=langfuse_public_key,
+                            langfuse_secret_key=langfuse_secret_key,
+                        ),
+                    )
+                    self._observability = observability
+        return observability
