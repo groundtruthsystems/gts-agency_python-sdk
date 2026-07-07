@@ -14,12 +14,28 @@ both with plain-text bodies — errors propagate via ``raise_for_status()``.
 
 import json
 from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.gateway_dto import ChatCompletionChunk, ChatCompletionRequest, ChatCompletionResponse
+
+if TYPE_CHECKING:
+    import openai
+
+_OPENAI_INSTALL_HINT = (
+    "openai_client()/async_openai_client() need the openai package; "
+    "install the SDK's [openai] extra: pip install gts-agency-python-sdk[openai]"
+)
+
+
+def _require_openai() -> None:
+    """Fail fast with an actionable message when the ``[openai]`` extra is absent."""
+    try:
+        import openai  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(_OPENAI_INSTALL_HINT) from exc
 
 
 class AgencyGatewayClient:
@@ -117,3 +133,53 @@ class AgencyGatewayClient:
         for chunk in self.chat_completions_stream(request):
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+
+    def openai_client(self, **kwargs: Any) -> "openai.OpenAI":
+        """Build a standard ``openai.OpenAI`` client wired to this gateway (full-feature path).
+
+        The returned client is plain openai SDK — streaming, tool calling,
+        structured outputs, retries all work as documented upstream — with the
+        gateway plumbing pre-wired: ``base_url`` on the gateway host (``/v1``),
+        the ``x-org`` routing header, and an httpx auth hook that stamps a
+        fresh rotating bearer on every request (the construction-time
+        ``api_key`` is a placeholder). Extra ``kwargs`` (``max_retries``,
+        ``timeout``, ...) pass through to ``openai.OpenAI``.
+
+        Each call returns a new client; the caller owns its lifecycle.
+        Requires the ``[openai]`` extra.
+        """
+        _require_openai()
+        import httpx
+        import openai
+
+        return openai.OpenAI(
+            base_url=f"{self.gateway_base_url}/v1",
+            api_key="rotating-bearer-via-auth-hook",  # placeholder; the hook overrides per request
+            default_headers={"x-org": self.org_id},
+            http_client=httpx.Client(auth=self._httpx_bearer_auth()),
+            **kwargs,
+        )
+
+    def async_openai_client(self, **kwargs: Any) -> "openai.AsyncOpenAI":
+        """Async variant of :meth:`openai_client` (``openai.AsyncOpenAI``).
+
+        Note: the bearer re-mint inside the auth hook is a synchronous (cheap,
+        cached) call; it blocks the event loop only on the periodic refresh.
+        """
+        _require_openai()
+        import httpx
+        import openai
+
+        return openai.AsyncOpenAI(
+            base_url=f"{self.gateway_base_url}/v1",
+            api_key="rotating-bearer-via-auth-hook",  # placeholder; the hook overrides per request
+            default_headers={"x-org": self.org_id},
+            http_client=httpx.AsyncClient(auth=self._httpx_bearer_auth()),
+            **kwargs,
+        )
+
+    def _httpx_bearer_auth(self) -> Any:
+        """Per-request rotating-bearer httpx auth (reuses the observability hook)."""
+        from agency_sdk.observability.auth import make_httpx_bearer_auth
+
+        return make_httpx_bearer_auth(self.token_supplier.bearer_token)

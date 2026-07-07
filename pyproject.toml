@@ -18,6 +18,9 @@ observability = [
     "opentelemetry-instrumentation-logging>=0.48b0",
     "langfuse>=3.8.1",
 ]
+openai = [
+    "openai>=1.0.0",
+]
 dev = [
     "mypy==1.4.1",
     "pytest==7.4.0",
