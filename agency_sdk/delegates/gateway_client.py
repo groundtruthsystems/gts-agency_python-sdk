@@ -185,7 +185,7 @@ class AgencyGatewayClient:
         )
 
     def _httpx_bearer_auth(self) -> Any:
-        """Per-request rotating-bearer httpx auth (reuses the observability hook)."""
-        from agency_sdk.observability.auth import make_httpx_bearer_auth
+        """Per-request rotating-bearer httpx auth (shared core hook, no observability dep)."""
+        from agency_sdk.auth_hooks import make_httpx_bearer_auth
 
         return make_httpx_bearer_auth(self.token_supplier.bearer_token)

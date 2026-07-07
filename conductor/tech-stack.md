@@ -79,7 +79,7 @@ Installed via the `[openai]` extra (lazy-imported; the core never requires it):
   0x85 byte split lines; `stream=True` into the one-shot methods fails fast with
   `ValueError`), plus `[openai]`-extra helpers `openai_client()`/`async_openai_client()`
   returning standard openai clients with the rotating bearer (per-request httpx auth
-  hook, reusing the observability hook factory) and `x-org` pre-wired — the
+  hook from the shared core module `agency_sdk/auth_hooks.py`) and `x-org` pre-wired — the
   full-feature tier (tools, structured outputs, retries, async).
   Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`.
   *Live-verified 2026-07-07* against the control-plane image built 2026-07-06: the

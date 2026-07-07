@@ -80,3 +80,22 @@ def test_openai_clients_are_independent_instances(client):
     pytest.importorskip("openai")
 
     assert client.openai_client() is not client.openai_client()  # no cache: caller owns lifecycle
+
+
+def test_openai_helper_auth_does_not_import_observability(client, monkeypatch):
+    # M1: the gateway's rotating-bearer auth comes from the neutral core module
+    # agency_sdk.auth_hooks, NOT the optional observability submodule. Block that
+    # submodule entirely and the helper must still build a working auth hook.
+    pytest.importorskip("openai")
+
+    real_import = builtins.__import__
+
+    def block_observability(name, *args, **kwargs):
+        if name.startswith("agency_sdk.observability"):
+            raise ImportError(f"observability blocked: {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", block_observability)
+
+    oai = client.openai_client(max_retries=0)  # must not reach into observability
+    _assert_rotating_auth(oai._client)

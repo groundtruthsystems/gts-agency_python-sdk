@@ -138,7 +138,7 @@ rotation patterns, pick one:
 
 ```python
 import httpx, openai
-from agency_sdk.observability.auth import make_httpx_bearer_auth
+from agency_sdk.auth_hooks import make_httpx_bearer_auth
 
 # 1) RECOMMENDED — per-request auth hook (what tier B does for you):
 oai = openai.OpenAI(
