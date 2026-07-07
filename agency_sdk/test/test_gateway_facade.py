@@ -135,3 +135,13 @@ def test_discovery_raises_when_slot_or_url_missing(stub_requests, client):
 def test_discovery_rejects_unknown_environment(client):
     with pytest.raises(ValueError, match="environment"):
         client.gateway(org_id="2", environment="staging")
+
+
+def test_gateway_rejects_url_and_environment_together(stub_requests, client):
+    # Either give the URL, or give env (with discovery) — never both. Previously
+    # environment was silently ignored when a URL was given (API wart).
+    with pytest.raises(ValueError, match="environment"):
+        client.gateway(org_id="2", gateway_base_url="http://gw.test:4000", environment="test")
+
+    assert stub_requests.calls == []  # fails fast, before any network call
+    assert client.gateway(org_id="2", gateway_base_url="http://gw.test:4000") is not None  # URL-only still fine

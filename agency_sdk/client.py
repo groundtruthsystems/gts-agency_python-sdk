@@ -63,7 +63,7 @@ class AgencyClient:
         *,
         org_id: str,
         gateway_base_url: str | None = None,
-        environment: str = "production",
+        environment: str | None = None,
     ) -> "AgencyGatewayClient":
         """Build (once) an OpenAI-compatible LLM gateway client bound to this client.
 
@@ -72,12 +72,17 @@ class AgencyClient:
         as the gateway Bearer and stamping the ``x-org`` routing header.
         Repeated calls return the same instance.
 
-        When ``gateway_base_url`` is omitted, the URL is resolved once from
-        ``GET /api/agentgateways?o={org_id}`` on the control-plane ``base_url``,
-        selecting the ``production`` or ``test`` slot per ``environment``.
+        Either give the URL, or give the environment — never both:
+
+        - ``gateway_base_url`` set: use it directly (``environment`` must be omitted).
+        - ``gateway_base_url`` omitted: resolve the URL once from
+          ``GET /api/agentgateways?o={org_id}`` on the control-plane ``base_url``,
+          selecting the ``production`` (default) or ``test`` slot per ``environment``.
         """
         from agency_sdk.delegates.gateway_client import AgencyGatewayClient
 
+        if gateway_base_url is not None and environment is not None:
+            raise ValueError("environment is only used with URL discovery; omit it when gateway_base_url is given")
         gateway = self._gateway
         if gateway is None:
             # Double-checked locking, mirroring observability(): one build,
@@ -85,7 +90,7 @@ class AgencyClient:
             with self._gateway_lock:
                 gateway = self._gateway
                 if gateway is None:
-                    url = gateway_base_url or self._discover_gateway_url(org_id, environment)
+                    url = gateway_base_url or self._discover_gateway_url(org_id, environment or "production")
                     gateway = AgencyGatewayClient(
                         token_supplier=self.token_supplier,
                         gateway_base_url=url,
