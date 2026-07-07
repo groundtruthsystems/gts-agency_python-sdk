@@ -49,10 +49,10 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 
 ## Phase 4: Example, docs & quality gates
 
-- [ ] Task: Add `examples/quick_gateway.py` (env-driven, self-verifying, exit non-zero on failure)
-    - [ ] Reads `AGENCY_AUTH_URL`, `AGENCY_CLIENT_ID`, `AGENCY_CLIENT_SECRET`, `AGENCY_ORG_ID`, `GATEWAY_BASE_URL`, `GATEWAY_MODEL`
-    - [ ] Calls `client.gateway(...).complete(...)`; asserts non-empty text; prints PASS per step
-- [ ] Task: Documentation
+- [x] Task: Add `examples/quick_gateway.py` (env-driven, self-verifying, exit non-zero on failure) (67bc0aa)
+    - [x] Reads `AGENCY_AUTH_URL`, `AGENCY_CLIENT_ID`, `AGENCY_CLIENT_SECRET`, `AGENCY_ORG_ID`, `GATEWAY_BASE_URL`, `GATEWAY_MODEL`
+    - [x] Calls `client.gateway(...).complete(...)`; asserts non-empty text; prints PASS per step (live E2E vs :4000: ALL STEPS PASSED, incl. wrong-x-org 403 negative)
+- [~] Task: Documentation
     - [ ] `docs/gateway.md` — usage guide (accessor, prod/test URLs, `x-org`, discovery fallback, local E2E)
     - [ ] Update `README.md` "Delegate Clients" + `CLAUDE.md` Architecture with the gateway delegate
 - [ ] Task: Final gate run
