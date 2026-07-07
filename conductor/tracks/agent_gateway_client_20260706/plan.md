@@ -52,9 +52,9 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Add `examples/quick_gateway.py` (env-driven, self-verifying, exit non-zero on failure) (67bc0aa)
     - [x] Reads `AGENCY_AUTH_URL`, `AGENCY_CLIENT_ID`, `AGENCY_CLIENT_SECRET`, `AGENCY_ORG_ID`, `GATEWAY_BASE_URL`, `GATEWAY_MODEL`
     - [x] Calls `client.gateway(...).complete(...)`; asserts non-empty text; prints PASS per step (live E2E vs :4000: ALL STEPS PASSED, incl. wrong-x-org 403 negative)
-- [~] Task: Documentation
-    - [ ] `docs/gateway.md` — usage guide (accessor, prod/test URLs, `x-org`, discovery fallback, local E2E)
-    - [ ] Update `README.md` "Delegate Clients" + `CLAUDE.md` Architecture with the gateway delegate
-- [ ] Task: Final gate run
+- [x] Task: Documentation (22947ab)
+    - [x] `docs/gateway.md` — usage guide (accessor, prod/test URLs, `x-org`, discovery fallback, local E2E)
+    - [x] Update `README.md` "Delegate Clients" + `CLAUDE.md` Architecture with the gateway delegate (+ fixed pre-existing session_vault omission in both lists)
+- [~] Task: Final gate run
     - [ ] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check agency_sdk/ examples/`, `bandit -r agency_sdk/ -x agency_sdk/test`
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Example, docs & quality gates' (Protocol in workflow.md)
