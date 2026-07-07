@@ -34,7 +34,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (c5692f9)
 - [x] Task: Conductor - User Manual Verification 'Phase 2: AgencyGatewayClient' (Protocol in workflow.md) (abc2613)
 
-## Phase 3: Facade accessor + URL discovery
+## Phase 3: Facade accessor + URL discovery [checkpoint: e8d16f7]
 
 - [x] Task: Write failing tests for `AgencyClient.gateway(...)` and `_discover_gateway_url` (`agency_sdk/test/test_gateway_facade.py`) (ecea91d)
     - [x] `gateway(org_id=..., gateway_base_url=...)` returns an `AgencyGatewayClient` bound to the shared `token_supplier`; repeated calls return the same instance (DCL cache)
@@ -45,7 +45,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
     - [x] `_gateway` + `_gateway_lock` fields, `gateway(*, org_id, gateway_base_url=None, environment="production")`, lazy import, DCL
     - [x] `_discover_gateway_url(org_id, environment)` (verification-deferred: offline-tested, no local live check)
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (ecea91d)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Facade accessor + URL discovery' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Facade accessor + URL discovery' (Protocol in workflow.md) (e8d16f7)
 
 ## Phase 4: Example, docs & quality gates
 
