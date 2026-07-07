@@ -13,6 +13,7 @@
 | `requests` | ≥ 2.32.0 | Synchronous HTTP client for all API calls |
 | `pydantic` | ≥ 2.9.2 | DTO models, validation, JSON (de)serialisation |
 | `pyjwt` | ≥ 2.3.0, < 3.0.0 | Decoding cached JWTs to check `exp` (no signature verification) |
+| `openai` | ≥ 1.0.0 | Official openai SDK — the gateway routes exclusively through it (`gateway.openai_client()` / `async_openai_client()`); brings `httpx`. *Promoted from the `[openai]` extra to a core dep 2026-07-07 when the gateway's zero-dep client was removed.* |
 
 Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
 
@@ -55,6 +56,24 @@ SDK core never requires them:
   `auth.py`) adds OTLP tracing/logging to a Langfuse backend via
   `AgencyClient.observability(...)`; OpenTelemetry/Langfuse imports are deferred to
   the lifecycle methods, and the per-request bearer hooks reuse `CredentialsSupplier`.
+- **Agent gateway (core, 2026-07-07, openai-SDK-only):** `delegates/gateway_client.py`
+  + `gateway_dto.py`. `AgencyClient.gateway(*, org_id, gateway_base_url=None,
+  environment=None)` (DCL cache keyed by `(org_id, gateway_base_url/environment)` for
+  correct multi-org routing; URL and environment are mutually exclusive) returns an
+  `AgencyGatewayClient` that is a thin **factory**, not an HTTP client:
+  `openai_client()`/`async_openai_client()` return standard `openai.OpenAI`/`AsyncOpenAI`
+  wired to the gateway's own host (never the control-plane `base_url`) at the fixed
+  `/v1` path, with the `x-org` routing header and a per-request rotating-bearer httpx
+  auth hook (shared core module `agency_sdk/auth_hooks.py`; the construction-time
+  `api_key` is a placeholder). *Simplified 2026-07-07:* the earlier zero-dependency
+  built-in client (`complete`/`complete_stream`/`chat_completions[_stream]` + hand-rolled
+  chat DTOs + native SSE parsing) was **removed** to unify on one path — `openai` owns
+  the LLM surface (streaming, tools, structured outputs, retries, async) and was
+  promoted to a core dependency. `gateway_dto.py` now holds only the discovery DTOs
+  (`AgentGatewayStatusResponse`, `extra="allow"`). Omitting `gateway_base_url` resolves
+  the URL from `GET /api/agentgateways?o={org}`; *live-verified 2026-07-07* against the
+  control-plane image built 2026-07-06 (Page-wrapped response; discovery → completion
+  chain passes).
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer

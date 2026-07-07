@@ -3,10 +3,11 @@
 ## Overview
 
 The GTS Agency Python SDK is the official typed Python client for the GTS Agency
-platform. It wraps the platform's REST APIs (datasets, datasources, ontologies,
-prompts, rules) in a single, coherent, strongly-typed library so that any program
-holding organisation credentials can interact with the platform without hand-writing
-HTTP calls.
+platform. It wraps the platform's REST APIs (datasets, datasources, files,
+ontologies, prompts, rules, session vault) in a single, coherent, strongly-typed
+library so that any program holding organisation credentials can interact with the
+platform without hand-writing HTTP calls — and routes agent LLM traffic through the
+org's agent gateway with the same single credential.
 
 ## Target Users
 
@@ -35,6 +36,14 @@ Compared to calling the REST APIs directly, the SDK provides:
    correlation, shipped to a Langfuse backend via `client.observability(...)`,
    reusing the SDK's `CredentialsSupplier` so one cached token serves both API
    calls and telemetry. Heavy dependencies stay behind the `[observability]` extra.
+5. **LLM gateway routing** — `client.gateway(...)` returns an OpenAI-compatible
+   `openai` client for the org's deployed agentgateway: agents send LLM traffic
+   with the same rotating m2m JWT (plus the `x-org` routing header) instead of
+   holding per-provider API keys; provider secrets stay in the org's gateway
+   config. The SDK wires auth / `x-org` / URL into a standard official `openai`
+   client (`gateway.openai_client()` / `async_openai_client()`) and hands it
+   back, so the full OpenAI surface (streaming, tools, structured outputs,
+   retries, async) works as documented. `openai` is a core dependency.
 
 ## Current Focus
 
@@ -46,6 +55,15 @@ by continued coverage of new platform APIs.
 
 Optional OpenTelemetry tracing/logging support (the `[observability]` extra and
 `AgencyClient.observability(...)`) shipped on 2026-06-17.
+
+The agent gateway client (`AgencyClient.gateway(...)`, OpenAI-compatible chat
+completions with `x-org` routing and optional control-plane URL discovery)
+shipped on 2026-07-07, live-validated against the local agentgateway.
+
+The gateway was then unified on the official `openai` SDK (2026-07-07,
+CTO-driven): the zero-dependency built-in client was removed, `openai` promoted
+to a core dependency, and `AgencyGatewayClient` reduced to a factory returning
+pre-wired `openai` clients — one usage path, all live-validated.
 
 ## Non-Goals
 

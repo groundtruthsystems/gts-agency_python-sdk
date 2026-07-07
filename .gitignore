@@ -15,3 +15,4 @@ __pycache__/
 # definition, tech stack, conventions, workflow), per the parent gts-agency
 # repo's convention. Only the transient setup-wizard state is ignored:
 conductor/setup_state.json
+uv.lock

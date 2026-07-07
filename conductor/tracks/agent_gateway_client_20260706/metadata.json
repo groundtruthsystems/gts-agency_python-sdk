@@ -1,0 +1,8 @@
+{
+  "track_id": "agent_gateway_client_20260706",
+  "type": "feature",
+  "status": "completed",
+  "created_at": "2026-07-07T00:22:00Z",
+  "updated_at": "2026-07-07T01:45:00Z",
+  "description": "Add an OpenAI-compatible agent-gateway client to the SDK: AgencyGatewayClient + client.gateway(...) facade reusing the shared CredentialsSupplier as Bearer and stamping the x-org routing header, with optional URL discovery via GET /api/agentgateways. SDK side only (design doc Phase 1, docs/gateway_design.md); contract live-validated against the local gateway on :4000."
+}

@@ -9,6 +9,7 @@ dependencies = [
     "requests>=2.32.0",
     "pydantic>=2.9.2",
     "pyjwt>=2.3.0,<3.0.0",
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]
