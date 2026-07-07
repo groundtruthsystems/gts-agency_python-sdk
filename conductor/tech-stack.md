@@ -55,6 +55,17 @@ SDK core never requires them:
   `auth.py`) adds OTLP tracing/logging to a Langfuse backend via
   `AgencyClient.observability(...)`; OpenTelemetry/Langfuse imports are deferred to
   the lifecycle methods, and the per-request bearer hooks reuse `CredentialsSupplier`.
+- **Agent gateway (core, 2026-07-07):** `delegates/gateway_client.py` +
+  `gateway_dto.py` provide OpenAI-compatible chat completions through the org's
+  agentgateway via `AgencyClient.gateway(*, org_id, gateway_base_url=None,
+  environment="production")` (DCL-cached, mirrors `observability()`). The client is
+  a deliberate **sibling** of `BaseDelegateClient`, not a subclass: it targets the
+  gateway's own host (never the control-plane `base_url`), uses the fixed `/v1`
+  path, a 120 s timeout, and stamps the extra `x-org` header. DTOs are
+  `extra="allow"` — the wire format is agentgateway upstream, not owned by gts.
+  Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`
+  (source-modeled, offline-tested only; live verification deferred until a
+  control-plane image ships the endpoint). No new runtime dependencies.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer
