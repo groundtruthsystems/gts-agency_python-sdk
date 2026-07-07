@@ -23,15 +23,15 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 
 ## Phase 2: AgencyGatewayClient
 
-- [ ] Task: Write failing tests for `AgencyGatewayClient` (`agency_sdk/test/test_gateway_client.py`)
-    - [ ] `chat_completions` POSTs to `{gateway_base_url}/v1/chat/completions` (host is the gateway, trailing `/` normalized) with `timeout=120`
-    - [ ] Headers carry `Authorization: Bearer <token>`, `Content-Type: application/json`, and `x-org: <org_id>` (exact lowercase name)
-    - [ ] Request body is `model_dump(mode="json", by_alias=True, exclude_none=True)` — extra params included, `None` content excluded
-    - [ ] `complete(messages, model, **kw)` returns `choices[0].message.content`; empty/None content returns `""`
-    - [ ] HTTP 401/403 with plain-text bodies propagate via `raise_for_status` (no JSON assumption)
-- [ ] Task: Implement `agency_sdk/delegates/gateway_client.py` (Green)
-    - [ ] Sibling of `BaseDelegateClient` (own host/path/timeout/headers), sync `requests`, per design §5.5
-- [ ] Task: Refactor; verify coverage / mypy / black / bandit
+- [x] Task: Write failing tests for `AgencyGatewayClient` (`agency_sdk/test/test_gateway_client.py`) (c5692f9)
+    - [x] `chat_completions` POSTs to `{gateway_base_url}/v1/chat/completions` (host is the gateway, trailing `/` normalized) with `timeout=120`
+    - [x] Headers carry `Authorization: Bearer <token>`, `Content-Type: application/json`, and `x-org: <org_id>` (exact lowercase name)
+    - [x] Request body is `model_dump(mode="json", by_alias=True, exclude_none=True)` — extra params included, `None` content excluded
+    - [x] `complete(messages, model, **kw)` returns `choices[0].message.content`; empty/None content returns `""`
+    - [x] HTTP 401/403 with plain-text bodies propagate via `raise_for_status` (no JSON assumption)
+- [x] Task: Implement `agency_sdk/delegates/gateway_client.py` (Green) (c5692f9)
+    - [x] Sibling of `BaseDelegateClient` (own host/path/timeout/headers), sync `requests`, per design §5.5
+- [x] Task: Refactor; verify coverage / mypy / black / bandit (c5692f9)
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: AgencyGatewayClient' (Protocol in workflow.md)
 
 ## Phase 3: Facade accessor + URL discovery
