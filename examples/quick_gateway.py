@@ -17,7 +17,9 @@ Environment (defaults target the local stack, gateway on :4000):
                           (any string routes through a "*" catch-all default)
 
 The negative check (step 4) proves org scoping is enforced: the same valid JWT
-with a wrong ``x-org`` must be rejected with 403 (plain-text body).
+with a wrong ``x-org`` must be rejected with 403 (plain-text body). Step 5
+exercises native SSE streaming, step 6 the stream=True fast-fail guard, and
+step 7 the [openai]-extra helper (skipped when the extra is not installed).
 """
 
 import os
@@ -84,6 +86,43 @@ def main() -> int:
             status = error.response.status_code if error.response is not None else None
             assert status == 403, f"expected 403 for wrong x-org, got {status}"
         print("4. wrong x-org rejected with 403 PASS")
+
+        # 5. Native streaming (zero-dep): SSE deltas via complete_stream().
+        deltas = list(
+            gateway.complete_stream(
+                [{"role": "user", "content": "Count from 1 to 3, digits only."}],
+                model=model,
+                temperature=0.0,
+                max_tokens=600,
+            )
+        )
+        assert deltas, "streaming yielded no deltas"
+        print(f"5. complete_stream() -> {len(deltas)} deltas, text={''.join(deltas).strip()!r} PASS")
+
+        # 6. Guard: stream=True on the one-shot methods fails fast (no hang, no network).
+        try:
+            gateway.complete([{"role": "user", "content": "hi"}], model=model, stream=True)
+            raise AssertionError("stream=True must be rejected by the one-shot path")
+        except ValueError:
+            pass
+        print("6. one-shot stream=True rejected with ValueError PASS")
+
+        # 7. Full-feature path via the [openai] extra (skips when not installed).
+        try:
+            import openai  # noqa: F401
+        except ImportError:
+            print("7. openai helper SKIP (install the [openai] extra to exercise this step)")
+        else:
+            oai = gateway.openai_client(max_retries=0)
+            response7 = oai.chat.completions.create(
+                model=model,
+                temperature=0.0,
+                messages=[{"role": "user", "content": "Reply with the single word: pong"}],
+            )
+            content = response7.choices[0].message.content
+            assert content and content.strip()
+            oai.close()
+            print(f"7. openai_client() -> {content.strip()!r} PASS")
 
         ok = True
     except Exception:

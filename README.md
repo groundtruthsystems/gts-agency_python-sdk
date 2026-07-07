@@ -130,15 +130,23 @@ header the client stamps automatically.
 ```python
 gateway = client.gateway(org_id="2", gateway_base_url="http://localhost:4000")
 
+# Built-in zero-dependency client: one-shot + streaming
 text = gateway.complete(
     [{"role": "user", "content": "Summarize this rule ..."}],
     model="biglambda1",       # virtual-model name from the org's gateway config
     temperature=0.0,
 )
+for delta in gateway.complete_stream([{"role": "user", "content": "..."}], model="biglambda1"):
+    print(delta, end="", flush=True)
+
+# Full-feature path: a standard openai client, pre-wired to the gateway
+# (requires the [openai] extra; streaming/tools/structured outputs/retries/async)
+oai = gateway.openai_client()
+r = oai.chat.completions.create(model="biglambda1", messages=[...])
 ```
 
-See [docs/gateway.md](docs/gateway.md) for prod/test URL selection, URL
-discovery, error semantics, and async-consumer guidance.
+See [docs/gateway.md](docs/gateway.md) for the tier model, prod/test URL
+selection, URL discovery, rotation-safe DIY openai wiring, and error semantics.
 
 ## Examples
 
