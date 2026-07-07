@@ -42,3 +42,7 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
     - [x] Applied 3 refuted-but-strictly-better fixes: close stream response on HTTP error (raise_for_status into try/finally); complete_stream filters to choice index 0 (n>1 no longer interleaves); docstrings — openai-helper reserved kwargs + reasoning-exhaustion empty case
     - [x] Deferred (pre-existing, out of track): gateway() DCL cache ignores differing args on later calls — flagged as separate follow-up task
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Adversarial review' (Protocol in workflow.md)
+
+## Follow-ups
+
+- [x] Task: gateway() cache keyed by (org_id, gateway_base_url/environment) identity (TDD) — resolves the deferred Phase 4 finding: first-call-wins singleton silently routed later orgs/envs to the first caller's host/x-org; decision (b) per-identity dict cache (gateway clients are stateless, so extra instances are free and multi-org processes get correct routing); same-args calls still share one instance and one discovery round-trip (277c317)
