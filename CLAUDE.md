@@ -37,7 +37,7 @@ pytest
 
 ## Architecture
 
-**Entry point:** `AgencyClient` (in `client.py`) is a facade that composes six delegate clients, all sharing a `CredentialsSupplier` for OAuth2 client-credentials auth with automatic token caching/refresh.
+**Entry point:** `AgencyClient` (in `client.py`) is a facade that composes seven delegate clients (plus the lazily built gateway and observability capabilities), all sharing a `CredentialsSupplier` for OAuth2 client-credentials auth with automatic token caching/refresh.
 
 **Delegate pattern:** Each API domain has a client + DTO module pair in `delegates/`:
 - `datasets_client.py` / `datasets_dto.py` — CRUD + filesystem traversal + clone
@@ -46,6 +46,8 @@ pytest
 - `ontology_client.py` / `ontology_dto.py` — export (multiple formats) + entity-datasource mappings
 - `prompts_client.py` + `domain.py` — prompt CRUD via command pattern (`POST /_command`)
 - `rules_client.py` / `rules_dto.py` — rule listing, detail, execution + execution history
+- `session_vault_client.py` / `session_vault_dto.py` — session-scoped key/value vault for agent state (classification-based encryption, audited reveal)
+- `gateway_client.py` / `gateway_dto.py` — OpenAI-compatible LLM calls through the org's agentgateway, via `AgencyClient.gateway(*, org_id, gateway_base_url=None, environment="production")` (DCL-cached). A **sibling** of `BaseDelegateClient`, not a subclass: own host (never `base_url`), fixed `/v1` path, 120s timeout, extra `x-org` header (not `x-org-id`). DTOs are `extra="allow"` — the wire format is agentgateway upstream. Omitting `gateway_base_url` discovers the URL via `GET /api/agentgateways?o={org}` (offline-tested only). See `docs/gateway.md`, design in `docs/gateway_design.md`
 
 **DTOs:** All models use Pydantic v2 `BaseModel`. Datasource, ontology, and rules DTOs use `ConfigDict(alias_generator=_to_camel, populate_by_name=True)` for camelCase JSON mapping. Prompt/dataset/files DTOs use snake_case matching the API.
 

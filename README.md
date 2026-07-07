@@ -53,6 +53,8 @@ Access each API domain through the facade:
 - `client.ontology()` — ontology export (JSON, Turtle, ISON) and entity-datasource mappings
 - `client.prompts()` — prompt CRUD via command pattern
 - `client.rules()` — rule listing, detail, execution, and execution history
+- `client.session_vault()` — session-scoped key/value vault for agent state (classification-based encryption, audited reveal)
+- `client.gateway(org_id=..., gateway_base_url=...)` — OpenAI-compatible LLM calls routed through the org's agentgateway (shared credentials + `x-org` routing header)
 
 ### Rules Example
 
@@ -118,6 +120,26 @@ with obs.agent_run("agent.myagent", correlation_id=cid) as span:
 See [docs/observability.md](docs/observability.md) for the full setup, the API,
 and migration from a per-agent bootstrap.
 
+### Agent Gateway Example
+
+OpenAI-compatible LLM calls routed through the org's deployed agentgateway —
+one m2m credential instead of per-provider API keys. The gateway lives on its
+own host (not the control-plane `base_url`) and org scoping is the `x-org`
+header the client stamps automatically.
+
+```python
+gateway = client.gateway(org_id="2", gateway_base_url="http://localhost:4000")
+
+text = gateway.complete(
+    [{"role": "user", "content": "Summarize this rule ..."}],
+    model="biglambda1",       # virtual-model name from the org's gateway config
+    temperature=0.0,
+)
+```
+
+See [docs/gateway.md](docs/gateway.md) for prod/test URL selection, URL
+discovery, error semantics, and async-consumer guidance.
+
 ## Examples
 
 ```bash
@@ -133,6 +155,7 @@ python examples/quick_export_ontology.py
 python examples/quick_execute_rule.py
 python examples/quick_files.py
 python examples/quick_observability.py   # requires the [observability] extra
+python examples/quick_gateway.py         # needs GATEWAY_BASE_URL (+ GATEWAY_MODEL); local gateway on :4000
 ```
 
 To verify the SDK end to end against the local platform stack
