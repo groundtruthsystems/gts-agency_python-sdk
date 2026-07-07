@@ -1,0 +1,8 @@
+{
+  "track_id": "gateway_streaming_openai_20260707",
+  "type": "feature",
+  "status": "in_progress",
+  "created_at": "2026-07-07T02:40:00Z",
+  "updated_at": "2026-07-07T02:40:00Z",
+  "description": "Gateway follow-up per CTO input: add native SSE streaming to the zero-dep AgencyGatewayClient (plus stream=True fast-fail guard and environment/gateway_base_url mutual-exclusion API fix), add an [openai] optional extra with openai_client()/async_openai_client() helpers (rotating bearer + x-org wired) as the full-feature path, and document the tiered usage model incl. the official-openai-SDK recipe."
+}

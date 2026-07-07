@@ -11,3 +11,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Agent gateway client — OpenAI-compatible LLM routing via client.gateway(...) (SDK side, design doc Phase 1)**
 *Link: [./tracks/agent_gateway_client_20260706/](./tracks/agent_gateway_client_20260706/)*
+
+---
+
+- [~] **Track: Gateway streaming + openai SDK integration — native SSE in the zero-dep client, [openai] extra full-feature helpers, tiered usage docs**
+*Link: [./tracks/gateway_streaming_openai_20260707/](./tracks/gateway_streaming_openai_20260707/)*
