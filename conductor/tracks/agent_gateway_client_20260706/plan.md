@@ -36,15 +36,15 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 
 ## Phase 3: Facade accessor + URL discovery
 
-- [ ] Task: Write failing tests for `AgencyClient.gateway(...)` and `_discover_gateway_url` (`agency_sdk/test/test_gateway_facade.py`)
-    - [ ] `gateway(org_id=..., gateway_base_url=...)` returns an `AgencyGatewayClient` bound to the shared `token_supplier`; repeated calls return the same instance (DCL cache)
-    - [ ] Concurrent calls construct exactly one instance (thread-safety, mirrors observability H1 test)
-    - [ ] With `gateway_base_url` omitted: one `GET {base_url}/api/agentgateways?o={org}` with the control-plane bearer; `environment="production"` → `production.url`, `environment="test"` → `test.url`
-    - [ ] Missing slot / missing url / empty list raises a clear `ValueError`
-- [ ] Task: Implement facade wiring in `agency_sdk/client.py` (Green)
-    - [ ] `_gateway` + `_gateway_lock` fields, `gateway(*, org_id, gateway_base_url=None, environment="production")`, lazy import, DCL
-    - [ ] `_discover_gateway_url(org_id, environment)` (verification-deferred: offline-tested, no local live check)
-- [ ] Task: Refactor; verify coverage / mypy / black / bandit
+- [x] Task: Write failing tests for `AgencyClient.gateway(...)` and `_discover_gateway_url` (`agency_sdk/test/test_gateway_facade.py`) (ecea91d)
+    - [x] `gateway(org_id=..., gateway_base_url=...)` returns an `AgencyGatewayClient` bound to the shared `token_supplier`; repeated calls return the same instance (DCL cache)
+    - [x] Concurrent calls construct exactly one instance (thread-safety, mirrors observability H1 test)
+    - [x] With `gateway_base_url` omitted: one `GET {base_url}/api/agentgateways?o={org}` with the control-plane bearer; `environment="production"` → `production.url`, `environment="test"` → `test.url`
+    - [x] Missing slot / missing url / empty list raises a clear `ValueError` (+ unknown environment; + page-wrapped payload tolerance)
+- [x] Task: Implement facade wiring in `agency_sdk/client.py` (Green) (ecea91d)
+    - [x] `_gateway` + `_gateway_lock` fields, `gateway(*, org_id, gateway_base_url=None, environment="production")`, lazy import, DCL
+    - [x] `_discover_gateway_url(org_id, environment)` (verification-deferred: offline-tested, no local live check)
+- [x] Task: Refactor; verify coverage / mypy / black / bandit (ecea91d)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Facade accessor + URL discovery' (Protocol in workflow.md)
 
 ## Phase 4: Example, docs & quality gates
