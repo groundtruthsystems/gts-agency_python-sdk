@@ -21,7 +21,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (da82696)
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Gateway DTOs' (Protocol in workflow.md) (5dfb002)
 
-## Phase 2: AgencyGatewayClient
+## Phase 2: AgencyGatewayClient [checkpoint: abc2613]
 
 - [x] Task: Write failing tests for `AgencyGatewayClient` (`agency_sdk/test/test_gateway_client.py`) (c5692f9)
     - [x] `chat_completions` POSTs to `{gateway_base_url}/v1/chat/completions` (host is the gateway, trailing `/` normalized) with `timeout=120`
@@ -32,7 +32,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Implement `agency_sdk/delegates/gateway_client.py` (Green) (c5692f9)
     - [x] Sibling of `BaseDelegateClient` (own host/path/timeout/headers), sync `requests`, per design §5.5
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (c5692f9)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: AgencyGatewayClient' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: AgencyGatewayClient' (Protocol in workflow.md) (abc2613)
 
 ## Phase 3: Facade accessor + URL discovery
 
