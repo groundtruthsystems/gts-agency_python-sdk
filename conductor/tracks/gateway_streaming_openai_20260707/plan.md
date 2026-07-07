@@ -19,14 +19,14 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (31d8c2e)
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Native streaming + facade API fix' (Protocol in workflow.md) — incl. live `:4000` streaming E2E (69596dd)
 
-## Phase 2: [openai] extra + full-feature helpers
+## Phase 2: [openai] extra + full-feature helpers [checkpoint: c09d3ac]
 
 - [x] Task: Write failing tests (`test_gateway_openai.py`, `pytest.importorskip("openai")` for functional ones) (76e2c84)
     - [x] Missing-extra guard raises a clear `ImportError` naming `[openai]`
     - [x] `openai_client()`/`async_openai_client()`: base_url `{gateway}/v1`, `x-org` default header, rotating-bearer auth hook on the http_client, kwargs passthrough (+ no-cache: caller owns lifecycle)
 - [x] Task: Implement `pyproject` extra + helpers on `AgencyGatewayClient` (Green); install `.[openai]` into the dev venv (76e2c84)
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (76e2c84)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: [openai] extra + helpers' (Protocol in workflow.md) — incl. live helper E2E (complete + stream)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: [openai] extra + helpers' (Protocol in workflow.md) — incl. live helper E2E (complete + stream) (c09d3ac)
 
 ## Phase 3: Docs, example & gates
 
