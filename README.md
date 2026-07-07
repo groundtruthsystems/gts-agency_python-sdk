@@ -122,31 +122,31 @@ and migration from a per-agent bootstrap.
 
 ### Agent Gateway Example
 
-OpenAI-compatible LLM calls routed through the org's deployed agentgateway —
-one m2m credential instead of per-provider API keys. The gateway lives on its
-own host (not the control-plane `base_url`) and org scoping is the `x-org`
-header the client stamps automatically.
+LLM calls routed through the org's deployed agentgateway — one m2m credential
+instead of per-provider API keys. The gateway lives on its own host (not the
+control-plane `base_url`); the SDK wires the rotating bearer, the `x-org` routing
+header, and the URL into a standard **`openai`** client and hands it back.
 
 ```python
 gateway = client.gateway(org_id="2", gateway_base_url="http://localhost:4000")
 
-# Built-in zero-dependency client: one-shot + streaming
-text = gateway.complete(
-    [{"role": "user", "content": "Summarize this rule ..."}],
-    model="biglambda1",       # virtual-model name from the org's gateway config
+oai = gateway.openai_client()   # standard openai.OpenAI, pre-wired to the gateway
+r = oai.chat.completions.create(
+    model="biglambda1",         # virtual-model name from the org's gateway config
+    messages=[{"role": "user", "content": "Summarize this rule ..."}],
     temperature=0.0,
 )
-for delta in gateway.complete_stream([{"role": "user", "content": "..."}], model="biglambda1"):
-    print(delta, end="", flush=True)
 
-# Full-feature path: a standard openai client, pre-wired to the gateway
-# (requires the [openai] extra; streaming/tools/structured outputs/retries/async)
-oai = gateway.openai_client()
-r = oai.chat.completions.create(model="biglambda1", messages=[...])
+# Streaming / tools / structured outputs — plain openai SDK
+for chunk in oai.chat.completions.create(model="biglambda1", messages=[...], stream=True):
+    ...
+
+# Async (e.g. httpx-based agents)
+aoai = gateway.async_openai_client()
 ```
 
-See [docs/gateway.md](docs/gateway.md) for the tier model, prod/test URL
-selection, URL discovery, rotation-safe DIY openai wiring, and error semantics.
+See [docs/gateway.md](docs/gateway.md) for prod/test URL selection, URL
+discovery, rotation-safe DIY openai wiring, and error semantics.
 
 ## Examples
 

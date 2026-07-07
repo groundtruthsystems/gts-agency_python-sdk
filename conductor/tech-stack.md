@@ -13,6 +13,7 @@
 | `requests` | ≥ 2.32.0 | Synchronous HTTP client for all API calls |
 | `pydantic` | ≥ 2.9.2 | DTO models, validation, JSON (de)serialisation |
 | `pyjwt` | ≥ 2.3.0, < 3.0.0 | Decoding cached JWTs to check `exp` (no signature verification) |
+| `openai` | ≥ 1.0.0 | Official openai SDK — the gateway routes exclusively through it (`gateway.openai_client()` / `async_openai_client()`); brings `httpx`. *Promoted from the `[openai]` extra to a core dep 2026-07-07 when the gateway's zero-dep client was removed.* |
 
 Pydantic v2 API only: `model_dump(mode="json")`, `ConfigDict`, `Field`.
 
@@ -28,12 +29,6 @@ SDK core never requires them:
 | `opentelemetry-exporter-otlp-proto-http` | ≥ 1.27.0 | OTLP HTTP span/log exporters |
 | `opentelemetry-instrumentation-logging` | ≥ 0.48b0 | Inject trace/span ids into stdlib log records |
 | `langfuse` | ≥ 3.8.1 | Langfuse client (prompt mgmt/scoring); brings `httpx` |
-
-Installed via the `[openai]` extra (lazy-imported; the core never requires it):
-
-| Dependency | Version | Role |
-|---|---|---|
-| `openai` | ≥ 1.0.0 | Official openai SDK returned by the gateway full-feature helpers `openai_client()`/`async_openai_client()` |
 
 ## Development Tooling
 
@@ -61,32 +56,24 @@ Installed via the `[openai]` extra (lazy-imported; the core never requires it):
   `auth.py`) adds OTLP tracing/logging to a Langfuse backend via
   `AgencyClient.observability(...)`; OpenTelemetry/Langfuse imports are deferred to
   the lifecycle methods, and the per-request bearer hooks reuse `CredentialsSupplier`.
-- **Agent gateway (core, 2026-07-07):** `delegates/gateway_client.py` +
-  `gateway_dto.py` provide OpenAI-compatible chat completions through the org's
-  agentgateway via `AgencyClient.gateway(*, org_id, gateway_base_url=None,
-  environment="production")` (DCL cache keyed by `(org_id, gateway_base_url/environment)`
-  — changed 2026-07-07 from observability-style single-instance, which silently served
-  the first caller's org/host to every later caller; gateway clients are stateless, so
-  per-identity instances are free and multi-org processes get correct routing). The client is
-  a deliberate **sibling** of `BaseDelegateClient`, not a subclass: it targets the
-  gateway's own host (never the control-plane `base_url`), uses the fixed `/v1`
-  path, a 120 s timeout, and stamps the extra `x-org` header. DTOs are
-  `extra="allow"` — the wire format is agentgateway upstream, not owned by gts.
-  *Extended 2026-07-07 (streaming/openai track):* native SSE streaming
-  (`chat_completions_stream`/`complete_stream`; byte-mode `iter_lines(delimiter=b"\n")`
-  + explicit per-line UTF-8 decode, because text/event-stream carries no charset and
-  requests defaults `text/*` to ISO-8859-1, which corrupts multibyte chars and lets a
-  0x85 byte split lines; `stream=True` into the one-shot methods fails fast with
-  `ValueError`), plus `[openai]`-extra helpers `openai_client()`/`async_openai_client()`
-  returning standard openai clients with the rotating bearer (per-request httpx auth
-  hook from the shared core module `agency_sdk/auth_hooks.py`) and `x-org` pre-wired — the
-  full-feature tier (tools, structured outputs, retries, async).
-  Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`.
-  *Live-verified 2026-07-07* against the control-plane image built 2026-07-06: the
-  real response is Page-wrapped (`{"page": ..., "items": [...]}`, matching the SDK's
-  standard pagination, not the bare list modeled from the Rust source), and the full
-  discovery → completion chain passes; the client handles both shapes. No new
-  runtime dependencies.
+- **Agent gateway (core, 2026-07-07, openai-SDK-only):** `delegates/gateway_client.py`
+  + `gateway_dto.py`. `AgencyClient.gateway(*, org_id, gateway_base_url=None,
+  environment=None)` (DCL cache keyed by `(org_id, gateway_base_url/environment)` for
+  correct multi-org routing; URL and environment are mutually exclusive) returns an
+  `AgencyGatewayClient` that is a thin **factory**, not an HTTP client:
+  `openai_client()`/`async_openai_client()` return standard `openai.OpenAI`/`AsyncOpenAI`
+  wired to the gateway's own host (never the control-plane `base_url`) at the fixed
+  `/v1` path, with the `x-org` routing header and a per-request rotating-bearer httpx
+  auth hook (shared core module `agency_sdk/auth_hooks.py`; the construction-time
+  `api_key` is a placeholder). *Simplified 2026-07-07:* the earlier zero-dependency
+  built-in client (`complete`/`complete_stream`/`chat_completions[_stream]` + hand-rolled
+  chat DTOs + native SSE parsing) was **removed** to unify on one path — `openai` owns
+  the LLM surface (streaming, tools, structured outputs, retries, async) and was
+  promoted to a core dependency. `gateway_dto.py` now holds only the discovery DTOs
+  (`AgentGatewayStatusResponse`, `extra="allow"`). Omitting `gateway_base_url` resolves
+  the URL from `GET /api/agentgateways?o={org}`; *live-verified 2026-07-07* against the
+  control-plane image built 2026-07-06 (Page-wrapped response; discovery → completion
+  chain passes).
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer
