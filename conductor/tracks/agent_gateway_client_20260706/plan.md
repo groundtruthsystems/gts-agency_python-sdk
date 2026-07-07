@@ -55,6 +55,6 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Documentation (22947ab)
     - [x] `docs/gateway.md` — usage guide (accessor, prod/test URLs, `x-org`, discovery fallback, local E2E)
     - [x] Update `README.md` "Delegate Clients" + `CLAUDE.md` Architecture with the gateway delegate (+ fixed pre-existing session_vault omission in both lists)
-- [~] Task: Final gate run
-    - [ ] `pytest --cov=agency_sdk --cov-report=term-missing` (>80%), `mypy agency_sdk/`, `black --check agency_sdk/ examples/`, `bandit -r agency_sdk/ -x agency_sdk/test`
+- [x] Task: Final gate run (no code changes; all gates green)
+    - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (124 passed, total 92%, gateway modules 100%), `mypy agency_sdk/` (clean, 24 files), `black --check agency_sdk/ examples/` (clean), `bandit -r agency_sdk/ -x agency_sdk/test` (clean)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Example, docs & quality gates' (Protocol in workflow.md)
