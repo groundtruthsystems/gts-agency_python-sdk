@@ -14,5 +14,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Gateway streaming + openai SDK integration — native SSE in the zero-dep client, [openai] extra full-feature helpers, tiered usage docs**
+- [x] **Track: Gateway streaming + openai SDK integration — native SSE in the zero-dep client, [openai] extra full-feature helpers, tiered usage docs**
 *Link: [./tracks/gateway_streaming_openai_20260707/](./tracks/gateway_streaming_openai_20260707/)*
