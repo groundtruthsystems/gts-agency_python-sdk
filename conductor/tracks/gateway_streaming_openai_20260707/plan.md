@@ -21,11 +21,11 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
 
 ## Phase 2: [openai] extra + full-feature helpers
 
-- [ ] Task: Write failing tests (`test_gateway_openai.py`, `pytest.importorskip("openai")` for functional ones)
-    - [ ] Missing-extra guard raises a clear `ImportError` naming `[openai]`
-    - [ ] `openai_client()`/`async_openai_client()`: base_url `{gateway}/v1`, `x-org` default header, rotating-bearer auth hook on the http_client, kwargs passthrough
-- [ ] Task: Implement `pyproject` extra + helpers on `AgencyGatewayClient` (Green); install `.[openai]` into the dev venv
-- [ ] Task: Refactor; verify coverage / mypy / black / bandit
+- [x] Task: Write failing tests (`test_gateway_openai.py`, `pytest.importorskip("openai")` for functional ones) (76e2c84)
+    - [x] Missing-extra guard raises a clear `ImportError` naming `[openai]`
+    - [x] `openai_client()`/`async_openai_client()`: base_url `{gateway}/v1`, `x-org` default header, rotating-bearer auth hook on the http_client, kwargs passthrough (+ no-cache: caller owns lifecycle)
+- [x] Task: Implement `pyproject` extra + helpers on `AgencyGatewayClient` (Green); install `.[openai]` into the dev venv (76e2c84)
+- [x] Task: Refactor; verify coverage / mypy / black / bandit (76e2c84)
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: [openai] extra + helpers' (Protocol in workflow.md) — incl. live helper E2E (complete + stream)
 
 ## Phase 3: Docs, example & gates
