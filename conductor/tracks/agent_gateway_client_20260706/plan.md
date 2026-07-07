@@ -58,3 +58,12 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Final gate run (no code changes; all gates green)
     - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (124 passed, total 92%, gateway modules 100%), `mypy agency_sdk/` (clean, 24 files), `black --check agency_sdk/ examples/` (clean), `bandit -r agency_sdk/ -x agency_sdk/test` (clean)
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Example, docs & quality gates' (Protocol in workflow.md) (d61dd23)
+
+## Post-track addendum: discovery live E2E (2026-07-07)
+
+- [x] Task: Live-verify the previously verification-deferred `/api/agentgateways` discovery path (user-requested)
+    - [x] Pulled the latest `agency-control-plane` ECR image (digest `0b001a…`, built 2026-07-06, replacing `56d940…` of 2026-06-25) and recreated the container; old image 404'd the route, new image serves it
+    - [x] Empty-state E2E: real endpoint returns `{"page":…, "items":[]}` → SDK raises the designed `ValueError` ("no agent gateway found for org 2")
+    - [x] Happy-path E2E: seeded org-2 production+test deployment rows (MySQL `agent_gateway_deployment`), then `client.gateway(org_id="2")` discovered `production.url`, chained a live completion through `:4000` ('pong'), and `environment="test"` resolved `test.url`; seed rows deleted afterwards (DB restored pristine)
+    - [x] Contract finding: the real response is **Page-wrapped** (`{"page":…, "items":[…]}`), not the bare list modeled from the Rust source — the SDK's dual-shape handling (`test_discovery_accepts_page_wrapped_items`) covers the real path; slots carry extra fields (`manages_lifecycle`, `vendor`, …) tolerated by `extra="allow"`
+    - [x] Updated verification markers: `client.py`/`gateway_dto.py` docstrings, `docs/gateway.md`, `CLAUDE.md`, `conductor/tech-stack.md`

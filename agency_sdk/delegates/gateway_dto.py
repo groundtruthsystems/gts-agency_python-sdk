@@ -10,8 +10,10 @@ upstream — not owned by the gts repos — so every model here is deliberately
 
 Discovery models mirror the control plane's ``AgentGatewayStatusResponse``
 (agent_gateway_dto.rs:24-47) returned by ``GET /api/agentgateways?o={org}``,
-carrying the per-environment (production/test) Cloud Run URLs. Source-modeled;
-live verification deferred (docs/gateway_design.md §4.1, §10 decision 1).
+carrying the per-environment (production/test) URLs. Live-verified 2026-07-07
+against the control plane: the endpoint wraps items in the standard Page shape,
+and slots carry extra fields (``id``, ``vendor``, ``runtime``,
+``manages_lifecycle``, ...) tolerated via ``extra="allow"``.
 """
 
 from pydantic import BaseModel, ConfigDict

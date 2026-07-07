@@ -85,10 +85,11 @@ gateway = client.gateway(org_id="2", environment="test")   # or "production" (de
 A clear `ValueError` is raised when the gateway is not enabled, the slot is still
 provisioning, or `environment` is not `"production"`/`"test"`.
 
-> **Verification status:** the discovery endpoint is source-modeled from the
-> control-plane DTOs and covered by offline tests only — the local control-plane
-> image predates the gateway feature. Prefer explicit `gateway_base_url` (it is
-> also the more robust production posture: no startup round-trip).
+> **Verification status:** live-verified on 2026-07-07 against the local
+> control plane (image built 2026-07-06): the endpoint returns a Page-wrapped
+> `{"page": ..., "items": [...]}` payload, both slots resolve, and the full
+> discovery → completion chain works end to end. Explicit `gateway_base_url`
+> remains the recommended production posture (no startup round-trip).
 
 ## Async consumers
 

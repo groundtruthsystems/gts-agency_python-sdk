@@ -97,9 +97,10 @@ class AgencyClient:
     def _discover_gateway_url(self, org_id: str, environment: str) -> str:
         """Resolve the gateway URL for ``environment`` from the control plane.
 
-        Source-modeled from the control plane's ``AgentGatewayStatusResponse``
-        (verification-deferred, docs/gateway_design.md §4.1/§10): reads the
-        ``production.url`` / ``test.url`` slot of the org's gateway status.
+        Reads the ``production.url`` / ``test.url`` slot of the org's gateway
+        status (``AgentGatewayStatusResponse``). Live-verified 2026-07-07: the
+        endpoint returns a Page-wrapped ``{"page": ..., "items": [...]}``
+        payload (the bare-list branch below is a defensive fallback).
         """
         from agency_sdk.delegates.gateway_dto import AgentGatewayStatusResponse
 

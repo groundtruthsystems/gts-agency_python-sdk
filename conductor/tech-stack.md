@@ -63,9 +63,12 @@ SDK core never requires them:
   gateway's own host (never the control-plane `base_url`), uses the fixed `/v1`
   path, a 120 s timeout, and stamps the extra `x-org` header. DTOs are
   `extra="allow"` — the wire format is agentgateway upstream, not owned by gts.
-  Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`
-  (source-modeled, offline-tested only; live verification deferred until a
-  control-plane image ships the endpoint). No new runtime dependencies.
+  Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`.
+  *Live-verified 2026-07-07* against the control-plane image built 2026-07-06: the
+  real response is Page-wrapped (`{"page": ..., "items": [...]}`, matching the SDK's
+  standard pagination, not the bare list modeled from the Rust source), and the full
+  discovery → completion chain passes; the client handles both shapes. No new
+  runtime dependencies.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer
