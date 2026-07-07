@@ -44,6 +44,14 @@ class StubResponse:
         for i in range(0, len(self.content), chunk_size):
             yield self.content[i : i + chunk_size]
 
+    def iter_lines(self, chunk_size: int = 512, decode_unicode: bool = False, delimiter=None):
+        """Line-wise replay of `content` (SSE streaming tests); mirrors requests semantics."""
+        data = self.content.decode() if decode_unicode else self.content
+        yield from (data.split(delimiter) if delimiter is not None else data.splitlines())
+
+    def close(self) -> None:
+        self.closed = True  # streaming clients must close the response; tests assert this
+
 
 @dataclass
 class CapturedCall:

@@ -52,6 +52,32 @@ class ChatCompletionResponse(BaseModel):
     choices: list[ChatChoice]
 
 
+class ChatDelta(BaseModel):
+    """Incremental message fragment inside a streaming chunk."""
+
+    model_config = ConfigDict(extra="allow")
+
+    role: str | None = None
+    content: str | None = None
+
+
+class ChatChunkChoice(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    index: int = 0
+    delta: ChatDelta
+    finish_reason: str | None = None
+
+
+class ChatCompletionChunk(BaseModel):
+    """One SSE event of a streaming completion; ``choices`` may be empty
+    (e.g. a usage-only final chunk before ``[DONE]``)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    choices: list[ChatChunkChoice] = []
+
+
 class AgentGatewayEnvironmentResponse(BaseModel):
     """One deployment slot (production or test) with its Cloud Run URL."""
 
