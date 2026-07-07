@@ -3,7 +3,7 @@
 Methodology: TDD per `workflow.md` (Red → Green → Refactor), >80% coverage,
 mypy strict / black / bandit gates, Phase Completion Verification Protocol per phase.
 
-## Phase 1: Native streaming + facade API fix
+## Phase 1: Native streaming + facade API fix [checkpoint: 69596dd]
 
 - [x] Task: Facade API fix — `environment`/`gateway_base_url` mutual exclusion (TDD) (3f5297a)
     - [x] Failing tests: both given → `ValueError` (no network call); discovery with `environment=None` defaults to production; explicit URL alone and env-discovery alone still work
@@ -17,7 +17,7 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
     - [x] Regression (found by live E2E): multibyte UTF-8 delta (`✅`, raw `\xe2\x9c\x85`) parses intact — text/event-stream has no charset → requests defaults ISO-8859-1 → 0x85 byte became U+0085 NEL → `splitlines()` cut the JSON mid-string; fixed with byte-mode `iter_lines(delimiter=b"\n")` + explicit per-line UTF-8 decode
 - [x] Task: Implement chunk DTOs + `chat_completions_stream`/`complete_stream` + guard (Green) (31d8c2e)
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (31d8c2e)
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Native streaming + facade API fix' (Protocol in workflow.md) — incl. live `:4000` streaming E2E
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Native streaming + facade API fix' (Protocol in workflow.md) — incl. live `:4000` streaming E2E (69596dd)
 
 ## Phase 2: [openai] extra + full-feature helpers
 
