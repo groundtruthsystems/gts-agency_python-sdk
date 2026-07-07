@@ -47,7 +47,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (ecea91d)
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Facade accessor + URL discovery' (Protocol in workflow.md) (e8d16f7)
 
-## Phase 4: Example, docs & quality gates
+## Phase 4: Example, docs & quality gates [checkpoint: d61dd23]
 
 - [x] Task: Add `examples/quick_gateway.py` (env-driven, self-verifying, exit non-zero on failure) (67bc0aa)
     - [x] Reads `AGENCY_AUTH_URL`, `AGENCY_CLIENT_ID`, `AGENCY_CLIENT_SECRET`, `AGENCY_ORG_ID`, `GATEWAY_BASE_URL`, `GATEWAY_MODEL`
@@ -57,4 +57,4 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
     - [x] Update `README.md` "Delegate Clients" + `CLAUDE.md` Architecture with the gateway delegate (+ fixed pre-existing session_vault omission in both lists)
 - [x] Task: Final gate run (no code changes; all gates green)
     - [x] `pytest --cov=agency_sdk --cov-report=term-missing` (124 passed, total 92%, gateway modules 100%), `mypy agency_sdk/` (clean, 24 files), `black --check agency_sdk/ examples/` (clean), `bandit -r agency_sdk/ -x agency_sdk/test` (clean)
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Example, docs & quality gates' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Example, docs & quality gates' (Protocol in workflow.md) (d61dd23)
