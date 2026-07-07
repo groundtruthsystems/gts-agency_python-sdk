@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Agent gateway client — OpenAI-compatible LLM routing via client.gateway(...) (SDK side, design doc Phase 1)**
+- [x] **Track: Agent gateway client — OpenAI-compatible LLM routing via client.gateway(...) (SDK side, design doc Phase 1)**
 *Link: [./tracks/agent_gateway_client_20260706/](./tracks/agent_gateway_client_20260706/)*
