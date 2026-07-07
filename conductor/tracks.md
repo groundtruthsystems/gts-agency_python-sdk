@@ -19,5 +19,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Gateway openai-SDK-only — remove the zero-dep fallback, openai becomes a core dependency, AgencyGatewayClient becomes an openai-client factory**
+- [x] **Track: Gateway openai-SDK-only — remove the zero-dep fallback, openai becomes a core dependency, AgencyGatewayClient becomes an openai-client factory**
 *Link: [./tracks/gateway_openai_only_20260707/](./tracks/gateway_openai_only_20260707/)*
