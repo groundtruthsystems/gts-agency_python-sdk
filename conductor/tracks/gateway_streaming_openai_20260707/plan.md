@@ -31,8 +31,8 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
 ## Phase 3: Docs, example & gates
 
 - [x] Task: `docs/gateway.md` — tier model, openai section (helpers + recipe + rotation patterns), native streaming, URL-vs-env semantics; reposition built-in client (5c0ecfd)
-- [~] Task: `README.md` + `CLAUDE.md` sync; `examples/quick_gateway.py` streaming step + optional openai step
-- [ ] Task: Final gate run (pytest+cov, mypy, black, bandit)
+- [x] Task: `README.md` + `CLAUDE.md` sync; `examples/quick_gateway.py` streaming step + optional openai step (ae5f567) — live E2E: all 7 example steps PASS
+- [x] Task: Final gate run (pytest+cov, mypy, black, bandit) — 136 passed, gateway modules 100%, total 92%, all gates exit 0 (no code changes)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Docs, example & gates' (Protocol in workflow.md)
 
 ## Phase 4: Adversarial review (ultracode)
