@@ -34,7 +34,7 @@ class AgencyClient:
         self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
-        self._gateway: "AgencyGatewayClient | None" = None
+        self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
         self._gateway_lock = threading.Lock()
 
     def prompts(self) -> AgencyPromptsClient:
@@ -65,17 +65,20 @@ class AgencyClient:
         gateway_base_url: str | None = None,
         environment: str | None = None,
     ) -> "AgencyGatewayClient":
-        """Build (once) an OpenAI-compatible LLM gateway client bound to this client.
+        """Build (or reuse) an OpenAI-compatible LLM gateway client bound to this client.
 
         Targets the org's agentgateway Cloud Run host — never this client's
         control-plane ``base_url`` — reusing the shared ``CredentialsSupplier``
         as the gateway Bearer and stamping the ``x-org`` routing header.
-        Repeated calls return the same instance.
+        Instances are cached per identity — ``(org_id, gateway_base_url)`` or
+        ``(org_id, environment)`` — so repeated calls with the same arguments
+        return the same instance, while a different org, environment, or URL
+        builds its own correctly routed client (never the first caller's).
 
         Either give the URL, or give the environment — never both:
 
         - ``gateway_base_url`` set: use it directly (``environment`` must be omitted).
-        - ``gateway_base_url`` omitted: resolve the URL once from
+        - ``gateway_base_url`` omitted: resolve the URL once per identity from
           ``GET /api/agentgateways?o={org_id}`` on the control-plane ``base_url``,
           selecting the ``production`` (default) or ``test`` slot per ``environment``.
         """
@@ -83,12 +86,17 @@ class AgencyClient:
 
         if gateway_base_url is not None and environment is not None:
             raise ValueError("environment is only used with URL discovery; omit it when gateway_base_url is given")
-        gateway = self._gateway
+        key: tuple[str, str | None, str | None]
+        if gateway_base_url is not None:
+            key = (org_id, gateway_base_url.rstrip("/"), None)
+        else:
+            key = (org_id, None, environment or "production")
+        gateway = self._gateway_clients.get(key)
         if gateway is None:
-            # Double-checked locking, mirroring observability(): one build,
-            # repeated/concurrent callers share the same instance.
+            # Double-checked locking, mirroring observability(): one build per
+            # identity, repeated/concurrent callers share the same instance.
             with self._gateway_lock:
-                gateway = self._gateway
+                gateway = self._gateway_clients.get(key)
                 if gateway is None:
                     url = gateway_base_url or self._discover_gateway_url(org_id, environment or "production")
                     gateway = AgencyGatewayClient(
@@ -96,7 +104,7 @@ class AgencyClient:
                         gateway_base_url=url,
                         org_id=org_id,
                     )
-                    self._gateway = gateway
+                    self._gateway_clients[key] = gateway
         return gateway
 
     def _discover_gateway_url(self, org_id: str, environment: str) -> str:

@@ -25,8 +25,11 @@ gw = client.gateway(
 )
 ```
 
-`gateway(...)` is cached: repeated calls return the same instance (thread-safe,
-double-checked locking).
+`gateway(...)` is cached per identity — `(org_id, gateway_base_url)` or
+`(org_id, environment)`: repeated calls with the same arguments return the same
+instance (thread-safe, double-checked locking), while a different org,
+environment, or URL builds its own client, so one process can hold correctly
+routed gateways for several orgs at once.
 
 **URL vs environment — mutually exclusive.** Either give the URL, or give the
 environment (with discovery) — never both (`ValueError` otherwise):

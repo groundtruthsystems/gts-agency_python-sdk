@@ -58,7 +58,10 @@ SDK core never requires them:
 - **Agent gateway (core, 2026-07-07):** `delegates/gateway_client.py` +
   `gateway_dto.py` provide OpenAI-compatible chat completions through the org's
   agentgateway via `AgencyClient.gateway(*, org_id, gateway_base_url=None,
-  environment="production")` (DCL-cached, mirrors `observability()`). The client is
+  environment="production")` (DCL cache keyed by `(org_id, gateway_base_url/environment)`
+  — changed 2026-07-07 from observability-style single-instance, which silently served
+  the first caller's org/host to every later caller; gateway clients are stateless, so
+  per-identity instances are free and multi-org processes get correct routing). The client is
   a deliberate **sibling** of `BaseDelegateClient`, not a subclass: it targets the
   gateway's own host (never the control-plane `base_url`), uses the fixed `/v1`
   path, a 120 s timeout, and stamps the extra `x-org` header. DTOs are
