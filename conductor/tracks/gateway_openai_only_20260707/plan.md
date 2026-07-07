@@ -5,28 +5,27 @@ mypy strict / black / bandit gates, Phase Completion Verification Protocol per p
 Removal-heavy: each phase's "test" step asserts the removed surface is gone AND the retained
 surface still works, rather than red-before-green on new behavior.
 
-## Phase 1: openai as a core dependency
+## Phase 1: openai as a core dependency [e04f24e]
 
-- [ ] Task: Adjust tests + packaging for openai-as-core
-    - [ ] Remove the missing-`[openai]`-extra guard test in `test_gateway_openai.py`
-    - [ ] Add/keep a test asserting `openai` imports as a core dep (no extra needed) and the helpers still build
-    - [ ] `pyproject.toml`: move `openai>=1.0.0` to `[project.dependencies]`; drop the `[openai]` extra
-    - [ ] Remove `_require_openai()` + its calls from `gateway_client.py`; helpers import `openai` directly
-- [ ] Task: Verify — full suite green; mypy / black / bandit; confirm dev install works without `[openai]`
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: openai as a core dependency' (Protocol in workflow.md)
+- [x] Task: Adjust tests + packaging for openai-as-core (e04f24e)
+    - [x] Remove the missing-`[openai]`-extra guard test in `test_gateway_openai.py`
+    - [x] `test_gateway_openai.py` imports `openai` as a core dep directly (a missing core dep fails module import); helpers still build
+    - [x] `pyproject.toml`: moved `openai>=1.0.0` to `[project.dependencies]`; dropped the `[openai]` extra
+    - [x] Removed `_require_openai()` + calls from `gateway_client.py`; helpers import `openai` directly
+- [x] Task: Verify — full suite green (121 passed); mypy / black / bandit clean (e04f24e)
+- [x] Task: Conductor - User Manual Verification 'Phase 1' — folded into the continuous run (user: "一直实现直至完成 e2e") (e04f24e)
 
-## Phase 2: Strip the zero-dep surface
+## Phase 2: Strip the zero-dep surface [e04f24e]
 
-- [ ] Task: Remove tier-A methods from `gateway_client.py`
-    - [ ] Delete `chat_completions`, `complete`, `chat_completions_stream`, `complete_stream`, `_headers`, dead `api_path`
-    - [ ] Keep `__init__`, `openai_client`, `async_openai_client`, `_httpx_bearer_auth`
-    - [ ] Delete `test_gateway_client.py` and `test_gateway_streaming.py`
-- [ ] Task: Trim `gateway_dto.py` to discovery-only
-    - [ ] Delete the 7 chat/chunk DTOs; keep `AgentGatewayEnvironmentResponse` / `AgentGatewayStatusResponse`
-    - [ ] Prune `test_gateway_dto.py` to the discovery-DTO tests; update imports
-    - [ ] Update the module docstring to discovery-only scope
-- [ ] Task: Verify — facade/openai/discovery tests green; grep clean for removed symbols; mypy / black / bandit
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Strip the zero-dep surface' (Protocol in workflow.md)
+- [x] Task: Remove tier-A methods from `gateway_client.py` (e04f24e)
+    - [x] Deleted `chat_completions`, `complete`, `chat_completions_stream`, `complete_stream`, `_headers`, `api_path`
+    - [x] Kept `__init__`, `openai_client`, `async_openai_client`, `_httpx_bearer_auth`
+    - [x] Deleted `test_gateway_client.py` and `test_gateway_streaming.py`
+- [x] Task: Trim `gateway_dto.py` to discovery-only (e04f24e)
+    - [x] Deleted the 7 chat/chunk DTOs; kept `AgentGatewayEnvironmentResponse` / `AgentGatewayStatusResponse`
+    - [x] Pruned `test_gateway_dto.py` to discovery-DTO tests; updated imports + docstring
+- [x] Task: Verify — facade/openai/discovery tests green; residual-symbol grep clean; mypy / black / bandit (e04f24e)
+- [x] Task: Conductor - User Manual Verification 'Phase 2' — folded into the continuous run (e04f24e)
 
 ## Phase 3: Docs, example & gates
 
