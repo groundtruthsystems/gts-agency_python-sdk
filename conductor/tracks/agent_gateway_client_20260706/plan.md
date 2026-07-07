@@ -7,7 +7,7 @@ Protocol at the end of every phase.
 Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 §10 live-validated contract). Release (rc11 bump + tag) is post-merge, out of track.
 
-## Phase 1: Gateway DTOs
+## Phase 1: Gateway DTOs [checkpoint: 5dfb002]
 
 - [x] Task: Write failing tests for gateway DTOs (`agency_sdk/test/test_gateway_dto.py`) (da82696)
     - [x] `ChatMessage` role/content; content defaults to `None`
@@ -19,7 +19,7 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
     - [x] Chat DTOs: `ChatMessage`, `ChatCompletionRequest`, `ChatChoice`, `ChatCompletionResponse` — Pydantic v2, snake_case, `extra="allow"`
     - [x] Discovery DTOs: `AgentGatewayEnvironmentResponse`, `AgentGatewayStatusResponse` — `extra="allow"`, modeled from `agent_gateway_dto.rs:24-47` (verification-deferred)
 - [x] Task: Refactor; verify coverage / mypy / black / bandit (da82696)
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Gateway DTOs' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Gateway DTOs' (Protocol in workflow.md) (5dfb002)
 
 ## Phase 2: AgencyGatewayClient
 
