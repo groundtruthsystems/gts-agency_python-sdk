@@ -82,7 +82,11 @@ class AgencyGatewayClient:
 
         Extra keyword arguments (``temperature``, ``max_tokens``, ...) pass
         through to the upstream provider. Returns ``""`` when the assistant
-        content is null (e.g. reasoning-only truncation, design §10).
+        content is null (e.g. reasoning-only truncation, design §10). This
+        text-only convenience cannot tell a genuinely empty reply from a
+        truncated one — call :meth:`chat_completions` and inspect
+        ``choices[0].finish_reason`` (``"length"`` = truncated) when you need to
+        distinguish them.
         """
         request = ChatCompletionRequest(model=model, messages=messages, **kw)
         response = self.chat_completions(request)
