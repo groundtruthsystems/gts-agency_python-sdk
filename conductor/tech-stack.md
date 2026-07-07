@@ -29,6 +29,12 @@ SDK core never requires them:
 | `opentelemetry-instrumentation-logging` | ≥ 0.48b0 | Inject trace/span ids into stdlib log records |
 | `langfuse` | ≥ 3.8.1 | Langfuse client (prompt mgmt/scoring); brings `httpx` |
 
+Installed via the `[openai]` extra (lazy-imported; the core never requires it):
+
+| Dependency | Version | Role |
+|---|---|---|
+| `openai` | ≥ 1.0.0 | Official openai SDK returned by the gateway full-feature helpers `openai_client()`/`async_openai_client()` |
+
 ## Development Tooling
 
 | Tool | Version | Role |
@@ -66,6 +72,15 @@ SDK core never requires them:
   gateway's own host (never the control-plane `base_url`), uses the fixed `/v1`
   path, a 120 s timeout, and stamps the extra `x-org` header. DTOs are
   `extra="allow"` — the wire format is agentgateway upstream, not owned by gts.
+  *Extended 2026-07-07 (streaming/openai track):* native SSE streaming
+  (`chat_completions_stream`/`complete_stream`; byte-mode `iter_lines(delimiter=b"\n")`
+  + explicit per-line UTF-8 decode, because text/event-stream carries no charset and
+  requests defaults `text/*` to ISO-8859-1, which corrupts multibyte chars and lets a
+  0x85 byte split lines; `stream=True` into the one-shot methods fails fast with
+  `ValueError`), plus `[openai]`-extra helpers `openai_client()`/`async_openai_client()`
+  returning standard openai clients with the rotating bearer (per-request httpx auth
+  hook, reusing the observability hook factory) and `x-org` pre-wired — the
+  full-feature tier (tools, structured outputs, retries, async).
   Omitting `gateway_base_url` resolves the URL from `GET /api/agentgateways?o={org}`.
   *Live-verified 2026-07-07* against the control-plane image built 2026-07-06: the
   real response is Page-wrapped (`{"page": ..., "items": [...]}`, matching the SDK's

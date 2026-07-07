@@ -40,6 +40,9 @@ Compared to calling the REST APIs directly, the SDK provides:
    client for the org's deployed agentgateway: agents send LLM traffic with the
    same rotating m2m JWT (plus the `x-org` routing header) instead of holding
    per-provider API keys; provider secrets stay in the org's gateway config.
+   Tiered surface: a zero-dependency built-in client (one-shot + SSE streaming)
+   and, via the `[openai]` extra, pre-wired official openai clients for the
+   full feature set (tools, structured outputs, retries, async).
 
 ## Current Focus
 
@@ -55,6 +58,10 @@ Optional OpenTelemetry tracing/logging support (the `[observability]` extra and
 The agent gateway client (`AgencyClient.gateway(...)`, OpenAI-compatible chat
 completions with `x-org` routing and optional control-plane URL discovery)
 shipped on 2026-07-07, live-validated against the local agentgateway.
+
+Native SSE streaming, the `[openai]` extra (pre-wired full-feature openai
+clients), and per-identity gateway caching shipped later the same day
+(follow-up driven by CTO direction), all live-validated.
 
 ## Non-Goals
 
