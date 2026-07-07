@@ -116,12 +116,31 @@ def test_stream_early_exit_closes_response(stub_requests, client):
     assert response.closed
 
 
-def test_stream_http_error_propagates(stub_requests, client):
-    stub_requests.queue(status_code=401, text="authentication failure")
+def test_stream_http_error_propagates_and_closes_response(stub_requests, client):
+    response = stub_requests.queue(status_code=401, text="authentication failure")
 
     with pytest.raises(Exception) as excinfo:
         next(client.chat_completions_stream(_request()))
     assert "401" in str(excinfo.value)
+    assert getattr(response, "closed", False)  # error responses must be closed too, not left to GC
+
+
+def test_complete_stream_yields_only_first_choice_with_n_gt_1(stub_requests, client):
+    # With n>1 passed through, servers stream each choice's deltas as separate
+    # chunks carrying an explicit index; only index 0 may reach the caller.
+    stub_requests.queue(
+        content_bytes=(
+            b'data: {"choices":[{"index":0,"delta":{"content":"A1"}}]}\n\n'
+            b'data: {"choices":[{"index":1,"delta":{"content":"B1"}}]}\n\n'
+            b'data: {"choices":[{"index":0,"delta":{"content":"A2"}}]}\n\n'
+            b'data: {"choices":[{"index":1,"delta":{"content":"B2"}}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
+    )
+
+    deltas = list(client.complete_stream([{"role": "user", "content": "hi"}], model="m", n=2))
+
+    assert deltas == ["A1", "A2"]  # choice-1 deltas must not interleave into the text
 
 
 def test_chat_completions_rejects_stream_before_any_network_call(stub_requests, client):

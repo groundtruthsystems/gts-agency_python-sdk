@@ -104,8 +104,8 @@ class AgencyGatewayClient:
             timeout=120,
             stream=True,  # hand back the socket; iterate SSE lines instead of buffering
         )
-        response.raise_for_status()
         try:
+            response.raise_for_status()  # inside try: error responses are closed too, not left to GC
             # Byte mode + explicit UTF-8, deliberately NOT decode_unicode=True:
             # text/event-stream carries no charset, so requests defaults to
             # ISO-8859-1 — mojibake for UTF-8 content, and worse, a multibyte
@@ -126,13 +126,16 @@ class AgencyGatewayClient:
     def complete_stream(self, messages: list[dict[str, Any]], model: str, **kw: Any) -> Iterator[str]:
         """Convenience: stream ``messages`` to ``model``, yielding assistant text deltas.
 
-        Skips empty/role-only/usage-only chunks; extra keyword arguments pass
-        through to the upstream provider (as with :meth:`complete`).
+        First choice only (``index == 0``, as with :meth:`complete`); skips
+        empty/role-only/usage-only chunks — a reasoning model that spends its
+        whole token budget on ``reasoning_content`` yields nothing. Extra
+        keyword arguments pass through to the upstream provider.
         """
         request = ChatCompletionRequest(model=model, messages=messages, **kw)
         for chunk in self.chat_completions_stream(request):
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            for choice in chunk.choices:
+                if choice.index == 0 and choice.delta.content:
+                    yield choice.delta.content
 
     def openai_client(self, **kwargs: Any) -> "openai.OpenAI":
         """Build a standard ``openai.OpenAI`` client wired to this gateway (full-feature path).
@@ -143,7 +146,10 @@ class AgencyGatewayClient:
         the ``x-org`` routing header, and an httpx auth hook that stamps a
         fresh rotating bearer on every request (the construction-time
         ``api_key`` is a placeholder). Extra ``kwargs`` (``max_retries``,
-        ``timeout``, ...) pass through to ``openai.OpenAI``.
+        ``timeout``, ...) pass through to ``openai.OpenAI`` — except the four
+        this helper wires itself (``base_url``, ``api_key``, ``default_headers``,
+        ``http_client``); passing those raises ``TypeError`` — build your own
+        client instead (docs/gateway.md tier C) if you need to control them.
 
         Each call returns a new client; the caller owns its lifecycle.
         Requires the ``[openai]`` extra.
