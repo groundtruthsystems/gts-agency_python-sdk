@@ -37,12 +37,13 @@ Compared to calling the REST APIs directly, the SDK provides:
    reusing the SDK's `CredentialsSupplier` so one cached token serves both API
    calls and telemetry. Heavy dependencies stay behind the `[observability]` extra.
 5. **LLM gateway routing** — `client.gateway(...)` returns an OpenAI-compatible
-   client for the org's deployed agentgateway: agents send LLM traffic with the
-   same rotating m2m JWT (plus the `x-org` routing header) instead of holding
-   per-provider API keys; provider secrets stay in the org's gateway config.
-   Tiered surface: a zero-dependency built-in client (one-shot + SSE streaming)
-   and, via the `[openai]` extra, pre-wired official openai clients for the
-   full feature set (tools, structured outputs, retries, async).
+   `openai` client for the org's deployed agentgateway: agents send LLM traffic
+   with the same rotating m2m JWT (plus the `x-org` routing header) instead of
+   holding per-provider API keys; provider secrets stay in the org's gateway
+   config. The SDK wires auth / `x-org` / URL into a standard official `openai`
+   client (`gateway.openai_client()` / `async_openai_client()`) and hands it
+   back, so the full OpenAI surface (streaming, tools, structured outputs,
+   retries, async) works as documented. `openai` is a core dependency.
 
 ## Current Focus
 
@@ -59,9 +60,10 @@ The agent gateway client (`AgencyClient.gateway(...)`, OpenAI-compatible chat
 completions with `x-org` routing and optional control-plane URL discovery)
 shipped on 2026-07-07, live-validated against the local agentgateway.
 
-Native SSE streaming, the `[openai]` extra (pre-wired full-feature openai
-clients), and per-identity gateway caching shipped later the same day
-(follow-up driven by CTO direction), all live-validated.
+The gateway was then unified on the official `openai` SDK (2026-07-07,
+CTO-driven): the zero-dependency built-in client was removed, `openai` promoted
+to a core dependency, and `AgencyGatewayClient` reduced to a factory returning
+pre-wired `openai` clients — one usage path, all live-validated.
 
 ## Non-Goals
 
