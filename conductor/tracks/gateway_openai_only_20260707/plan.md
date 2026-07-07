@@ -27,10 +27,10 @@ surface still works, rather than red-before-green on new behavior.
 - [x] Task: Verify — facade/openai/discovery tests green; residual-symbol grep clean; mypy / black / bandit (e04f24e)
 - [x] Task: Conductor - User Manual Verification 'Phase 2' — folded into the continuous run (e04f24e)
 
-## Phase 3: Docs, example & gates
+## Phase 3: Docs, example & gates [checkpoint: acce36a]
 
-- [ ] Task: `docs/gateway.md` — collapse to the single openai path (+ short DIY note via `agency_sdk.auth_hooks`); remove tier-A sections
-- [ ] Task: `examples/quick_gateway.py` — rewrite to `openai_client()`/`async_openai_client()` only (one-shot, streaming, wrong-`x-org` 403 via `openai.APIStatusError`)
-- [ ] Task: `README.md` + `CLAUDE.md` + `conductor/tech-stack.md` sync (drop `[openai]` extra, tier language)
-- [ ] Task: Final gate run (pytest+cov, mypy, black, bandit) + live E2E vs `:4000` (openai one-shot/stream/async + 403)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Docs, example & gates' (Protocol in workflow.md)
+- [x] Task: `docs/gateway.md` — collapsed to the single openai path (+ DIY-openai note via `agency_sdk.auth_hooks`); tier sections removed (11913af)
+- [x] Task: `examples/quick_gateway.py` — rewritten to `openai_client()`/`async_openai_client()` only (one-shot, streaming, async, wrong-`x-org` 403 via `openai.APIStatusError`) (11913af)
+- [x] Task: `README.md` + `CLAUDE.md` + `conductor/tech-stack.md` synced (openai → core dep; `[openai]` extra + tier language removed) (11913af)
+- [x] Task: Final gate run — pytest 121 passed, gateway modules 100%, total 92%; mypy/black/bandit clean; live E2E vs `:4000` 5/5 PASS (acce36a)
+- [x] Task: Conductor - User Manual Verification 'Phase 3' — folded into the continuous run; live E2E is the verification (acce36a)
