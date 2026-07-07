@@ -9,16 +9,16 @@ Design source: `docs/gateway_design.md` (§5 SDK design, §9 Phase 1 scope,
 
 ## Phase 1: Gateway DTOs
 
-- [ ] Task: Write failing tests for gateway DTOs (`agency_sdk/test/test_gateway_dto.py`)
-    - [ ] `ChatMessage` role/content; content defaults to `None`
-    - [ ] `ChatCompletionRequest` accepts extra OpenAI params (`temperature`, `max_tokens`, ...) via `extra="allow"` and round-trips them through `model_dump`
-    - [ ] `ChatCompletionResponse`/`ChatChoice` parse the live-validated response shape (id/model/object/created/choices/usage/timings) and tolerate unknown fields
-    - [ ] Empty-content case (`content: null` + `reasoning_content`) parses; `message.content` is `None`
-    - [ ] Discovery DTOs `AgentGatewayStatusResponse`/`AgentGatewayEnvironmentResponse` parse a control-plane-shaped payload (both slots, missing slots, missing url)
-- [ ] Task: Implement `agency_sdk/delegates/gateway_dto.py` (Green)
-    - [ ] Chat DTOs: `ChatMessage`, `ChatCompletionRequest`, `ChatChoice`, `ChatCompletionResponse` — Pydantic v2, snake_case, `extra="allow"`
-    - [ ] Discovery DTOs: `AgentGatewayEnvironmentResponse`, `AgentGatewayStatusResponse` — `extra="allow"`, modeled from `agent_gateway_dto.rs:24-47` (verification-deferred)
-- [ ] Task: Refactor; verify coverage / mypy / black / bandit
+- [x] Task: Write failing tests for gateway DTOs (`agency_sdk/test/test_gateway_dto.py`) (da82696)
+    - [x] `ChatMessage` role/content; content defaults to `None`
+    - [x] `ChatCompletionRequest` accepts extra OpenAI params (`temperature`, `max_tokens`, ...) via `extra="allow"` and round-trips them through `model_dump`
+    - [x] `ChatCompletionResponse`/`ChatChoice` parse the live-validated response shape (id/model/object/created/choices/usage/timings) and tolerate unknown fields
+    - [x] Empty-content case (`content: null` + `reasoning_content`) parses; `message.content` is `None`
+    - [x] Discovery DTOs `AgentGatewayStatusResponse`/`AgentGatewayEnvironmentResponse` parse a control-plane-shaped payload (both slots, missing slots, missing url)
+- [x] Task: Implement `agency_sdk/delegates/gateway_dto.py` (Green) (da82696)
+    - [x] Chat DTOs: `ChatMessage`, `ChatCompletionRequest`, `ChatChoice`, `ChatCompletionResponse` — Pydantic v2, snake_case, `extra="allow"`
+    - [x] Discovery DTOs: `AgentGatewayEnvironmentResponse`, `AgentGatewayStatusResponse` — `extra="allow"`, modeled from `agent_gateway_dto.rs:24-47` (verification-deferred)
+- [x] Task: Refactor; verify coverage / mypy / black / bandit (da82696)
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Gateway DTOs' (Protocol in workflow.md)
 
 ## Phase 2: AgencyGatewayClient
