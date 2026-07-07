@@ -1,0 +1,8 @@
+{
+  "track_id": "gateway_openai_only_20260707",
+  "type": "refactor",
+  "status": "new",
+  "created_at": "2026-07-07T15:30:00Z",
+  "updated_at": "2026-07-07T15:30:00Z",
+  "description": "Remove the gateway's zero-dependency built-in client (complete/complete_stream/chat_completions[_stream] + hand-rolled chat DTOs) and route all gateway LLM traffic through the official openai SDK. openai becomes a core dependency (user decision, accepting the transitive-dep bloat); AgencyGatewayClient becomes a thin openai-client factory keeping only openai_client()/async_openai_client() + discovery/x-org/rotation wiring. Reverses the earlier keep-tier-A decision; guideline-agent unaffected (already targets async_openai_client). Evolves PR #9 in place on feat/agent-gateway-client."
+}
