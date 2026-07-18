@@ -85,7 +85,10 @@ SDK core never requires them:
     option was considered and **deferred** (token endpoint is plain HTTP locally;
     exporter-level TLS control, if needed, belongs in the observability module).
 - **HTTP conventions:** every delegate owns a `_make_request` helper; errors
-  propagate via `raise_for_status()`; 30 s default timeout; query parameter
+  propagate via `raise_for_status()`; 30 s default timeout; connection failures
+  auto-retry for reads (GET/HEAD/OPTIONS) with backoff while writes opt in per call
+  (read timeouts and HTTP status codes are never retried — preserving 409-as-control-flow,
+  added 2026-07-18 with the session-reporting delegate); query parameter
   abbreviations `o` (org), `s` (size), `p` (page), `v` (version).
 - **DTO conventions:** Pydantic v2 `BaseModel` throughout. Datasource/ontology/rules
   DTOs map camelCase JSON via `alias_generator=_to_camel`; dataset/prompt/files DTOs
