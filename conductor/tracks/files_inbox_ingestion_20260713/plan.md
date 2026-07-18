@@ -79,6 +79,11 @@ Publishing to PyPI is an outward act: it happens only after the whole 3-repo cha
 real output locally AND ① is on the shared platform (the rc must be usable against it, not only
 against a branch build).
 
+> **Code merged 2026-07-18 — PR #10 → `main` (merge `86cb337`).** Both delegates + the rc12 bump are
+> on `main`; the Hermes review was addressed (`7ed7625`). Merging did NOT publish (last published =
+> rc11); the tasks below remain, gated on ① reaching the shared platform. An rc12 tagged from `main`
+> will bundle the session delegate too (guardrail overtaken by the merge — accepted).
+
 - [ ] Task: Re-run the e2e against the SHARED deployment (post-①-merge) — deployment config can
       differ from local (OAuth realm, object store); capture evidence
 - [x] Task: Full suite green (pytest agency_sdk/test/) + bandit clean; bump version 0.0.1rc11 →
