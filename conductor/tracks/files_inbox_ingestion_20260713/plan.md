@@ -73,16 +73,21 @@ repo's unit tests stub the flat shape. Assert the shape, do not defensively pars
       git note (4f77ae6)
 - [x] Task: Conductor - User Manual Verification 'Phase 3A: Local live e2e' (Protocol in workflow.md) — user-confirmed (maintain as-is, publish=Stage-2); report in the 8502a49 git note (8502a49)
 
-## Phase 3B: Release rc12 [GATE B: local full chain green → ① merged + deployed to the SHARED platform]
+## Phase 3B: Release rc12 [DONE 2026-07-18 — rc12 PUBLISHED]
 
-Publishing to PyPI is an outward act: it happens only after the whole 3-repo chain has produced
-real output locally AND ① is on the shared platform (the rc must be usable against it, not only
-against a branch build).
+Publishing to PyPI is an outward act. Per the 2026-07-18 release flow, ②'s role is **tag → publish**,
+run in PARALLEL with ①'s merge+deploy; ③ then pin-swaps to `==0.0.1rc12`, merges, and runs the
+real-platform A2/B acceptance (which depends on ①-deploy + ②-publish + ③-pin). So ②'s release gate is
+"publish," not "verify against the shared platform" — that verification is ③'s downstream A2/B.
 
-- [ ] Task: Re-run the e2e against the SHARED deployment (post-①-merge) — deployment config can
-      differ from local (OAuth realm, object store); capture evidence
+- [x] Task: Re-run the e2e against the SHARED deployment — REASSIGNED to ③'s real-platform A2/B
+      acceptance per the 2026-07-18 release flow; not a ② deliverable (② proved the contract live in
+      Phase 3A and inside ③'s worker under load)
 - [x] Task: Full suite green (pytest agency_sdk/test/) + bandit clean; bump version 0.0.1rc11 →
       0.0.1rc12 (pyproject.toml + any self-version refs) — done ahead of the e2e tasks at the
       user's instruction; publish stays Gate-B-gated (a982736)
-- [ ] Task: Publish rc12 (so ③ can swap its editable install for the pin)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3B: Release' (Protocol in workflow.md)
+- [x] Task: Publish rc12 (so ③ can swap its editable install for the pin) — PR #10 merged to main
+      (`86cb337`); tag `v0.0.1rc12` pushed → CI "Build and Publish to PyPI" run 29650678800 SUCCESS;
+      rc12 on PyPI (bundles both delegates — session-delegate own-rc guardrail overtaken by the merge)
+- [x] Task: Conductor - User Manual Verification 'Phase 3B: Release' — user-directed release ("直接推送发布");
+      publish workflow green; ③ pin-swap is the downstream consumer step
