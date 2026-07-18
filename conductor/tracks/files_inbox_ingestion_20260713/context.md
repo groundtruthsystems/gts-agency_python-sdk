@@ -22,7 +22,7 @@ work-queue ingestion endpoints (created by gts-agency Track ①). This track add
 | Track | Repo | Branch | Status (2026-07-16) |
 |---|---|---|---|
 | ① | gts-agency | `feat/work-item-external-ref` | **Code-complete, running on localhost:13001, and its contract is now PROVEN over the wire by this repo's 3A.** Phases 1–3 checkpointed (`…`, `7951daf4`) · **Phase 4 Stages 0+1 DONE** (Stage 1 = hosting this repo's e2e; it needed **zero fixes**). **Stage 2 = ③'s full chain** is next |
-| ② | **this repo** | `feat/work-queue-delegate` | P1 done (`c5e8a89`); **P2+P2b DONE (`0318a6d`)**; rc12 bumped (`a982736`, not published); **P3A local e2e DONE — ALL STEPS PASSED vs `localhost:13001`, checkpoint `8502a49`** (both flat 409s evidenced live; `examples/quick_work_queue.py`). **2026-07-17: history squashed 46→8 clean commits (tree unchanged), branch PUSHED, PR #10 OPEN** (review only). **NEXT: P3B — gated on ① merged + deployed to the SHARED platform** (re-e2e there → publish rc12). **ALSO on this branch: `AgencySessionClient` BUILT (`fa542f3`)** — separate capability, must NOT ship in rc12 (own rc, Gate B). **rc12 NOT published** (Gate B unmet + session-delegate guardrail + `uv.lock` drift) |
+| ② | **this repo** | `feat/work-queue-delegate` | P1 done (`c5e8a89`); **P2+P2b DONE (`0318a6d`)**; rc12 bumped (`a982736`, not published); **P3A local e2e DONE — ALL STEPS PASSED vs `localhost:13001`, checkpoint `8502a49`** (both flat 409s evidenced live; `examples/quick_work_queue.py`). **2026-07-17: history squashed 46→8 clean commits (tree unchanged), branch PUSHED, PR #10 OPEN** (review only). **NEXT: P3B — gated on ① merged + deployed to the SHARED platform** (re-e2e there → publish rc12). **ALSO on this branch: `AgencySessionClient` BUILT (`fa542f3`)** — separate capability, must NOT ship in rc12 (own rc, Gate B). **rc12 NOT published** (Gate B unmet + session-delegate guardrail). PR #10 review (Hermes) addressed: malformed-409 guard + docstring (`7ed7625`); the `uv.lock` "blocker" was a misconception (gitignored, not in the wheel) — corrected below |
 | ③ | gts-guideline-agent | `feat/files-inbox-ingestion` | Phases 1–4 done (incl. an LLM-only classifier rework, FR8–FR11); Phase 4 checkpointed `bb55a6f`; **its side of the contract fix is already done** (`e5b8c78`). PAUSED — its Phase 5A runs **after** this repo's 3A, consuming THIS repo as a **local editable install** (no publish needed — that is Gate B); only its 5B needs the published rc12. One pre-flight item: ontology is docker-network-only, so 5A must publish that port if it runs natively |
 
 **Order — TWO GATES (2026-07-16; agency is a shared platform, nothing outward until the full
@@ -40,12 +40,13 @@ Gate-B actions needing the user's explicit go.
 ahead of the e2e). Bumping is local and harmless; **publishing is the outward act and stays in 3B**.
 Do not read the bumped version as "released".
 
-**⚠️ Publish blocker — `uv.lock` self-version drift (re-survey 2026-07-17):** `pyproject.toml` is
-`0.0.1rc12` but the lock's self-package entry `uv.lock:269` is still `0.0.1rc9`
-(`source = { virtual = "." }`). Re-lock (`uv lock`) so the self-version matches **before/at** the 3B
-publish, or the released artifact's own version metadata will be stale. Deliberately NOT re-locked
-now — a full `uv lock` re-resolves every dep (noisy + needs re-test), so it belongs to the Gate-B
-publish step, not to local doc hygiene.
+**`uv.lock` self-version drift — CORRECTED 2026-07-18 (was mislabelled a "publish blocker"):**
+`uv.lock` is **gitignored** (`.gitignore:18`) — it is NOT tracked, NOT in the PR, and NOT in the
+built wheel. The published artifact's version comes from `pyproject.toml`'s static
+`version = "0.0.1rc12"` (no `[build-system]`/dynamic version), so a stale lock could never make the
+RELEASED metadata stale. The earlier "publish blocker" framing was wrong. Re-locked locally anyway
+(`uv lock --offline`, 2026-07-18): self-version rc9→rc12, and it captured the previously-missing
+`openai` dep tree (openai is a core dep). Local-only hygiene; nothing to commit.
 
 ## ✅ Phase 3A DONE (2026-07-16, checkpoint `8502a49`) — the contract held on first contact
 
