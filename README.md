@@ -54,6 +54,8 @@ Access each API domain through the facade:
 - `client.prompts()` — prompt CRUD via command pattern
 - `client.rules()` — rule listing, detail, execution, and execution history
 - `client.session_vault()` — session-scoped key/value vault for agent state (classification-based encryption, audited reveal)
+- `client.work_queues()` — work-queue ingestion: create items with exactly-once external refs, publish, claim by ref, org-scoped lookup by ref, unblock/retry/reprocess, delete (409 returns a typed claim-lost result, not an exception)
+- `client.sessions()` — report progress on a dispatched control-plane session: `attach` to the inherited session then `update` its status/result/events/metrics (the agent inherits the session, never self-registers — no `register`)
 - `client.gateway(org_id=..., gateway_base_url=...)` — OpenAI-compatible LLM calls routed through the org's agentgateway (shared credentials + `x-org` routing header)
 
 ### Rules Example

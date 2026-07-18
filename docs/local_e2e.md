@@ -12,6 +12,19 @@ the verification vehicle: it exercises every files-API method with assertions
 byte-compared download → delete file → delete folder), exits non-zero on any
 failure, and cleans up unconditionally so reruns are idempotent.
 
+For the work-queue ingestion delegate,
+[examples/quick_work_queue.py](../examples/quick_work_queue.py) is the
+equivalent vehicle: create-with-external-refs → the two **flat** 409 claim-lost
+bodies (`create` and `add_ref`, asserted _not_ to be the `{"error":{...}}`
+envelope) → org-scoped cross-queue `_by_ref` (+ 404 → `None`) → `add_ref` →
+a command → delete "full forget" (refs CASCADE). It scaffolds two throwaway
+queues via raw requests (the delegate has no queue CRUD — ingestion only) and
+tears everything down unconditionally. Same env vars as below, plus optional
+`AGENCY_SESSION_TEMPLATE_ID` (a template that exists in the org; only the
+`publish` step needs it — and `publish` dispatches a real session, so its
+completion is a Stage-2/full-chain concern, reported but never failing the
+contract steps).
+
 ## Step 0 — Environment pre-check (seconds)
 
 ```bash
