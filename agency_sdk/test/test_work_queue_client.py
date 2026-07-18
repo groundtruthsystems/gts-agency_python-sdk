@@ -110,6 +110,26 @@ class TestCreateItem:
                 input_data={},
             )
 
+    def test_create_item_malformed_409_body_reraises_original_httperror(self, client, stub_requests):
+        # A 409 whose body will not parse as JSON is unexpected — surface the original
+        # HTTPError, not a JSONDecodeError, and never fabricate a claim-lost result.
+        response = stub_requests.queue(status_code=409)
+
+        def _no_json():
+            raise ValueError("No JSON could be decoded")
+
+        response.json = _no_json  # type: ignore[method-assign]
+
+        with pytest.raises(requests.HTTPError):
+            client.create_item(
+                queue_id=12,
+                organisation_id=2,
+                title="dup",
+                session_template_id="st",
+                input_data={},
+                external_refs=[{"ref_type": "file_id", "ref_value": "f1"}],
+            )
+
 
 class TestAddRef:
     def test_add_ref_posts_flat_command_envelope(self, client, stub_requests):

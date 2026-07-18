@@ -64,7 +64,9 @@ class AgencySessionClient(BaseDelegateClient):
             metrics: Optional run metrics.
             error: Optional failure detail (surfaced in the CP UI's ERRORS tab).
             logs: Optional captured logs (surfaced in the CP UI's LOGS tab).
-            session_id: Target session; defaults to the ``attach``ed session.
+            session_id: Target session; defaults to the ``attach``ed session. An
+                explicit value overrides the attached session for THIS call only —
+                it does not rebind ``self._session_id``.
 
         Raises:
             ValueError: If no session is attached and no ``session_id`` is given

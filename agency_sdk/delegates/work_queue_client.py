@@ -24,11 +24,20 @@ from agency_sdk.delegates.work_queue_dto import (
 
 
 def _conflict_body(error: requests.HTTPError) -> dict[str, Any] | None:
-    """Return the parsed 409 body, or None when the error is not a conflict."""
+    """Return the parsed 409 body, or None when it is not a usable conflict.
+
+    Returning None makes the caller re-raise the original ``HTTPError``. That covers
+    both a non-409 status and a 409 whose body will not parse as JSON — a malformed
+    409 is an unexpected condition, so surfacing the original error beats fabricating
+    a claim-lost result with no owner fields.
+    """
     response = error.response
     if response is None or response.status_code != 409:
         return None
-    body: dict[str, Any] = response.json()
+    try:
+        body: dict[str, Any] = response.json()
+    except ValueError:  # includes requests.JSONDecodeError (malformed/empty 409 body)
+        return None
     return body
 
 
