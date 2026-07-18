@@ -1,0 +1,11 @@
+{
+  "track_id": "files_inbox_ingestion_20260713",
+  "type": "feature",
+  "status": "in_progress",
+  "created_at": "2026-07-13T00:00:00Z",
+  "updated_at": "2026-07-17T00:00:00Z",
+  "branch": "feat/work-queue-delegate",
+  "branch_source": "created 2026-07-13 from main for this track",
+  "cross_repo_role": "Track ② (SDK delegate) of the 3-repo files_inbox_ingestion_20260713 effort; server ① in gts-agency, main track ③ in gts-guideline-agent",
+  "description": "AgencyWorkQueueClient: a work-queue SDK delegate over /api/work_queues (create_item-with-refs, publish, add_ref, org-scoped get_item_by_ref, item_command for unblock/retry/reprocess, delete_item) with 409-as-control-flow, mirroring the ① contract in design §5/§6. Ends by publishing rc12 for Track ③ to lock onto. Progress (2026-07-17): P1/P2/P2b/P3A done + checkpointed; only P3B (publish rc12) remains, gated on ① merged+deployed to the shared platform. A SEPARATE capability, AgencySessionClient (attach/update, no register; fa542f3), was also built on this branch per user instruction and is ③-adopted + Gate-A live-verified — RELEASE GUARDRAIL: it must NOT ship in the files-inbox rc12; it needs its own rc."
+}
