@@ -10,7 +10,9 @@ from agency_sdk.delegates.files_client import AgencyFilesClient
 from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
+from agency_sdk.delegates.session_client import AgencySessionClient
 from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
+from agency_sdk.delegates.work_queue_client import AgencyWorkQueueClient
 
 if TYPE_CHECKING:
     from agency_sdk.delegates.gateway_client import AgencyGatewayClient
@@ -32,6 +34,8 @@ class AgencyClient:
         self.rules_client = AgencyRulesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.files_client = AgencyFilesClient(token_supplier=token_supplier, base_url=self.base_url)
         self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.work_queue_client = AgencyWorkQueueClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.session_client = AgencySessionClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
         self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
@@ -57,6 +61,12 @@ class AgencyClient:
 
     def session_vault(self) -> AgencySessionVaultClient:
         return self.session_vault_client
+
+    def work_queues(self) -> AgencyWorkQueueClient:
+        return self.work_queue_client
+
+    def sessions(self) -> AgencySessionClient:
+        return self.session_client
 
     def gateway(
         self,
