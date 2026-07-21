@@ -15,7 +15,19 @@ from agency_sdk.delegates.work_queue_dto import (
     ExistingItemSummary,
     ItemCommandResponse,
     ItemResponse,
+    QueueResponse,
+    QueuesPagedResult,
 )
+
+QUEUE_JSON = {
+    "id": 8,
+    "name": "Guideline Ingestion",
+    "description": "Files-inbox ingestion queue for the guideline agent (org 2)",
+    "status": 1,
+    "created_on": "2026-07-20T20:47:33Z",
+    "created_by": "901",
+    "modified_on": "2026-07-20T20:47:33Z",
+}
 
 ITEM_JSON = {
     "id": 4711,
@@ -161,10 +173,61 @@ def test_item_command_response_omits_session_id_when_absent():
 
 
 def test_add_ref_result_conflict_carries_owner_without_published():
-    # add_ref's 409 body is {work_item_id, status} — narrower than create's.
+    # add_ref's 409 owner summary is {work_item_id, status} — narrower than create's.
     result = AddRefResult(added=False, owner_work_item_id=4711, owner_status="blocked")
 
     assert result.added is False
     assert result.owner_work_item_id == 4711
     assert result.owner_status == "blocked"
     assert not hasattr(result, "owner_published")
+
+
+def test_existing_item_summary_published_is_optional():
+    # The enveloped error.details may omit `published` (mirrors details.get("published")).
+    summary = ExistingItemSummary(work_item_id=4711, status="doing")
+
+    assert summary.work_item_id == 4711
+    assert summary.status == "doing"
+    assert summary.published is None
+
+
+def test_create_item_result_contended_defaults_false_and_can_be_set():
+    assert CreateItemResult(created=True).contended is False
+
+    contended = CreateItemResult(created=False, existing=None, contended=True)
+    assert contended.contended is True
+    assert contended.existing is None
+
+
+def test_add_ref_result_contended_defaults_false_and_can_be_set():
+    assert AddRefResult(added=True).contended is False
+
+    contended = AddRefResult(added=False, contended=True)
+    assert contended.contended is True
+    assert contended.owner_work_item_id is None
+
+
+def test_queue_response_deserialises_from_server_json():
+    queue = QueueResponse(**QUEUE_JSON)
+
+    assert queue.id == 8
+    assert queue.name == "Guideline Ingestion"
+    assert queue.status == 1
+    assert queue.description == "Files-inbox ingestion queue for the guideline agent (org 2)"
+    assert queue.created_on == "2026-07-20T20:47:33Z"
+    assert queue.created_by == "901"
+
+
+def test_queue_response_optional_fields_default_to_none():
+    queue = QueueResponse(id=9, name="q", status=1, created_on="t", modified_on="t")
+
+    assert queue.description is None
+    assert queue.created_by is None
+
+
+def test_queues_paged_result_wraps_page_and_items():
+    result = QueuesPagedResult(**{"page": {"page": 0, "size": 1, "total": 1}, "items": [QUEUE_JSON]})
+
+    assert result.page.total == 1
+    assert [q.id for q in result.items] == [8]
+    assert result.items[0].name == "Guideline Ingestion"
