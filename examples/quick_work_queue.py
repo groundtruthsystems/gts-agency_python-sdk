@@ -2,9 +2,9 @@
 """Work-queue ingestion lifecycle example (Phase 3A local e2e vehicle).
 
 Drives AgencyWorkQueueClient through the full ingestion contract against a live
-control plane: create-with-external-refs, the two FLAT 409 claim-lost bodies,
-org-scoped cross-queue lookup, add_ref, a command (ItemCommandResponse), and the
-delete "full forget" that CASCADEs the refs.
+control plane: create-with-external-refs, the two enveloped 409 claim-lost bodies (owner under error.details),
+queue-scoped `_by_ref` list lookup (① 55f9f1f5, incl. same-ref-across-queues), add_ref, a command
+(ItemCommandResponse), and the delete "full forget" that CASCADEs the refs.
 
 Self-verifying: every step asserts its outcome and the script exits non-zero on
 failure. Queues + items use a unique per-run tag and are torn down
@@ -78,7 +78,7 @@ def main() -> int:
     ok = False
 
     try:
-        # 0. Scaffolding: two queues, to prove _by_ref is org-scoped (not queue-scoped).
+        # 0. Scaffolding: two queues, to exercise queue-scoped _by_ref (incl. the same ref in both).
         q1 = _create_queue(base_url, token, org, f"wq-e2e-{tag}-1")
         q2 = _create_queue(base_url, token, org, f"wq-e2e-{tag}-2")
         print(f"0. created scaffolding queues q1={q1} q2={q2}")
@@ -102,9 +102,9 @@ def main() -> int:
         assert created.item.status  # non-empty status string parsed off the real ItemResponse
         print(f"1. created item A id={item_a} status={created.item.status!r} published={created.item.published}")
 
-        # 2. Re-create with the SAME file_id ref -> 409 claim-lost, FLAT body.
-        #    The delegate parsing existing.{work_item_id,status,published} at all IS the flat-shape
-        #    proof: an error envelope would make ExistingItemSummary(**body) raise ValidationError.
+        # 2. Re-create with the SAME file_id ref -> 409 claim-lost (enveloped; owner in error.details).
+        #    A populated existing.{work_item_id,status,published} proves the delegate read the owner
+        #    out of error.details (not a top-level flat body).
         dup = wq.create_item(
             queue_id=q1,
             organisation_id=org,
@@ -121,7 +121,8 @@ def main() -> int:
             f"status={dup.existing.status!r} published={dup.existing.published}"
         )
 
-        # 2b. Raw-body evidence: the literal 409 is the flat domain object, NOT the {"error":{...}} envelope.
+        # 2b. Raw-body evidence: the literal 409 is the standard {"error":{...}} envelope, owner
+        #     summary under error.details (not a flat top-level body).
         raw = requests.post(
             f"{base_url}/api/work_queues/{q1}/items",
             params={"o": str(org)},
@@ -136,21 +137,22 @@ def main() -> int:
         )
         assert raw.status_code == 409, f"expected 409, got {raw.status_code}: {raw.text}"
         raw_body = raw.json()
-        assert "error" not in raw_body, f"409 must be flat, got envelope: {raw_body}"
-        assert {"work_item_id", "status", "published"} <= set(raw_body), raw_body
-        print(f"2b. raw 409 body is FLAT (no envelope): {raw_body}")
+        assert "error" in raw_body, f"409 must be the standard envelope, got: {raw_body}"
+        details = raw_body["error"].get("details") or {}
+        assert {"work_item_id", "status", "published"} <= set(details), raw_body
+        print(f"2b. raw 409 is enveloped; owner from error.details: {details}")
 
         # 3. Fetch item A by (queue,item).
         got = wq.get_item(queue_id=q1, item_id=item_a, organisation_id=org)
         assert got.id == item_a and got.work_queue_id == q1
         print(f"3. get_item A -> id={got.id} work_queue_id={got.work_queue_id}")
 
-        # 4. Org-scoped lookup by ref: A's file_id resolves with NO queue in the path.
-        by_a = wq.get_item_by_ref(organisation_id=org, ref_type="file_id", ref_value=file_ref_a)
-        assert by_a is not None and by_a.id == item_a
-        print(f"4. _by_ref(file_id={file_ref_a}) -> item {by_a.id} (org-scoped, no queue id)")
+        # 4. Queue-scoped lookup by ref (① 55f9f1f5): the org scope `_` returns a LIST.
+        items_a = wq.get_items_by_ref(organisation_id=org, ref_type="file_id", ref_value=file_ref_a)
+        assert [i.id for i in items_a] == [item_a], items_a
+        print(f"4. _by_ref(_, file_id={file_ref_a}) -> {[i.id for i in items_a]} (org scope, list)")
 
-        # 5. Create item B in the OTHER queue; look it up org-scoped -> proves cross-queue reach.
+        # 5. Item B in the OTHER queue; queue-scoping isolates the lookup.
         created_b = wq.create_item(
             queue_id=q2,
             organisation_id=org,
@@ -161,14 +163,42 @@ def main() -> int:
         )
         assert created_b.created is True and created_b.item is not None
         item_b = created_b.item.id
-        by_b = wq.get_item_by_ref(organisation_id=org, ref_type="file_id", ref_value=file_ref_b)
-        assert by_b is not None and by_b.id == item_b and by_b.work_queue_id == q2
-        print(f"5. item B id={item_b} in q2, resolved org-scoped by ref -> cross-queue OK")
+        in_q2 = wq.get_items_by_ref(organisation_id=org, queue_id=q2, ref_type="file_id", ref_value=file_ref_b)
+        in_q1 = wq.get_items_by_ref(organisation_id=org, queue_id=q1, ref_type="file_id", ref_value=file_ref_b)
+        assert [i.id for i in in_q2] == [item_b] and in_q1 == []
+        print(f"5. item B id={item_b} in q2; queue-scoped _by_ref: q2->[{item_b}], q1->[]")
 
-        # 6. Missing ref -> None (404 mapped, not an exception).
-        missing = wq.get_item_by_ref(organisation_id=org, ref_type="file_id", ref_value=f"nope_{tag}")
-        assert missing is None
-        print("6. _by_ref(missing) -> None (404 mapped)")
+        # 5b. Cross-queue: the SAME ref may be claimed once PER queue (queue-scoped UNIQUE).
+        shared = f"file_shared_{tag}"
+        shared_refs = [{"ref_type": "file_id", "ref_value": shared}]
+        c = wq.create_item(
+            queue_id=q1,
+            organisation_id=org,
+            title="shared-q1",
+            session_template_id=session_template_id,
+            input_data={},
+            external_refs=shared_refs,
+        )
+        d = wq.create_item(
+            queue_id=q2,
+            organisation_id=org,
+            title="shared-q2",
+            session_template_id=session_template_id,
+            input_data={},
+            external_refs=shared_refs,
+        )
+        assert c.created and d.created and c.item is not None and d.item is not None, (c, d)
+        org_hits = wq.get_items_by_ref(organisation_id=org, ref_type="file_id", ref_value=shared)
+        assert {i.work_queue_id for i in org_hits} == {q1, q2}, org_hits  # `_` returns BOTH
+        assert len(wq.get_items_by_ref(organisation_id=org, queue_id=q1, ref_type="file_id", ref_value=shared)) == 1
+        assert len(wq.get_items_by_ref(organisation_id=org, queue_id=q2, ref_type="file_id", ref_value=shared)) == 1
+        wq.delete_item(queue_id=q1, item_id=c.item.id, organisation_id=org)
+        wq.delete_item(queue_id=q2, item_id=d.item.id, organisation_id=org)
+        print("5b. same ref in q1+q2 both created; _ -> 2, per-queue -> 1 each; cleaned up")
+
+        # 6. Missing ref -> empty list (no card holds it; not a 404).
+        assert wq.get_items_by_ref(organisation_id=org, ref_type="file_id", ref_value=f"nope_{tag}") == []
+        print("6. _by_ref(missing) -> [] (empty list, no owner)")
 
         # 7. add_ref a NEW content_hash to A -> added.
         added = wq.add_ref(
@@ -177,21 +207,32 @@ def main() -> int:
         assert added.added is True and added.owner_work_item_id is None
         print("7. add_ref new content_hash to A -> added=True")
 
-        # 8. add_ref A's file_id onto B -> 409 owner, FLAT body (owner id + status, NO published).
-        conflict = wq.add_ref(
-            queue_id=q2, item_id=item_b, organisation_id=org, ref_type="file_id", ref_value=file_ref_a
+        # 8. add_ref a ref already owned IN THE SAME QUEUE -> 409 owner (queue-scoped collision).
+        #    A different queue would SUCCEED (proven by 5b), so the collision must be same-queue:
+        #    file_ref_a is owned by item A in q1, so a second q1 card that claims it loses.
+        rival = wq.create_item(
+            queue_id=q1,
+            organisation_id=org,
+            title="rival-q1",
+            session_template_id=session_template_id,
+            input_data={},
         )
-        assert conflict.added is False, conflict
-        assert conflict.owner_work_item_id == item_a, conflict
-        assert conflict.owner_status, conflict
+        assert rival.created and rival.item is not None, rival
+        rival_id = rival.item.id
+        conflict = wq.add_ref(
+            queue_id=q1, item_id=rival_id, organisation_id=org, ref_type="file_id", ref_value=file_ref_a
+        )
+        assert conflict.added is False and conflict.contended is False, conflict
+        assert conflict.owner_work_item_id == item_a and conflict.owner_status, conflict
         print(
-            f"8. add_ref owned ref onto B -> 409 owner: work_item_id={conflict.owner_work_item_id} "
+            f"8. add_ref owned ref (same queue) -> 409 owner: work_item_id={conflict.owner_work_item_id} "
             f"status={conflict.owner_status!r}"
         )
 
-        # 8b. Raw-body evidence for the add_ref 409: flat, narrower than create's (no `published`).
+        # 8b. Raw-body evidence for the add_ref 409: enveloped; owner under error.details
+        #     (narrower than create's — no `published`).
         raw2 = requests.post(
-            f"{base_url}/api/work_queues/{q2}/items/{item_b}/_command",
+            f"{base_url}/api/work_queues/{q1}/items/{rival_id}/_command",
             params={"o": str(org)},
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             json={"command": "add_ref", "ref_type": "file_id", "ref_value": file_ref_a},
@@ -199,9 +240,11 @@ def main() -> int:
         )
         assert raw2.status_code == 409, f"expected 409, got {raw2.status_code}: {raw2.text}"
         raw2_body = raw2.json()
-        assert "error" not in raw2_body, f"add_ref 409 must be flat, got envelope: {raw2_body}"
-        assert {"work_item_id", "status"} <= set(raw2_body), raw2_body
-        print(f"8b. raw add_ref 409 body is FLAT: {raw2_body}")
+        assert "error" in raw2_body, f"add_ref 409 must be the standard envelope, got: {raw2_body}"
+        details2 = raw2_body["error"].get("details") or {}
+        assert {"work_item_id", "status"} <= set(details2), raw2_body
+        print(f"8b. raw add_ref 409 is enveloped; owner from error.details: {details2}")
+        wq.delete_item(queue_id=q1, item_id=rival_id, organisation_id=org)
 
         # 9. publish A -> ItemCommandResponse {success, message, session_id?} (Phase 2b live confirm).
         #    Best-effort / Stage-2-adjacent: publish DISPATCHES a real session via the template, which
@@ -222,11 +265,11 @@ def main() -> int:
             )
             print(f"9. publish A -> dispatch not completed ({detail}); Stage-2 concern, contract steps unaffected")
 
-        # 10. delete A (full forget) -> None; its refs CASCADE, so _by_ref now misses.
+        # 10. delete A (full forget) -> None; its refs CASCADE, so _by_ref now returns [].
         result = wq.delete_item(queue_id=q1, item_id=item_a, organisation_id=org)
         assert result is None
-        forgotten = wq.get_item_by_ref(organisation_id=org, ref_type="file_id", ref_value=file_ref_a)
-        assert forgotten is None, "delete should CASCADE the external refs (full forget)"
+        forgotten = wq.get_items_by_ref(organisation_id=org, ref_type="file_id", ref_value=file_ref_a)
+        assert forgotten == [], "delete should CASCADE the external refs (full forget)"
         item_a = None
         print("10. delete A -> None; _by_ref(A's file_id) now None (refs CASCADED)")
 
