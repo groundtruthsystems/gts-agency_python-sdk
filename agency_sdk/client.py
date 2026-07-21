@@ -11,6 +11,7 @@ from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
 from agency_sdk.delegates.session_client import AgencySessionClient
+from agency_sdk.delegates.session_templates_client import AgencySessionTemplatesClient
 from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
 from agency_sdk.delegates.work_queue_client import AgencyWorkQueueClient
 
@@ -36,6 +37,9 @@ class AgencyClient:
         self.session_vault_client = AgencySessionVaultClient(token_supplier=token_supplier, base_url=self.base_url)
         self.work_queue_client = AgencyWorkQueueClient(token_supplier=token_supplier, base_url=self.base_url)
         self.session_client = AgencySessionClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.session_templates_client = AgencySessionTemplatesClient(
+            token_supplier=token_supplier, base_url=self.base_url
+        )
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
         self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
@@ -67,6 +71,9 @@ class AgencyClient:
 
     def sessions(self) -> AgencySessionClient:
         return self.session_client
+
+    def session_templates(self) -> AgencySessionTemplatesClient:
+        return self.session_templates_client
 
     def gateway(
         self,
