@@ -63,7 +63,7 @@ mis-mapped to "no owner". Replace with the queue-scoped list lookup (spec FR5).
       **live e2e re-run vs the restarted ① — ALL STEPS PASSED** (get_items_by_ref → /items: org `_`,
       queue-scoped, cross-queue, empty, CASCADE; publish_verified=True). Pre-flight probe confirmed
       `_by_ref` gone (404), `/items` accepts `_`, paged envelope, miss→empty page.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1.7: _by_ref→/items' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1.7: _by_ref→/items' — verified via the live e2e re-run (ALL STEPS PASSED vs restarted ①) + ③'s local integration; folded into the rc13 release
 
 ## Phase 2: Live e2e vs ① (Gate A) [DONE — ALL STEPS PASSED vs ① 55f9f1f5] [checkpoint: 3453278]
 
@@ -81,6 +81,8 @@ mis-mapped to "no owner". Replace with the queue-scoped list lookup (spec FR5).
 ## Phase 3: Release rc13 [Gate B] (the _by_ref→/items merge landed during rc13 dev, pre-release — no version skipped)
 
 - [x] Task: Full suite green (pytest agency_sdk/test/) + bandit clean; bump 0.0.1rc12 → 0.0.1rc13 (pyproject.toml)
-- [ ] Task: Publish rc13 — PR/merge to main → tag `v0.0.1rc13` → CI "Build and Publish to PyPI"
-      (explicit user go; per the release flow, ②'s tag→publish runs parallel with ①'s deploy; ③ bumps its pin)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Release' (Protocol in workflow.md)
+- [x] Task: Publish rc13 — PR #12 merged to main (`1125d6d`); tag `v0.0.1rc13` pushed → CI
+      "Build and Publish to PyPI" run 29965083524 SUCCESS → **`0.0.1rc13` live on PyPI** (③ swaps
+      editable→`==0.0.1rc13` pin; ②'s tag→publish ran parallel with ①'s deploy)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Release' — user-directed release; publish
+      workflow green + confirmed on PyPI (latest = 0.0.1rc13)

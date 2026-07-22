@@ -1,9 +1,9 @@
 {
   "track_id": "conflict_envelope_20260718",
   "type": "feature",
-  "status": "new",
+  "status": "completed",
   "created_at": "2026-07-18T00:00:00Z",
-  "updated_at": "2026-07-18T00:00:00Z",
+  "updated_at": "2026-07-22T00:00:00Z",
   "branch": "feat/conflict-envelope-rc13",
   "branch_source": "created 2026-07-18 from main (cd88b10)",
   "cross_repo_role": "SDK-side mirror of gts-agency ①'s work-queue 409 reshape (flat body → standard {error:{message,type,details}} envelope + new CONFLICT_RETRY type for the owner-less fallback); consumed by ③ (guideline-agent) with a stable public API",
