@@ -4,7 +4,7 @@
 
 The GTS Agency Python SDK is the official typed Python client for the GTS Agency
 platform. It wraps the platform's REST APIs (datasets, datasources, files,
-ontologies, prompts, rules, session vault, work queues, sessions) in a single, coherent, strongly-typed
+ontologies, prompts, rules, session vault, work queues, sessions, session templates) in a single, coherent, strongly-typed
 library so that any program holding organisation credentials can interact with the
 platform without hand-writing HTTP calls — and routes agent LLM traffic through the
 org's agent gateway with the same single credential.
@@ -71,6 +71,14 @@ delete, with 409-as-control-flow) and the session-reporting client
 (`AgencyClient.sessions()`, `attach`/`update` on a dispatched session, no self-register)
 shipped in `0.0.1rc12` on 2026-07-18, live-validated end-to-end against the local stack
 and inside the guideline-agent worker.
+
+`0.0.1rc13` (2026-07-22) followed a work-queue reshape on the platform: the 409 conflict
+body moved to the standard `{error: {…}}` envelope (owner summary read from `error.details`,
+plus an additive `contended` flag for the retryable owner-less case); the external-ref lookup
+became queue-scoped (`get_items_by_ref`, over the paginated `/items`); and two name-resolution
+list reads (`work_queues().list()` and a new `session_templates()` delegate) let consumers wire
+a queue/template by name rather than a hardcoded id. Live-validated end-to-end against the
+local stack.
 
 ## Non-Goals
 
