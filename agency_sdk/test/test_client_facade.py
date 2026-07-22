@@ -3,6 +3,7 @@
 from agency_sdk.client import AgencyClient
 from agency_sdk.delegates.files_client import AgencyFilesClient
 from agency_sdk.delegates.session_client import AgencySessionClient
+from agency_sdk.delegates.session_templates_client import AgencySessionTemplatesClient
 from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
 from agency_sdk.delegates.work_queue_client import AgencyWorkQueueClient
 
@@ -69,3 +70,19 @@ def test_facade_returns_same_session_instance(fake_credentials):
     client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test")
 
     assert client.sessions() is client.sessions()
+
+
+def test_facade_exposes_session_templates_client(fake_credentials):
+    client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test/")
+
+    templates = client.session_templates()
+
+    assert isinstance(templates, AgencySessionTemplatesClient)
+    assert templates.token_supplier is fake_credentials
+    assert templates.base_url == "http://cp.test"
+
+
+def test_facade_returns_same_session_templates_instance(fake_credentials):
+    client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test")
+
+    assert client.session_templates() is client.session_templates()

@@ -1,13 +1,16 @@
 """Client for the work-queue ingestion API (/api/work_queues).
 
 Mirrors the Track ① files-inbox ingestion contract (design §5/§6). Work items
-(cards) are claimed exactly-once via external refs under an org-wide UNIQUE
-key, so on ``create_item`` and ``add_ref`` an HTTP 409 is a normal
-claim-lost outcome — another card already owns the ref — not an error. Both
-methods catch it and return a typed result carrying the owner's summary;
+(cards) are claimed exactly-once via external refs under a **queue-scoped** UNIQUE
+key (① ``55f9f1f5``), so on ``create_item`` and ``add_ref`` an HTTP 409 is a normal
+claim-lost outcome — another card in the SAME queue already owns the ref — not an
+error. Both methods catch it and return a typed result carrying the owner's summary;
 every other HTTP error propagates as usual.
 """
 
+from __future__ import annotations
+
+import builtins  # the `list()` method shadows the builtin, so annotations use builtins.list[...]
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -20,29 +23,60 @@ from agency_sdk.delegates.work_queue_dto import (
     ExistingItemSummary,
     ItemCommandResponse,
     ItemResponse,
+    QueuesPagedResult,
 )
 
 
-def _conflict_body(error: requests.HTTPError) -> dict[str, Any] | None:
-    """Return the parsed 409 body, or None when it is not a usable conflict.
+#: The ``error.type`` an owner-less "claim contended" 409 carries (the ①-side
+#: ``AppError::Conflict(String)`` fallback). It is the deterministic signal for a
+#: retryable conflict with no owner — never inferred from missing ``details``.
+_CONFLICT_RETRY_TYPE = "CONFLICT_RETRY"
 
-    Returning None makes the caller re-raise the original ``HTTPError``. That covers
-    both a non-409 status and a 409 whose body will not parse as JSON — a malformed
-    409 is an unexpected condition, so surfacing the original error beats fabricating
-    a claim-lost result with no owner fields.
+
+def _parse_conflict(error: requests.HTTPError) -> tuple[dict[str, Any] | None, bool] | None:
+    """Parse a 409 from the standard error envelope ``{error: {message, type, details}}``.
+
+    Returns ``(owner_details, contended)``:
+
+    - owner conflict → ``(details, False)`` where ``details`` is the owning card's summary.
+    - owner-less ``CONFLICT_RETRY`` → ``(None, True)``.
+
+    Returns ``None`` when it is not a usable conflict — a non-409 status, a body that
+    will not parse as JSON, or an envelope 409 that is neither an owner-details conflict
+    nor ``CONFLICT_RETRY`` — so the caller re-raises the original ``HTTPError`` rather
+    than fabricating a claim-lost result.
     """
     response = error.response
     if response is None or response.status_code != 409:
         return None
     try:
-        body: dict[str, Any] = response.json()
+        body = response.json()
     except ValueError:  # includes requests.JSONDecodeError (malformed/empty 409 body)
         return None
-    return body
+    if not isinstance(body, dict):
+        return None
+    error_obj = body.get("error")
+    if not isinstance(error_obj, dict):
+        return None
+    details = error_obj.get("details")
+    if isinstance(details, dict) and "work_item_id" in details:
+        return details, False
+    if error_obj.get("type") == _CONFLICT_RETRY_TYPE:
+        return None, True
+    return None
 
 
 class AgencyWorkQueueClient(BaseDelegateClient):
     api_path = "/api/work_queues"
+
+    def list(self, organisation_id: int, *, page: int = 0, size: int = 50) -> QueuesPagedResult:
+        """List the org's work queues (paged), for resolving a queue NAME → id.
+
+        Name→id matching (and any cache / not-found / duplicate handling) is the
+        caller's job; this returns the raw page.
+        """
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        return QueuesPagedResult(**self._make_request("GET", "", params=params))
 
     def create_item(
         self,
@@ -72,12 +106,15 @@ class AgencyWorkQueueClient(BaseDelegateClient):
                 to the dispatched session.
             external_refs: Identity claims, each ``{"ref_type": ...,
                 "ref_value": ...}`` (e.g. file_id / content_hash). Unique
-                org-wide per (ref_type, ref_value).
+                per queue per (ref_type, ref_value).
             metadata: Optional informational JSON (filename, folder, ...).
 
         Returns:
-            ``created=True`` with the new item, or ``created=False`` with
-            ``existing`` identifying the card that already owns a ref.
+            ``created=True`` with the new item; ``created=False`` with
+            ``existing`` identifying the card that already owns a ref; or
+            ``created=False, contended=True`` (no ``existing``) for the
+            owner-less ``CONFLICT_RETRY`` fallback — a transient claim race the
+            caller may retry.
         """
         data: dict[str, Any] = {
             "title": title,
@@ -91,10 +128,12 @@ class AgencyWorkQueueClient(BaseDelegateClient):
         try:
             body = self._make_request("POST", f"/{queue_id}/items", data=data, params={"o": str(organisation_id)})
         except requests.HTTPError as error:
-            conflict = _conflict_body(error)
+            conflict = _parse_conflict(error)
             if conflict is None:
                 raise
-            return CreateItemResult(created=False, existing=ExistingItemSummary(**conflict))
+            details, contended = conflict
+            existing = ExistingItemSummary(**details) if details is not None else None
+            return CreateItemResult(created=False, existing=existing, contended=contended)
         return CreateItemResult(created=True, item=ItemResponse(**body))
 
     def add_ref(
@@ -103,9 +142,10 @@ class AgencyWorkQueueClient(BaseDelegateClient):
         """Claim an external ref for an existing item (content-layer claim).
 
         Returns:
-            ``added=True`` when the ref was inserted, or ``added=False`` with
-            the owning card's id and status when another card already holds
-            the ref (HTTP 409).
+            ``added=True`` when the ref was inserted; ``added=False`` with the
+            owning card's id and status when another card already holds the ref
+            (HTTP 409); or ``added=False, contended=True`` (no owner) for the
+            owner-less ``CONFLICT_RETRY`` fallback (retryable).
         """
         data = {"command": "add_ref", "ref_type": ref_type, "ref_value": ref_value}
         try:
@@ -113,12 +153,15 @@ class AgencyWorkQueueClient(BaseDelegateClient):
                 "POST", f"/{queue_id}/items/{item_id}/_command", data=data, params={"o": str(organisation_id)}
             )
         except requests.HTTPError as error:
-            conflict = _conflict_body(error)
+            conflict = _parse_conflict(error)
             if conflict is None:
                 raise
-            return AddRefResult(
-                added=False, owner_work_item_id=conflict["work_item_id"], owner_status=conflict["status"]
-            )
+            details, contended = conflict
+            if details is not None:
+                return AddRefResult(
+                    added=False, owner_work_item_id=details["work_item_id"], owner_status=details["status"]
+                )
+            return AddRefResult(added=False, contended=contended)
         return AddRefResult(added=True)
 
     def publish_item(self, queue_id: int, item_id: int, organisation_id: int) -> ItemCommandResponse:
@@ -156,23 +199,31 @@ class AgencyWorkQueueClient(BaseDelegateClient):
         body = self._make_request("GET", f"/{queue_id}/items/{item_id}", params={"o": str(organisation_id)})
         return ItemResponse(**body)
 
-    def get_item_by_ref(self, organisation_id: int, *, ref_type: str, ref_value: str) -> ItemResponse | None:
-        """Look up the item owning an external ref — org-scoped, not queue-scoped.
+    def get_items_by_ref(
+        self,
+        organisation_id: int,
+        *,
+        queue_id: int | None = None,
+        ref_type: str,
+        ref_value: str,
+    ) -> builtins.list[ItemResponse]:
+        """List the items holding an external ref — queue-scoped owner lookup.
 
-        The server UNIQUE key is org-wide, so the owning card may live in any
-        queue of the organisation.
+        The dedicated ``_by_ref`` route was merged into the paginated ``/items``: passing
+        ``ref_type`` + ``ref_value`` turns ``/items`` into the owner lookup. ``queue_id=None``
+        scopes to the whole org (``_``); a queue id scopes to that queue. A given
+        ``(ref_type, ref_value)`` may be held by one card **per queue**, so this returns a
+        list; an empty list means no card holds the ref.
 
         Returns:
-            The owning item, or None when no card holds the ref (HTTP 404).
+            The owning items (possibly empty — a miss is an empty page, not a 404; a genuine
+            404 propagates). Owner count is bounded by one card per queue, so a single large
+            page (``s=1000``) returns them all.
         """
-        params = {"o": str(organisation_id), "ref_type": ref_type, "ref_value": ref_value}
-        try:
-            body = self._make_request("GET", "/items/_by_ref", params=params)
-        except requests.HTTPError as error:
-            if error.response is not None and error.response.status_code == 404:
-                return None
-            raise
-        return ItemResponse(**body)
+        scope = "_" if queue_id is None else str(queue_id)
+        params = {"o": str(organisation_id), "ref_type": ref_type, "ref_value": ref_value, "s": "1000"}
+        body = self._make_request("GET", f"/{scope}/items", params=params)
+        return [ItemResponse(**item) for item in body["items"]]
 
     def delete_item(self, queue_id: int, item_id: int, organisation_id: int) -> None:
         """Hard-delete an item — the "full forget": its external refs CASCADE away with it."""

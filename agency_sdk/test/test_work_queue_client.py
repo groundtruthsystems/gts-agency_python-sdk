@@ -1,10 +1,13 @@
 """Offline protocol tests for AgencyWorkQueueClient.
 
 Every test asserts the exact wire contract of the Track ① work-queue ingestion
-surface (files-inbox-ingestion design §5/§6): `?o={org}` on every call, the
-flat `{"command": ...}` envelope, and — the load-bearing behaviour — 409 as
-control flow: `create_item` / `add_ref` catch the HTTPError and return a typed
-result (`created=False` / `added=False` + the owner fields), never re-raise.
+surface: `?o={org}` on every call, the flat `{"command": ...}` envelope, and —
+the load-bearing behaviour — 409 as control flow: `create_item` / `add_ref`
+catch the HTTPError and return a typed result (`created=False` / `added=False`
++ the owner fields), never re-raise. The 409 body is the standard error
+envelope `{"error": {"message", "type", "details"}}`: `error.details` carries
+the owner summary; `error.type == "CONFLICT_RETRY"` is the owner-less contended
+fallback (→ `contended=True`).
 """
 
 import pytest
@@ -12,9 +15,20 @@ import requests
 
 from agency_sdk.delegates.work_queue_client import AgencyWorkQueueClient
 from agency_sdk.delegates.work_queue_dto import CreateItemResult, ItemCommandResponse, ItemResponse
-from agency_sdk.test.test_work_queue_dto import CREATE_CONFLICT_JSON, ITEM_JSON
+from agency_sdk.test.test_work_queue_dto import CREATE_CONFLICT_JSON, ITEM_JSON, QUEUE_JSON
 
+# Owner summary carried inside error.details (add_ref's is narrower — no `published`).
 ADD_REF_CONFLICT_JSON = {"work_item_id": 4711, "status": "blocked"}
+
+# The 409 wire bodies: standard error envelope. An owner conflict carries error.details;
+# the owner-less fallback carries error.type == "CONFLICT_RETRY" and no details.
+CREATE_CONFLICT_ENVELOPE = {
+    "error": {"message": "ref already claimed", "type": "CONFLICT", "details": CREATE_CONFLICT_JSON}
+}
+ADD_REF_CONFLICT_ENVELOPE = {
+    "error": {"message": "ref already claimed", "type": "CONFLICT", "details": ADD_REF_CONFLICT_JSON}
+}
+CONFLICT_RETRY_ENVELOPE = {"error": {"message": "claim contended, retry", "type": "CONFLICT_RETRY"}}
 
 # The _command endpoint's real response shape (server ItemCommandResponse); session_id is
 # omitted entirely for commands that dispatch no session.
@@ -80,7 +94,8 @@ class TestCreateItem:
         assert "metadata" not in body
 
     def test_create_item_conflict_returns_existing_summary_not_raise(self, client, stub_requests):
-        stub_requests.queue(json_data=CREATE_CONFLICT_JSON, status_code=409)
+        # Owner conflict: the owner summary comes from error.details.
+        stub_requests.queue(json_data=CREATE_CONFLICT_ENVELOPE, status_code=409)
 
         result = client.create_item(
             queue_id=12,
@@ -93,10 +108,45 @@ class TestCreateItem:
 
         assert result.created is False
         assert result.item is None
+        assert result.contended is False
         assert result.existing is not None
         assert result.existing.work_item_id == 4711
         assert result.existing.status == "doing"
         assert result.existing.published is True
+
+    def test_create_item_conflict_retry_sets_contended_without_owner(self, client, stub_requests):
+        # Owner-less fallback: error.type == CONFLICT_RETRY, no details.
+        stub_requests.queue(json_data=CONFLICT_RETRY_ENVELOPE, status_code=409)
+
+        result = client.create_item(
+            queue_id=12,
+            organisation_id=2,
+            title="dup",
+            session_template_id="st",
+            input_data={},
+            external_refs=[{"ref_type": "file_id", "ref_value": "f1"}],
+        )
+
+        assert result.created is False
+        assert result.existing is None
+        assert result.contended is True
+
+    def test_create_item_envelope_409_without_owner_or_retry_reraises(self, client, stub_requests):
+        # An enveloped 409 that is neither an owner conflict nor CONFLICT_RETRY is unexpected —
+        # surface the original HTTPError rather than fabricate a claim-lost result.
+        stub_requests.queue(json_data={"error": {"message": "weird", "type": "SOMETHING_ELSE"}}, status_code=409)
+
+        with pytest.raises(requests.HTTPError):
+            client.create_item(queue_id=12, organisation_id=2, title="t", session_template_id="st", input_data={})
+
+    @pytest.mark.parametrize("body", [["not", "a", "dict"], {"error": "just a string"}, {"nope": 1}])
+    def test_create_item_non_envelope_409_reraises(self, client, stub_requests, body):
+        # A 409 that is not the standard {error:{...}} envelope (non-dict body, non-dict error,
+        # or a dict without `error`) is unexpected → re-raise the original HTTPError.
+        stub_requests.queue(json_data=body, status_code=409)
+
+        with pytest.raises(requests.HTTPError):
+            client.create_item(queue_id=12, organisation_id=2, title="t", session_template_id="st", input_data={})
 
     def test_create_item_propagates_non_conflict_errors(self, client, stub_requests):
         stub_requests.queue(json_data={"message": "Organisation not specified."}, status_code=400)
@@ -149,7 +199,8 @@ class TestAddRef:
         assert result.owner_status is None
 
     def test_add_ref_conflict_returns_owner_not_raise(self, client, stub_requests):
-        stub_requests.queue(json_data=ADD_REF_CONFLICT_JSON, status_code=409)
+        # Owner conflict: owner from error.details.
+        stub_requests.queue(json_data=ADD_REF_CONFLICT_ENVELOPE, status_code=409)
 
         result = client.add_ref(
             queue_id=12, item_id=4712, organisation_id=2, ref_type="content_hash", ref_value="deadbeef"
@@ -158,6 +209,20 @@ class TestAddRef:
         assert result.added is False
         assert result.owner_work_item_id == 4711
         assert result.owner_status == "blocked"
+        assert result.contended is False
+
+    def test_add_ref_conflict_retry_sets_contended_without_owner(self, client, stub_requests):
+        # Owner-less fallback: error.type == CONFLICT_RETRY.
+        stub_requests.queue(json_data=CONFLICT_RETRY_ENVELOPE, status_code=409)
+
+        result = client.add_ref(
+            queue_id=12, item_id=4712, organisation_id=2, ref_type="content_hash", ref_value="deadbeef"
+        )
+
+        assert result.added is False
+        assert result.owner_work_item_id is None
+        assert result.owner_status is None
+        assert result.contended is True
 
     def test_add_ref_propagates_non_conflict_errors(self, client, stub_requests):
         stub_requests.queue(json_data={"message": "boom"}, status_code=500)
@@ -235,31 +300,51 @@ class TestGetItem:
         assert result.status == "backlog"
 
 
-class TestGetItemByRef:
-    def test_get_item_by_ref_is_org_scoped_not_queue_scoped(self, client, stub_requests):
-        stub_requests.queue(json_data=ITEM_JSON)
+class TestGetItemsByRef:
+    def test_org_scope_uses_underscore_path_and_returns_list(self, client, stub_requests):
+        # queue_id=None → the whole-org scope `_`; ref_type/ref_value turn the paged /items into an
+        # owner lookup. A ref may be held once per queue, so a list; owners come from the page's items.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 1, "total": 1}, "items": [ITEM_JSON]})
 
-        result = client.get_item_by_ref(organisation_id=2, ref_type="file_id", ref_value="file_550e8400")
+        result = client.get_items_by_ref(organisation_id=2, ref_type="file_id", ref_value="file_550e8400")
 
         call = stub_requests.calls[0]
         assert call.method == "GET"
-        assert call.url == "http://cp.test/api/work_queues/items/_by_ref"
-        assert call.kwargs["params"] == {"o": "2", "ref_type": "file_id", "ref_value": "file_550e8400"}
-        assert result is not None
-        assert result.id == 4711
+        assert call.url == "http://cp.test/api/work_queues/_/items"
+        assert call.kwargs["params"] == {"o": "2", "ref_type": "file_id", "ref_value": "file_550e8400", "s": "1000"}
+        assert [item.id for item in result] == [4711]
 
-    def test_get_item_by_ref_returns_none_on_404(self, client, stub_requests):
+    def test_queue_scope_uses_queue_id_path(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 1, "total": 1}, "items": [ITEM_JSON]})
+
+        result = client.get_items_by_ref(organisation_id=2, queue_id=12, ref_type="file_id", ref_value="file_550e8400")
+
+        assert stub_requests.calls[0].url == "http://cp.test/api/work_queues/12/items"
+        assert len(result) == 1
+
+    def test_empty_items_means_no_owner(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 0, "total": 0}, "items": []})
+
+        result = client.get_items_by_ref(organisation_id=2, ref_type="content_hash", ref_value="missing")
+
+        assert result == []
+
+    def test_404_propagates(self, client, stub_requests):
+        # A miss is 200 + empty items (above); a genuine 404 is still a real error and propagates.
         stub_requests.queue(json_data={"message": "not found"}, status_code=404)
 
-        result = client.get_item_by_ref(organisation_id=2, ref_type="content_hash", ref_value="missing")
+        with pytest.raises(requests.HTTPError):
+            client.get_items_by_ref(organisation_id=2, ref_type="file_id", ref_value="x")
 
-        assert result is None
-
-    def test_get_item_by_ref_propagates_other_errors(self, client, stub_requests):
+    def test_propagates_other_errors(self, client, stub_requests):
         stub_requests.queue(json_data={"message": "boom"}, status_code=500)
 
         with pytest.raises(requests.HTTPError):
-            client.get_item_by_ref(organisation_id=2, ref_type="file_id", ref_value="x")
+            client.get_items_by_ref(organisation_id=2, ref_type="file_id", ref_value="x")
+
+    def test_old_singular_get_item_by_ref_is_removed(self, client):
+        # Clean rename, no alias — an alias would perpetuate the wrong "single owner" model.
+        assert not hasattr(client, "get_item_by_ref")
 
 
 class TestDeleteItem:
@@ -279,3 +364,25 @@ class TestDeleteItem:
 
         with pytest.raises(requests.HTTPError):
             client.delete_item(queue_id=12, item_id=9999, organisation_id=2)
+
+
+class TestListQueues:
+    def test_list_hits_work_queues_endpoint_paged(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 1, "total": 1}, "items": [QUEUE_JSON]})
+
+        result = client.list(organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/work_queues"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert result.page.total == 1
+        assert [q.id for q in result.items] == [8]
+        assert result.items[0].name == "Guideline Ingestion"
+
+    def test_list_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 10, "total": 0}, "items": []})
+
+        client.list(organisation_id=9, page=2, size=10)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "2", "s": "10"}

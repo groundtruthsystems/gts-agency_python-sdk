@@ -16,6 +16,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from agency_sdk.delegates.datasets_dto import Page
+
 
 class DependencyResponse(BaseModel):
     """A dependency edge as embedded in an item response."""
@@ -68,28 +70,58 @@ class ItemCommandResponse(BaseModel):
 
 
 class ExistingItemSummary(BaseModel):
-    """The owning card's summary carried by create_item's 409 body."""
+    """The owning card's summary carried in a 409's ``error.details``.
+
+    ``published`` is optional — the details object may omit it (the SDK reads
+    it defensively).
+    """
 
     work_item_id: int
     status: str
-    published: bool
+    published: bool | None = None
 
 
 class CreateItemResult(BaseModel):
     """Outcome of create_item: 201 → created item, 409 → the existing owner.
 
-    On a 409 the whole server transaction rolled back, so no card was created;
-    ``existing`` identifies the card that already owns the external ref.
+    On a 409 the whole server transaction rolled back, so no card was created.
+    ``existing`` identifies the card that already owns the external ref (from the
+    409's ``error.details``); ``contended`` is ``True`` for the owner-less
+    ``CONFLICT_RETRY`` fallback (a transient claim race — no owner, retryable),
+    in which case ``existing`` is ``None``.
     """
 
     created: bool
     item: ItemResponse | None = None
     existing: ExistingItemSummary | None = None
+    contended: bool = False
 
 
 class AddRefResult(BaseModel):
-    """Outcome of add_ref: 201 → ref added, 409 → another card owns the ref."""
+    """Outcome of add_ref: 201 → ref added, 409 → another card owns the ref.
+
+    ``contended`` is ``True`` for the owner-less ``CONFLICT_RETRY`` fallback (no
+    owner fields, retryable).
+    """
 
     added: bool
     owner_work_item_id: int | None = None
     owner_status: str | None = None
+    contended: bool = False
+
+
+class QueueResponse(BaseModel):
+    """A work queue as returned by ``GET /api/work_queues`` (for name→id resolution)."""
+
+    id: int
+    name: str
+    status: int
+    description: str | None = None
+    created_on: str
+    modified_on: str
+    created_by: str | None = None
+
+
+class QueuesPagedResult(BaseModel):
+    page: Page
+    items: list[QueueResponse]

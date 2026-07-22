@@ -1,6 +1,10 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "gts-agency_python-sdk"
-version = "0.0.1rc12"
+version = "0.0.1rc13"
 description = ""
 requires-python = ">=3.12"
 authors = [{name="Ground Control Systems", email="engineering@groundcontrolsystems.com"}]
@@ -34,8 +38,8 @@ testpaths = ["agency_sdk/test"]
 source = ["agency_sdk"]
 omit = ["agency_sdk/test/*"]
 
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools.packages.find]
+include = ["agency_sdk*"]
 
 [tool.black]
 line-length = 120
