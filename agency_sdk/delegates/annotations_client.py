@@ -32,6 +32,7 @@ from agency_sdk.delegates.annotations_dto import (
     AnnotationSpecsPagedResult,
     CreateBatchResult,
     CreateSpecResult,
+    PushGraphResult,
 )
 from agency_sdk.delegates.base_client import BaseDelegateClient
 
@@ -189,6 +190,62 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             timeout=UPLOAD_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
+
+    def push_graph(
+        self,
+        organisation_id: int,
+        *,
+        name: str,
+        graph: Mapping[str, Any] | None = None,
+        file_path: str | Path | None = None,
+        description: str | None = None,
+        instructions: str | None = None,
+        confidentiality_level: str | None = None,
+        job_type: str | None = None,
+        target_class: str | None = None,
+        hops: int | None = None,
+        filename: str | None = None,
+    ) -> PushGraphResult:
+        """Publish a graph as annotation jobs in one call: create → upload → read back.
+
+        The whole flow an agent needs at the end of its pipeline. Arguments are the
+        union of :meth:`create_batch`'s and :meth:`upload_graph`'s; the returned
+        ``total_jobs`` and ``status`` come from the read-back, so they are what the
+        annotators will actually see.
+
+        The graph source is validated before the batch is created, so a malformed
+        call cannot leave anything behind. An upload that the server rejects (no
+        matching vertices, oversized body, …) is a different matter: the batch has
+        already been created, so the ``HTTPError`` propagates and an **empty DRAFT
+        batch stays server-side**. It holds no jobs and is findable via
+        :meth:`list_batches`; the SDK does not archive it on the caller's behalf.
+
+        Raises:
+            ValueError: If not exactly one of ``graph`` / ``file_path`` is given, or
+                if the create response carries no batch id.
+            requests.HTTPError: From any of the three legs.
+        """
+        if (graph is None) == (file_path is None):
+            raise ValueError("pass exactly one of graph or file_path")
+        created = self.create_batch(
+            organisation_id,
+            name=name,
+            description=description,
+            instructions=instructions,
+            confidentiality_level=confidentiality_level,
+        )
+        self.upload_graph(
+            organisation_id,
+            created.id,
+            graph=graph,
+            file_path=file_path,
+            job_type=job_type,
+            target_class=target_class,
+            hops=hops,
+            filename=filename,
+        )
+        batch = self.get_batch(organisation_id, created.id)
+        return PushGraphResult(batch_id=created.id, total_jobs=batch.total_jobs, status=batch.status, batch=batch)
 
     def get_batch(self, organisation_id: int, batch_id: str) -> AnnotationBatchResponse:
         """Read one batch, including the caller's ``viewer_role`` on it.

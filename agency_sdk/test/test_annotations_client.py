@@ -308,3 +308,84 @@ class TestSpecs:
         client.list_specs(organisation_id=9, page=1, size=5)
 
         assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "1", "s": "5"}
+
+
+class TestPushGraph:
+    def _queue_happy_path(self, stub_requests):
+        stub_requests.queue(json_data=CREATED_ENVELOPE)  # create
+        stub_requests.queue(json_data=None)  # upload (null body)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)  # read-back
+
+    def test_creates_uploads_and_reads_back_in_order(self, client, stub_requests):
+        self._queue_happy_path(stub_requests)
+
+        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph=GRAPH)
+
+        create, upload, read_back = stub_requests.calls
+        assert (create.method, create.url) == ("POST", "http://cp.test/api/annotations/_command")
+        assert upload.url == f"http://cp.test/api/annotations/{CREATED_ENVELOPE['data']['id']}/upload"
+        assert (read_back.method, read_back.url) == (
+            "GET",
+            f"http://cp.test/api/annotations/{CREATED_ENVELOPE['data']['id']}",
+        )
+        assert result.batch_id == CREATED_ENVELOPE["data"]["id"]
+        assert result.total_jobs == 325
+        assert result.status == BatchStatus.ACTIVE
+        assert result.batch.graph_run_id == "run-2026-08-03-a"
+
+    def test_threads_batch_and_upload_options_through(self, client, stub_requests):
+        self._queue_happy_path(stub_requests)
+
+        client.push_graph(
+            organisation_id=2,
+            name="MTUS Knee 2026",
+            graph=GRAPH,
+            description="2026 revision",
+            instructions="Check each rule.",
+            confidentiality_level="RESTRICTED",
+            job_type="rule_validation",
+            target_class="rule",
+            hops=2,
+        )
+
+        create, upload, _ = stub_requests.calls
+        assert create.kwargs["json"]["payload"] == {
+            "name": "MTUS Knee 2026",
+            "batch_type": "graph",
+            "description": "2026 revision",
+            "instructions": "Check each rule.",
+            "confidentiality_level": "RESTRICTED",
+        }
+        assert upload.kwargs["params"] == {
+            "o": "2",
+            "job_type": "rule_validation",
+            "target_class": "rule",
+            "hops": "2",
+        }
+
+    def test_pushes_a_graph_file(self, client, stub_requests, tmp_path):
+        graph_file = tmp_path / "sandbox_graph.json"
+        graph_file.write_text(json.dumps(GRAPH))
+        self._queue_happy_path(stub_requests)
+
+        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", file_path=graph_file)
+
+        assert json.loads(stub_requests.calls[1].kwargs["files"]["file"][1]) == GRAPH
+        assert result.total_jobs == 325
+
+    def test_validates_the_graph_source_before_creating_a_batch(self, client, stub_requests):
+        with pytest.raises(ValueError, match="exactly one"):
+            client.push_graph(organisation_id=2, name="MTUS Knee 2026")
+
+        assert stub_requests.calls == []
+
+    def test_a_failed_upload_propagates_and_leaves_the_draft_batch(self, client, stub_requests):
+        stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data={"error": {"message": "No vertices of class 'rule' found"}}, status_code=400)
+
+        with pytest.raises(requests.HTTPError):
+            client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph={"vertices": []})
+
+        # The batch was created before the upload failed: two calls, no read-back, and the
+        # DRAFT batch survives server-side (documented residue, recoverable via list_batches).
+        assert len(stub_requests.calls) == 2
