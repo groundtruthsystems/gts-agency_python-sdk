@@ -212,7 +212,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-08-03T00:00:00Z",
-      "updated_at": "2026-08-04T01:47:37Z",
+      "updated_at": "2026-08-04T01:47:53Z",
       "spec_path": ".ai/sebenza/tracks/annotations_client_20260803/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotations_client_20260803/plan.json",
       "phases_summary": [
@@ -237,7 +237,7 @@
         {
           "id": "phase-4",
           "name": "Live e2e (Gate A) & release rc14 (Gate B)",
-          "status": "backlog",
+          "status": "doing",
           "blocked_reason": null
         }
       ],

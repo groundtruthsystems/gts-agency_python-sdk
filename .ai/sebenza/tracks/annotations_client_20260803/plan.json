@@ -178,19 +178,20 @@
           "status": "done",
           "commit_sha": "feb1b10"
         }
-      ]
+      ],
+      "checkpoint_sha": "aae1fb2"
     },
     {
       "id": "phase-4",
       "name": "Live e2e (Gate A) & release rc14 (Gate B)",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
           "name": "Run quick_annotations.py against the local stack / dev control plane",
           "description": "Follow docs/local_e2e.md for credentials and base URL. Confirms the wire contract end to end: envelope-wrapped create, multipart upload, ACTIVE + total_jobs read-back, and the 400 negative case.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-4-task-2",
