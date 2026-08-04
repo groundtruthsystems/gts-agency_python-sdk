@@ -12,6 +12,8 @@ import pytest
 import requests
 
 from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
+from agency_sdk.delegates.annotations_dto import BatchStatus, SpecStatus
+from agency_sdk.test.test_annotations_dto import ACTIVE_BATCH_JSON, DRAFT_BATCH_JSON, SPEC_JSON
 
 GRAPH = {
     "run_id": "run-2026-08-03-a",
@@ -179,3 +181,130 @@ class TestUploadGraph:
 
         with pytest.raises(requests.HTTPError):
             client.upload_graph(organisation_id=2, batch_id="b-1", graph={"vertices": []})
+
+
+class TestBatchReads:
+    def test_get_batch_reads_the_flattened_response(self, client, stub_requests):
+        stub_requests.queue(json_data={**ACTIVE_BATCH_JSON, "viewer_role": "admin"})
+
+        batch = client.get_batch(organisation_id=2, batch_id=ACTIVE_BATCH_JSON["id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{ACTIVE_BATCH_JSON['id']}"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert batch.viewer_role == "admin"
+        assert batch.status == BatchStatus.ACTIVE
+        assert batch.total_jobs == 325
+        assert batch.graph_run_id == "run-2026-08-03-a"
+
+    def test_get_batch_of_a_draft_reports_no_jobs_yet(self, client, stub_requests):
+        stub_requests.queue(json_data=DRAFT_BATCH_JSON)
+
+        batch = client.get_batch(organisation_id=2, batch_id=DRAFT_BATCH_JSON["id"])
+
+        assert batch.status == BatchStatus.DRAFT
+        assert batch.total_jobs == 0
+        assert batch.viewer_role is None
+
+    def test_list_batches_pages_with_defaults(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [DRAFT_BATCH_JSON]})
+
+        result = client.list_batches(organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/annotations"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert [b.name for b in result.items] == ["MTUS Knee 2026"]
+
+    def test_list_batches_forwards_pagination_and_filters(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 5, "total": 0}, "items": []})
+
+        client.list_batches(organisation_id=9, page=2, size=5, batch_type="graph", view="mine")
+
+        assert stub_requests.calls[0].kwargs["params"] == {
+            "o": "9",
+            "p": "2",
+            "s": "5",
+            "batch_type": "graph",
+            "view": "mine",
+        }
+
+
+class TestSpecs:
+    def test_create_spec_posts_to_the_specs_root(self, client, stub_requests):
+        stub_requests.queue(
+            json_data={"success": True, "message": "Specification created: 3b0e", "data": {"id": "3b0e"}}
+        )
+
+        result = client.create_spec(
+            organisation_id=2,
+            code="rule_validation",
+            name="Rule validation",
+            checklist=[{"id": "text_matches_source", "label": "Rule text matches the source"}],
+        )
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/annotation-specs/_command"
+        assert call.kwargs["json"] == {
+            "command": "create",
+            "organisation": 2,
+            "payload": {
+                "code": "rule_validation",
+                "name": "Rule validation",
+                "checklist": [{"id": "text_matches_source", "label": "Rule text matches the source"}],
+            },
+        }
+        assert result.id == "3b0e"
+
+    def test_create_spec_sends_instructions_when_given(self, client, stub_requests):
+        stub_requests.queue(json_data={"success": True, "message": "created", "data": {"id": "3b0e"}})
+
+        client.create_spec(
+            organisation_id=2, code="c", name="n", checklist=[], instructions="Check the page reference."
+        )
+
+        assert stub_requests.calls[0].kwargs["json"]["payload"]["instructions"] == "Check the page reference."
+
+    def test_create_spec_raises_when_the_envelope_carries_no_id(self, client, stub_requests):
+        stub_requests.queue(json_data={"success": True, "message": "created"})
+
+        with pytest.raises(ValueError, match="no specification id"):
+            client.create_spec(organisation_id=2, code="c", name="n", checklist=[])
+
+    def test_get_spec_puts_the_CODE_in_the_path(self, client, stub_requests):
+        stub_requests.queue(json_data=SPEC_JSON)
+
+        spec = client.get_spec(organisation_id=2, code="rule_validation")
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/annotation-specs/rule_validation"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert spec.id == SPEC_JSON["id"]
+        assert spec.status == SpecStatus.ACTIVE
+
+    def test_get_spec_propagates_a_404_for_an_unseeded_code(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Specification 'nope' not found"}}, status_code=404)
+
+        with pytest.raises(requests.HTTPError):
+            client.get_spec(organisation_id=2, code="nope")
+
+    def test_list_specs_pages_over_the_specs_root(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [SPEC_JSON]})
+
+        result = client.list_specs(organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.url == "http://cp.test/api/annotation-specs"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert [s.code for s in result.items] == ["rule_validation"]
+
+    def test_list_specs_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 1, "size": 5, "total": 0}, "items": []})
+
+        client.list_specs(organisation_id=9, page=1, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "1", "s": "5"}
