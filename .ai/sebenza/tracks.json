@@ -1,0 +1,251 @@
+{
+  "$schema": "sebenza-tracks-v1",
+  "version": "1.0",
+  "project": {
+    "name": "gts-agency_python-sdk",
+    "path": "/Users/xuqiluo/PycharmProjects/gts-agency_python-sdk",
+    "registered_at": "2026-08-03T00:00:00Z"
+  },
+  "tracks": [
+    {
+      "track_id": "observability_tracing_20260617",
+      "type": "feature",
+      "description": "Research and design how gts-demo-agent wires OpenTelemetry tracing/logging, then fold that capability into the SDK so any agent can enable OTLP tracing via AgencyClient.observability(), reusing the shared CredentialsSupplier.",
+      "status": "done",
+      "blocked_reason": null,
+      "created_at": "2026-06-17T18:39:03Z",
+      "updated_at": "2026-06-17T18:39:03Z",
+      "spec_path": ".ai/sebenza/tracks/observability_tracing_20260617/spec.md",
+      "plan_path": ".ai/sebenza/tracks/observability_tracing_20260617/plan.md",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "Research & Design",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "Optional dependency & module scaffolding",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "Auth layer & token unification (Mechanisms 2, 3, 4)",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-4",
+          "name": "Telemetry pipeline & log/trace correlation (Mechanisms 1, 6)",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-5",
+          "name": "`agent_run` context manager & facade integration (Mechanism 5)",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-6",
+          "name": "Langfuse client helper (FR8)",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-7",
+          "name": "Example, docs & release polish",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-8",
+          "name": "Post-completion fixes",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-9",
+          "name": "Code-review follow-ups (PR #5)",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-10",
+          "name": "Code-review design/style follow-ups (PR #5)",
+          "status": "done",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 41,
+        "completed_tasks": 41,
+        "percentage": 100.0
+      }
+    },
+    {
+      "track_id": "agent_gateway_client_20260706",
+      "type": "feature",
+      "description": "Add an OpenAI-compatible agent-gateway client to the SDK: AgencyGatewayClient + client.gateway(...) facade reusing the shared CredentialsSupplier as Bearer and stamping the x-org routing header, with optional URL discovery via GET /api/agentgateways. SDK side only (design doc Phase 1, docs/gateway_design.md); contract live-validated against the local gateway on :4000.",
+      "status": "done",
+      "blocked_reason": null,
+      "created_at": "2026-07-07T00:22:00Z",
+      "updated_at": "2026-07-07T01:45:00Z",
+      "spec_path": ".ai/sebenza/tracks/agent_gateway_client_20260706/spec.md",
+      "plan_path": ".ai/sebenza/tracks/agent_gateway_client_20260706/plan.md",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "Gateway DTOs",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "AgencyGatewayClient",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "Facade accessor + URL discovery",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-4",
+          "name": "Example, docs & quality gates",
+          "status": "done",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 17,
+        "completed_tasks": 17,
+        "percentage": 100.0
+      }
+    },
+    {
+      "track_id": "gateway_streaming_openai_20260707",
+      "type": "feature",
+      "description": "Gateway follow-up per CTO input: add native SSE streaming to the zero-dep AgencyGatewayClient (plus stream=True fast-fail guard and environment/gateway_base_url mutual-exclusion API fix), add an [openai] optional extra with openai_client()/async_openai_client() helpers (rotating bearer + x-org wired) as the full-feature path, and document the tiered usage model incl. the official-openai-SDK recipe.",
+      "status": "done",
+      "blocked_reason": null,
+      "created_at": "2026-07-07T02:40:00Z",
+      "updated_at": "2026-07-07T02:05:00Z",
+      "spec_path": ".ai/sebenza/tracks/gateway_streaming_openai_20260707/spec.md",
+      "plan_path": ".ai/sebenza/tracks/gateway_streaming_openai_20260707/plan.md",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "Native streaming + facade API fix",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "[openai] extra + full-feature helpers",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "Docs, example & gates",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-4",
+          "name": "Adversarial review (ultracode)",
+          "status": "done",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 16,
+        "completed_tasks": 16,
+        "percentage": 100.0
+      }
+    },
+    {
+      "track_id": "gateway_openai_only_20260707",
+      "type": "refactor",
+      "description": "Remove the gateway's zero-dependency built-in client (complete/complete_stream/chat_completions[_stream] + hand-rolled chat DTOs) and route all gateway LLM traffic through the official openai SDK. openai becomes a core dependency (user decision, accepting the transitive-dep bloat); AgencyGatewayClient becomes a thin openai-client factory keeping only openai_client()/async_openai_client() + discovery/x-org/rotation wiring. Reverses the earlier keep-tier-A decision; guideline-agent unaffected (already targets async_openai_client). Evolves PR #9 in place on feat/agent-gateway-client.",
+      "status": "done",
+      "blocked_reason": null,
+      "created_at": "2026-07-07T15:30:00Z",
+      "updated_at": "2026-07-07T16:10:00Z",
+      "spec_path": ".ai/sebenza/tracks/gateway_openai_only_20260707/spec.md",
+      "plan_path": ".ai/sebenza/tracks/gateway_openai_only_20260707/plan.md",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "openai as a core dependency",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "Strip the zero-dep surface",
+          "status": "done",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "Docs, example & gates",
+          "status": "done",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 12,
+        "completed_tasks": 12,
+        "percentage": 100.0
+      }
+    },
+    {
+      "track_id": "annotations_client_20260803",
+      "type": "feature",
+      "description": "Add AgencyAnnotationsClient (/api/annotations) + AgencyClient.annotations() so an agent can publish a rule graph as annotation jobs. Covers the two-step control-plane flow — create_batch (POST /_command, CommandResponse envelope, DRAFT) then upload_graph (multipart 'file', one job per vertex matching target_class, batch flips to ACTIVE) — plus get_batch/list_batches read-back (the upload's response body is null), the /api/annotation-specs create/get/list needed to seed a job_type's checklist, and push_graph, the one-call create->upload->read-back convenience that is ③'s integration point. Graph input accepted as a dict or a file path. Ends by publishing 0.0.1rc14.",
+      "status": "backlog",
+      "blocked_reason": null,
+      "created_at": "2026-08-03T00:00:00Z",
+      "updated_at": "2026-08-03T00:00:00Z",
+      "spec_path": ".ai/sebenza/tracks/annotations_client_20260803/spec.md",
+      "plan_path": ".ai/sebenza/tracks/annotations_client_20260803/plan.json",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "DTOs, delegate scaffolding & facade",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "Delegate surface: push path, reads & job specifications",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "push_graph one-call convenience, example & docs",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-4",
+          "name": "Live e2e (Gate A) & release rc14 (Gate B)",
+          "status": "backlog",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 29,
+        "completed_tasks": 0,
+        "percentage": 0
+      }
+    }
+  ]
+}

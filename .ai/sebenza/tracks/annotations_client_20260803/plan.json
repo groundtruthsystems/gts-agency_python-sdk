@@ -1,0 +1,212 @@
+{
+  "$schema": "sebenza-plan-v1",
+  "track_id": "annotations_client_20260803",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "DTOs, delegate scaffolding & facade",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-1-task-1",
+          "name": "Write failing DTO tests (test_annotations_dto.py)",
+          "description": "Cover AnnotationBatch, AnnotationBatchResponse (batch fields flattened alongside an optional viewer_role), AnnotationBatchesPagedResult (Page + items), CreateBatchResult, PushGraphResult, AnnotationSpec, AnnotationSpecsPagedResult, CreateSpecResult, and the BatchStatus/SpecStatus IntEnums. Assert optional fields default to None (the server omits nulls) and that the status ints map to the enum members.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-2",
+          "name": "Implement agency_sdk/delegates/annotations_dto.py",
+          "description": "Pydantic v2 models, snake_case matching the API (no alias generator — this domain is snake_case on the wire), Page imported from datasets_dto. Add the BATCH_TYPE_GRAPH / DEFAULT_JOB_TYPE / DEFAULT_TARGET_CLASS constants documenting the server defaults. Module docstring records the verified contract, incl. that upload's response body is null.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-3",
+          "name": "Write failing facade test (test_client_facade.py)",
+          "description": "client.annotations() returns an AgencyAnnotationsClient bound to the same CredentialsSupplier and base_url, following the existing facade-test style.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-4",
+          "name": "Implement AgencyAnnotationsClient skeleton + AgencyClient.annotations()",
+          "description": "New annotations_client.py with api_path = '/api/annotations' extending BaseDelegateClient; eager construction in AgencyClient.__init__ (self.annotations_client) plus the annotations() accessor, matching the other delegates.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-5",
+          "name": "Verify: pytest, mypy strict, black, bandit",
+          "description": "Full offline suite green; mypy agency_sdk/ strict clean; black --check; bandit -r agency_sdk/ -x agency_sdk/test.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-6",
+          "name": "Phase verification & checkpoint",
+          "description": "Per the Phase Completion protocol in workflow.md: automated tests, manual verification plan, user confirmation, checkpoint commit + git note, record checkpoint_sha.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Delegate surface: push path, reads & job specifications",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-2-task-1",
+          "name": "Write failing tests for create_batch",
+          "description": "POST /api/annotations/_command with body {command:'create', organisation:<int>, payload:{...}}; description/instructions/confidentiality_level omitted entirely when None; batch_type defaults to 'graph'; the CommandResponse envelope {success,message,data:{id}} is parsed into CreateBatchResult with .id; a 2xx whose data carries no id raises ValueError.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-2",
+          "name": "Implement create_batch",
+          "description": "Build the payload with None fields dropped, POST via _make_request, parse the envelope, raise ValueError('server returned no batch id') when data.id is absent. Docstring documents DRAFT + total_jobs=0 as the created state and the INTERNAL/RESTRICTED confidentiality levels.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-3",
+          "name": "Write failing tests for upload_graph",
+          "description": "Multipart: single 'file' field carrying (filename, body, 'application/json'); Authorization header present and no JSON Content-Type; query o always, job_type/target_class/hops only when supplied; a dict graph and a file path produce byte-identical bodies; passing both or neither raises ValueError before any HTTP call; a null response body returns None; a 400 (batch not DRAFT / no matching vertices) propagates as HTTPError.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-4",
+          "name": "Implement upload_graph",
+          "description": "Validate the graph source first, serialize a Mapping with json.dumps (or read the path's bytes), then requests.post directly (bypassing _make_request, which would set the JSON content type) with timeout=300, and raise_for_status. Docstring covers the 50 MiB server cap, the in-memory multipart encoding, the DRAFT-only precondition, and that the job count must be read back because the body is null.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-5",
+          "name": "Write failing tests for get_batch / list_batches",
+          "description": "GET /api/annotations/{batch_id}?o= parses the flattened AnnotationBatchResponse incl. viewer_role and the graph_uri/graph_run_id/target_class/context_hops fields that only appear after upload; GET /api/annotations with o/p/s and the optional batch_type/view filters parses the {page, items} envelope.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-6",
+          "name": "Implement get_batch / list_batches",
+          "description": "Straight _make_request reads. Docstring notes the batch is DRAFT with total_jobs=0 until a graph is uploaded, and that status is an int (BatchStatus).",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-7",
+          "name": "Write failing tests for create_spec / get_spec / list_specs",
+          "description": "create_spec posts {command:'create', organisation, payload:{code,name,checklist,instructions?}} to /api/annotation-specs/_command and returns data.id; get_spec hits /api/annotation-specs/{code}?o= (the CODE occupies the path segment the server names 'id') and lets a 404 propagate; list_specs pages with o/p/s. These hit a different api_path than the delegate's own — assert the full URL.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-8",
+          "name": "Implement create_spec / get_spec / list_specs",
+          "description": "Because the specs live under /api/annotation-specs (not the delegate's /api/annotations prefix), route them through an explicit endpoint constant rather than the api_path-relative helpers, keeping the URL construction obvious. Docstrings carry the code-vs-id gotcha, the ACTIVE-on-create status, and the checklist->checklist_state seeding rule.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-9",
+          "name": "Verify: pytest, coverage, mypy strict, black, bandit",
+          "description": "Suite green, annotations_client + annotations_dto at 100% line coverage, all gates clean.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-10",
+          "name": "Phase verification & checkpoint",
+          "description": "Per the Phase Completion protocol in workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "push_graph one-call convenience, example & docs",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-3-task-1",
+          "name": "Write failing tests for push_graph",
+          "description": "Calls create_batch -> upload_graph -> get_batch in that order, threading the new batch id; returns PushGraphResult with total_jobs/status read back from the batch; validates the graph source BEFORE creating the batch (a both/neither call raises ValueError with zero HTTP calls); an upload failure propagates the HTTPError with the batch already created (asserted, since that is the documented residue).",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-2",
+          "name": "Implement push_graph",
+          "description": "Thin orchestration over the three methods, no hidden retries or cleanup. Docstring states the residue semantics and points at list_batches for recovering an orphaned DRAFT batch.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-3",
+          "name": "Write examples/quick_annotations.py",
+          "description": "Self-verifying e2e in the house style: AGENCY_* env vars, unique batch name, seed-or-find the rule_validation spec, push a small inline rule graph, assert status==ACTIVE and total_jobs equals the rule-vertex count, exercise the no-rule-vertices 400, print PASS per step, non-zero exit on failure.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-4",
+          "name": "Write docs/annotations.md and sync README.md + CLAUDE.md",
+          "description": "Document the two-step flow and why there is no single publish endpoint, the graph format's identity with the ontology sandbox's create.graph payload, the ③ integration snippet (push_graph), the DRAFT->ACTIVE lifecycle, the spec-seeding recipe (get -> 404 -> create) with the code-vs-id gotcha, and the permission requirement. Add the delegate row to README and the CLAUDE.md delegate list.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-5",
+          "name": "Verify: full suite, coverage, mypy strict, black, bandit",
+          "description": "pytest agency_sdk/test/ green; annotations_client + annotations_dto at 100%; all gates clean.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-6",
+          "name": "Phase verification & checkpoint",
+          "description": "Per the Phase Completion protocol in workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Live e2e (Gate A) & release rc14 (Gate B)",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-4-task-1",
+          "name": "Run quick_annotations.py against the local stack / dev control plane",
+          "description": "Follow docs/local_e2e.md for credentials and base URL. Confirms the wire contract end to end: envelope-wrapped create, multipart upload, ACTIVE + total_jobs read-back, and the 400 negative case.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-2",
+          "name": "Resolve R1: does the m2m principal satisfy the annotations handlers?",
+          "description": "The handlers reject a caller with no local user id ('User not supplied.') and require org write on Resource::Annotations. Record what the guideline-agent's client-credentials principal actually gets. If it is refused, report the finding (the grant/provisioning fix is control-plane/ops work, out of this track's scope) and note the blocker for ③.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-3",
+          "name": "Fix any e2e findings and re-run",
+          "description": "SDK-side findings only; contract deviations that belong to gts-comand are reported, not patched here.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-4",
+          "name": "Bump 0.0.1rc13 -> 0.0.1rc14 and re-run every gate",
+          "description": "pyproject.toml version bump; full suite, mypy, black, bandit green.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-5",
+          "name": "Open the PR and merge to main",
+          "description": "PR from claude/annotations-sdk-client-1b1a26 summarising the delegate, the verified contract, and the live-e2e result; merge after review.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-6",
+          "name": "Tag v0.0.1rc14 and confirm the PyPI publish",
+          "description": "Push the tag, watch the Build and Publish workflow, confirm 0.0.1rc14 installs from PyPI so ③ can pin it instead of an editable link, and close the loop on issue #22 with the released version plus the integration snippet.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-7",
+          "name": "Phase verification & checkpoint",
+          "description": "Per the Phase Completion protocol in workflow.md; the live run's output and the publish confirmation form the verification report attached as the checkpoint's git note.",
+          "status": "backlog"
+        }
+      ]
+    }
+  ]
+}

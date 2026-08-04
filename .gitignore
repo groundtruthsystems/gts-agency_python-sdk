@@ -11,8 +11,9 @@ __pycache__/
 .coverage
 *.egg-info/
 
-# conductor/ is intentional, version-controlled project context (product
-# definition, tech stack, conventions, workflow), per the parent gts-agency
-# repo's convention. Only the transient setup-wizard state is ignored:
-conductor/setup_state.json
+# .ai/sebenza/ is intentional, version-controlled project context (product
+# definition, tech stack, conventions, workflow, tracks) — the CDD workspace
+# that absorbed the former conductor/ directory. Only the transient
+# setup-wizard state is ignored:
+.ai/sebenza/setup_state.json
 uv.lock
