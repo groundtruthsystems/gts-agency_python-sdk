@@ -1,6 +1,7 @@
 """Facade tests: AgencyClient composes and exposes the delegate clients."""
 
 from agency_sdk.client import AgencyClient
+from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.files_client import AgencyFilesClient
 from agency_sdk.delegates.session_client import AgencySessionClient
 from agency_sdk.delegates.session_templates_client import AgencySessionTemplatesClient
@@ -86,3 +87,19 @@ def test_facade_returns_same_session_templates_instance(fake_credentials):
     client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test")
 
     assert client.session_templates() is client.session_templates()
+
+
+def test_facade_exposes_annotations_client(fake_credentials):
+    client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test/")
+
+    annotations = client.annotations()
+
+    assert isinstance(annotations, AgencyAnnotationsClient)
+    assert annotations.token_supplier is fake_credentials
+    assert annotations.base_url == "http://cp.test"
+
+
+def test_facade_returns_same_annotations_instance(fake_credentials):
+    client = AgencyClient(token_supplier=fake_credentials, base_url="http://cp.test")
+
+    assert client.annotations() is client.annotations()
