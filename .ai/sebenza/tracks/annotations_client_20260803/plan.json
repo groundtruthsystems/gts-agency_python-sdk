@@ -133,44 +133,50 @@
     {
       "id": "phase-3",
       "name": "push_graph one-call convenience, example & docs",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-3-task-1",
           "name": "Write failing tests for push_graph",
           "description": "Calls create_batch -> upload_graph -> get_batch in that order, threading the new batch id; returns PushGraphResult with total_jobs/status read back from the batch; validates the graph source BEFORE creating the batch (a both/neither call raises ValueError with zero HTTP calls); an upload failure propagates the HTTPError with the batch already created (asserted, since that is the documented residue).",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         },
         {
           "id": "phase-3-task-2",
           "name": "Implement push_graph",
           "description": "Thin orchestration over the three methods, no hidden retries or cleanup. Docstring states the residue semantics and points at list_batches for recovering an orphaned DRAFT batch.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         },
         {
           "id": "phase-3-task-3",
           "name": "Write examples/quick_annotations.py",
           "description": "Self-verifying e2e in the house style: AGENCY_* env vars, unique batch name, seed-or-find the rule_validation spec, push a small inline rule graph, assert status==ACTIVE and total_jobs equals the rule-vertex count, exercise the no-rule-vertices 400, print PASS per step, non-zero exit on failure.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         },
         {
           "id": "phase-3-task-4",
           "name": "Write docs/annotations.md and sync README.md + CLAUDE.md",
           "description": "Document the two-step flow and why there is no single publish endpoint, the graph format's identity with the ontology sandbox's create.graph payload, the ③ integration snippet (push_graph), the DRAFT->ACTIVE lifecycle, the spec-seeding recipe (get -> 404 -> create) with the code-vs-id gotcha, and the permission requirement. Add the delegate row to README and the CLAUDE.md delegate list.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         },
         {
           "id": "phase-3-task-5",
           "name": "Verify: full suite, coverage, mypy strict, black, bandit",
           "description": "pytest agency_sdk/test/ green; annotations_client + annotations_dto at 100%; all gates clean.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         },
         {
           "id": "phase-3-task-6",
           "name": "Phase verification & checkpoint",
           "description": "Per the Phase Completion protocol in workflow.md.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "feb1b10"
         }
       ]
     },
