@@ -55,7 +55,7 @@
     {
       "id": "phase-2",
       "name": "Delegate surface: push path, reads & job specifications",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -127,12 +127,13 @@
           "description": "Per the Phase Completion protocol in workflow.md.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "ea50ab8"
     },
     {
       "id": "phase-3",
       "name": "push_graph one-call convenience, example & docs",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
