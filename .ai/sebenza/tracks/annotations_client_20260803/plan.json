@@ -5,44 +5,49 @@
     {
       "id": "phase-1",
       "name": "DTOs, delegate scaffolding & facade",
-      "status": "backlog",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-1-task-1",
           "name": "Write failing DTO tests (test_annotations_dto.py)",
           "description": "Cover AnnotationBatch, AnnotationBatchResponse (batch fields flattened alongside an optional viewer_role), AnnotationBatchesPagedResult (Page + items), CreateBatchResult, PushGraphResult, AnnotationSpec, AnnotationSpecsPagedResult, CreateSpecResult, and the BatchStatus/SpecStatus IntEnums. Assert optional fields default to None (the server omits nulls) and that the status ints map to the enum members.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fcaec67"
         },
         {
           "id": "phase-1-task-2",
           "name": "Implement agency_sdk/delegates/annotations_dto.py",
           "description": "Pydantic v2 models, snake_case matching the API (no alias generator — this domain is snake_case on the wire), Page imported from datasets_dto. Add the BATCH_TYPE_GRAPH / DEFAULT_JOB_TYPE / DEFAULT_TARGET_CLASS constants documenting the server defaults. Module docstring records the verified contract, incl. that upload's response body is null.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fcaec67"
         },
         {
           "id": "phase-1-task-3",
           "name": "Write failing facade test (test_client_facade.py)",
           "description": "client.annotations() returns an AgencyAnnotationsClient bound to the same CredentialsSupplier and base_url, following the existing facade-test style.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fcaec67"
         },
         {
           "id": "phase-1-task-4",
           "name": "Implement AgencyAnnotationsClient skeleton + AgencyClient.annotations()",
           "description": "New annotations_client.py with api_path = '/api/annotations' extending BaseDelegateClient; eager construction in AgencyClient.__init__ (self.annotations_client) plus the annotations() accessor, matching the other delegates.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fcaec67"
         },
         {
           "id": "phase-1-task-5",
           "name": "Verify: pytest, mypy strict, black, bandit",
           "description": "Full offline suite green; mypy agency_sdk/ strict clean; black --check; bandit -r agency_sdk/ -x agency_sdk/test.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fcaec67"
         },
         {
           "id": "phase-1-task-6",
           "name": "Phase verification & checkpoint",
           "description": "Per the Phase Completion protocol in workflow.md: automated tests, manual verification plan, user confirmation, checkpoint commit + git note, record checkpoint_sha.",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     },
