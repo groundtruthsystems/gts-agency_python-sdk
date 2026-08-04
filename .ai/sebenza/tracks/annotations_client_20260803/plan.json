@@ -191,19 +191,22 @@
           "id": "phase-4-task-1",
           "name": "Run quick_annotations.py against the local stack / dev control plane",
           "description": "Follow docs/local_e2e.md for credentials and base URL. Confirms the wire contract end to end: envelope-wrapped create, multipart upload, ACTIVE + total_jobs read-back, and the 400 negative case.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "5258350"
         },
         {
           "id": "phase-4-task-2",
           "name": "Resolve R1: does the m2m principal satisfy the annotations handlers?",
           "description": "The handlers reject a caller with no local user id ('User not supplied.') and require org write on Resource::Annotations. Record what the guideline-agent's client-credentials principal actually gets. If it is refused, report the finding (the grant/provisioning fix is control-plane/ops work, out of this track's scope) and note the blocker for ③.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "5258350"
         },
         {
           "id": "phase-4-task-3",
           "name": "Fix any e2e findings and re-run",
           "description": "SDK-side findings only; contract deviations that belong to gts-comand are reported, not patched here.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "5258350"
         },
         {
           "id": "phase-4-task-4",
