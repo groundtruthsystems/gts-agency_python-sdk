@@ -212,7 +212,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-08-03T00:00:00Z",
-      "updated_at": "2026-08-04T01:38:09Z",
+      "updated_at": "2026-08-04T01:38:24Z",
       "spec_path": ".ai/sebenza/tracks/annotations_client_20260803/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotations_client_20260803/plan.json",
       "phases_summary": [
@@ -225,7 +225,7 @@
         {
           "id": "phase-2",
           "name": "Delegate surface: push path, reads & job specifications",
-          "status": "backlog",
+          "status": "doing",
           "blocked_reason": null
         },
         {

@@ -49,12 +49,13 @@
           "description": "Per the Phase Completion protocol in workflow.md: automated tests, manual verification plan, user confirmation, checkpoint commit + git note, record checkpoint_sha.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "54aa6c3"
     },
     {
       "id": "phase-2",
       "name": "Delegate surface: push path, reads & job specifications",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
