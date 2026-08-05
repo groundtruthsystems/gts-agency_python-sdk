@@ -149,6 +149,13 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         Memory: ``requests`` assembles the whole multipart body in memory, and the
         server caps the request body at 50 MiB.
 
+        Transport: this posts directly rather than through :meth:`_request`, whose
+        JSON content type would corrupt a multipart body. No retry behaviour is lost
+        by doing so — the base client only auto-retries reads, so a ``POST`` gets a
+        single attempt either way. That is the right policy here: a connection reset
+        can arrive *after* the server committed the upload, and re-sending would meet
+        the now-ACTIVE batch with a 400 rather than land twice.
+
         Args:
             organisation_id: The organisation ID.
             batch_id: The DRAFT batch to fill.
