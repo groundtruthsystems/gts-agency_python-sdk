@@ -74,6 +74,23 @@ SDK core never requires them:
   the URL from `GET /api/agentgateways?o={org}`; *live-verified 2026-07-07* against the
   control-plane image built 2026-07-06 (Page-wrapped response; discovery → completion
   chain passes).
+- **Annotations (2026-08-04, rc14):** `delegates/annotations_client.py` +
+  `annotations_dto.py`, via `AgencyClient.annotations()`. Publishes a knowledge graph
+  as annotator work. Three contract facts drive the design, all read from gts-comand
+  `8d64a64a` and live-verified: (1) there is **no single publish endpoint** — `create_batch`
+  (`POST /api/annotations/_command`) leaves the batch in DRAFT with 0 jobs, and the multipart
+  `upload_graph` is what materialises one job per vertex matching `target_class` (default
+  `rule`) and flips it to ACTIVE; (2) the upload's response body is **`null`**, so the job
+  count exists only after a `get_batch` read-back — hence `push_graph` is three calls, and is
+  the agent-facing one-liner (graph accepted as a dict or a file path, validated before the
+  batch is created); (3) the job specifications hang off a **different root**
+  (`/api/annotation-specs`), reached through a module-private sibling delegate so they keep
+  the shared request plumbing, and `get_spec` resolves its path segment by **`code`** despite
+  the server naming it `{id}`. The multipart upload posts outside `_request` (whose JSON
+  content type would corrupt the body) at no cost in retry coverage, since a `POST` is not
+  auto-retried either way. A failed upload leaves an empty DRAFT batch server-side by design —
+  documented rather than auto-archived, since deleting server state the caller did not ask
+  about is not the SDK's call.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer

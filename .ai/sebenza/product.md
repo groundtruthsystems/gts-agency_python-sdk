@@ -80,6 +80,16 @@ list reads (`work_queues().list()` and a new `session_templates()` delegate) let
 a queue/template by name rather than a hardcoded id. Live-validated end-to-end against the
 local stack.
 
+`0.0.1rc14` (2026-08-04) added the annotations client (`AgencyClient.annotations()`), closing
+the SDK half of guideline-agent issue #22: an agent can publish its extracted rule graph as
+work for human annotators with one call, `push_graph(...)`, reusing the very graph it already
+sends to the ontology sandbox. Publishing is two server calls, not one — a batch is created in
+DRAFT and the multipart graph upload is what materialises one job per matching vertex and flips
+the batch to ACTIVE — so `push_graph` chains create → upload → read-back (the upload answers
+with a `null` body, making the read-back the only source of the job count). Also covers the job
+specifications that seed each job's checklist. Live-validated end-to-end against the local
+stack, including the failure paths.
+
 ## Non-Goals
 
 - **No CLI / TUI.** This is a pure library. Command-line tooling, if ever needed,
