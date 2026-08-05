@@ -235,7 +235,8 @@
           "description": "Per the Phase Completion protocol in workflow.md; the live run's output and the publish confirmation form the verification report attached as the checkpoint's git note.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "4aa1a35"
     }
   ]
 }
