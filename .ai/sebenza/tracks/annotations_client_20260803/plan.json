@@ -184,8 +184,8 @@
     {
       "id": "phase-4",
       "name": "Live e2e (Gate A) & release rc14 (Gate B)",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing.",
       "tasks": [
         {
           "id": "phase-4-task-1",
@@ -212,19 +212,21 @@
           "id": "phase-4-task-4",
           "name": "Bump 0.0.1rc13 -> 0.0.1rc14 and re-run every gate",
           "description": "pyproject.toml version bump; full suite, mypy, black, bandit green.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "976644b"
         },
         {
           "id": "phase-4-task-5",
-          "name": "Open the PR and merge to main",
-          "description": "PR from claude/annotations-sdk-client-1b1a26 summarising the delegate, the verified contract, and the live-e2e result; merge after review.",
-          "status": "backlog"
+          "name": "Push the branch and open the PR",
+          "description": "PR #13 opened against main from claude/annotations-sdk-client-1b1a26. NOTE: the original task said 'and merge to main' — the user redirected the release flow on 2026-08-04 to tag and publish from THIS branch once review passes, so the merge is decoupled from the release (the publish workflow triggers on any v* tag, from any branch).",
+          "status": "done"
         },
         {
           "id": "phase-4-task-6",
-          "name": "Tag v0.0.1rc14 and confirm the PyPI publish",
+          "name": "Tag v0.0.1rc14 on this branch and confirm the PyPI publish",
           "description": "Push the tag, watch the Build and Publish workflow, confirm 0.0.1rc14 installs from PyPI so ③ can pin it instead of an editable link, and close the loop on issue #22 with the released version plus the integration snippet.",
-          "status": "backlog"
+          "status": "blocked",
+          "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing."
         },
         {
           "id": "phase-4-task-7",

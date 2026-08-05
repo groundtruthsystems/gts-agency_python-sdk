@@ -209,10 +209,10 @@
       "track_id": "annotations_client_20260803",
       "type": "feature",
       "description": "Add AgencyAnnotationsClient (/api/annotations) + AgencyClient.annotations() so an agent can publish a rule graph as annotation jobs. Covers the two-step control-plane flow — create_batch (POST /_command, CommandResponse envelope, DRAFT) then upload_graph (multipart 'file', one job per vertex matching target_class, batch flips to ACTIVE) — plus get_batch/list_batches read-back (the upload's response body is null), the /api/annotation-specs create/get/list needed to seed a job_type's checklist, and push_graph, the one-call create->upload->read-back convenience that is ③'s integration point. Graph input accepted as a dict or a file path. Ends by publishing 0.0.1rc14.",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing.",
       "created_at": "2026-08-03T00:00:00Z",
-      "updated_at": "2026-08-04T01:50:18Z",
+      "updated_at": "2026-08-05T04:23:52Z",
       "spec_path": ".ai/sebenza/tracks/annotations_client_20260803/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotations_client_20260803/plan.json",
       "phases_summary": [
@@ -237,14 +237,14 @@
         {
           "id": "phase-4",
           "name": "Live e2e (Gate A) & release rc14 (Gate B)",
-          "status": "doing",
-          "blocked_reason": null
+          "status": "blocked",
+          "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing."
         }
       ],
       "progress": {
         "total_tasks": 29,
-        "completed_tasks": 25,
-        "percentage": 86.2
+        "completed_tasks": 27,
+        "percentage": 93.1
       }
     }
   ]
