@@ -184,8 +184,8 @@
     {
       "id": "phase-4",
       "name": "Live e2e (Gate A) & release rc14 (Gate B)",
-      "status": "blocked",
-      "blocked_reason": "Awaiting the user's explicit go-ahead to tag v0.0.1rc14. The review gate they set has been met in substance (approved, merge recommended), but the approval is an informal PR comment rather than a GitHub review approval, and publishing to PyPI is irreversible — a version number cannot be reused.",
+      "status": "done",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
@@ -224,15 +224,16 @@
         {
           "id": "phase-4-task-6",
           "name": "Tag v0.0.1rc14 on this branch and confirm the PyPI publish",
-          "description": "Push the tag, watch the Build and Publish workflow, confirm 0.0.1rc14 installs from PyPI so ③ can pin it instead of an editable link, and close the loop on issue #22 with the released version plus the integration snippet.",
-          "status": "blocked",
-          "blocked_reason": "Awaiting the user's explicit go-ahead to tag v0.0.1rc14. The review gate they set has been met in substance (approved, merge recommended), but the approval is an informal PR comment rather than a GitHub review approval, and publishing to PyPI is irreversible — a version number cannot be reused."
+          "description": "Tag v0.0.1rc14 created on the track branch at 85bd43b and held back until PR #13 merged to main (merge commit 943f588, so the tagged commit is an ancestor of main), then pushed to trigger the release. Workflow run 30975656902 SUCCESS; wheel + sdist uploaded to PyPI with attestations. Verified independently of CI: pypi.org reports 0.0.1rc14 as latest, and a clean venv install of gts-agency-python-sdk==0.0.1rc14 exposes client.annotations() -> AgencyAnnotationsClient with push_graph/create_batch/upload_graph/get_batch/list_batches/create_spec/get_spec/list_specs.",
+          "status": "done",
+          "blocked_reason": null,
+          "commit_sha": "85bd43b"
         },
         {
           "id": "phase-4-task-7",
           "name": "Phase verification & checkpoint",
           "description": "Per the Phase Completion protocol in workflow.md; the live run's output and the publish confirmation form the verification report attached as the checkpoint's git note.",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     }
