@@ -185,7 +185,7 @@
       "id": "phase-4",
       "name": "Live e2e (Gate A) & release rc14 (Gate B)",
       "status": "blocked",
-      "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing.",
+      "blocked_reason": "Awaiting the user's explicit go-ahead to tag v0.0.1rc14. The review gate they set has been met in substance (approved, merge recommended), but the approval is an informal PR comment rather than a GitHub review approval, and publishing to PyPI is irreversible — a version number cannot be reused.",
       "tasks": [
         {
           "id": "phase-4-task-1",
@@ -218,7 +218,7 @@
         {
           "id": "phase-4-task-5",
           "name": "Push the branch and open the PR",
-          "description": "PR #13 opened against main from claude/annotations-sdk-client-1b1a26. NOTE: the original task said 'and merge to main' — the user redirected the release flow on 2026-08-04 to tag and publish from THIS branch once review passes, so the merge is decoupled from the release (the publish workflow triggers on any v* tag, from any branch).",
+          "description": "PR #13 opened against main from claude/annotations-sdk-client-1b1a26. NOTE: the original task said 'and merge to main' — the user redirected the release flow on 2026-08-04 to tag and publish from THIS branch once review passes, so the merge is decoupled from the release (the publish workflow triggers on any v* tag, from any branch). Review returned 2026-08-04 by kevinbayes: verdict Approved, recommendation Merge, 4 findings (C1 orphaned DRAFT batch on upload failure — accepted as a follow-up; W1/W2/W3 acknowledged as documented design choices; W4 multipart bypasses _request — documented in b9acd39, incl. the correction that a POST is not auto-retried through _request either, so no retry coverage is lost). Dispositions posted on the PR. NOTE: the approval is a PR comment; GitHub reviewDecision is still empty (no formal review submitted) and the PR is not merged.",
           "status": "done"
         },
         {
@@ -226,7 +226,7 @@
           "name": "Tag v0.0.1rc14 on this branch and confirm the PyPI publish",
           "description": "Push the tag, watch the Build and Publish workflow, confirm 0.0.1rc14 installs from PyPI so ③ can pin it instead of an editable link, and close the loop on issue #22 with the released version plus the integration snippet.",
           "status": "blocked",
-          "blocked_reason": "Awaiting human review approval on PR #13. Publishing to PyPI is irreversible (a version number cannot be reused), and the user gated the tag on review passing."
+          "blocked_reason": "Awaiting the user's explicit go-ahead to tag v0.0.1rc14. The review gate they set has been met in substance (approved, merge recommended), but the approval is an informal PR comment rather than a GitHub review approval, and publishing to PyPI is irreversible — a version number cannot be reused."
         },
         {
           "id": "phase-4-task-7",
