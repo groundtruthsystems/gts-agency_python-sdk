@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import requests
 
 from agency_sdk.credentials import CredentialsSupplier
+from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.datasets_client import AgencyDatasetsClient
 from agency_sdk.delegates.datasource_client import AgencyDatasourceClient
 from agency_sdk.delegates.files_client import AgencyFilesClient
@@ -40,6 +41,7 @@ class AgencyClient:
         self.session_templates_client = AgencySessionTemplatesClient(
             token_supplier=token_supplier, base_url=self.base_url
         )
+        self.annotations_client = AgencyAnnotationsClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
         self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
@@ -74,6 +76,9 @@ class AgencyClient:
 
     def session_templates(self) -> AgencySessionTemplatesClient:
         return self.session_templates_client
+
+    def annotations(self) -> AgencyAnnotationsClient:
+        return self.annotations_client
 
     def gateway(
         self,

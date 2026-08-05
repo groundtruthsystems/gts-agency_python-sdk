@@ -1,10 +1,15 @@
 # Project Workflow
 
-Adapted from the gts-agency conductor workflow for this Python SDK.
+Adapted from the gts-agency conductor workflow for this Python SDK, and moved to the
+Sebenza JSON/kanban convention on 2026-08-03: a track's plan is a schema-validated
+`plan.json` (`sebenza-plan-v1`), and `tracks.json` (`sebenza-tracks-v1`) is the registry.
+Statuses are `backlog` / `doing` / `blocked` / `unblocked` / `done`; keep `plan.json` and
+`tracks.json` in sync on every status change. (The four tracks completed under the former
+`conductor/` workspace keep their narrative `plan.md` — see `index.md`.)
 
 ## Guiding Principles
 
-1. **The Plan is the Source of Truth:** All work must be tracked in `plan.md`
+1. **The Plan is the Source of Truth:** All work must be tracked in `plan.json`
 2. **The Tech Stack is Deliberate:** Changes to the tech stack must be documented in `tech-stack.md` *before* implementation
 3. **Test-Driven Development:** Write unit tests before implementing functionality
 4. **High Code Coverage:** Aim for >80% code coverage for all modules
@@ -17,9 +22,11 @@ All tasks follow a strict lifecycle:
 
 ### Standard Task Workflow
 
-1. **Select Task:** Choose the next available task from `plan.md` in sequential order
+1. **Select Task:** Choose the next available task from `plan.json` in sequential order
 
-2. **Mark In Progress:** Before beginning work, edit `plan.md` and change the task from `[ ]` to `[~]`
+2. **Mark In Progress:** Before beginning work, edit `plan.json` and change the task's `status`
+   from `"backlog"` to `"doing"` (and its phase, if this is the phase's first task); mirror the
+   phase status into that track's `phases_summary` in `tracks.json`
 
 3. **Write Failing Tests (Red Phase):**
    - Create a new test file for the feature or bug fix.
@@ -60,26 +67,30 @@ All tasks follow a strict lifecycle:
      ```
 
 10. **Get and Record Task Commit SHA:**
-    - **Step 10.1: Update Plan:** Read `plan.md`, find the line for the completed task, update its status from `[~]` to `[x]`, and append the first 7 characters of the *just-completed commit's* commit hash.
-    - **Step 10.2: Write Plan:** Write the updated content back to `plan.md`.
+    - **Step 10.1: Update Plan:** Read `plan.json`, find the completed task, set its `status` to
+      `"done"`, and set its `commit_sha` to the first 7 characters of the *just-completed commit's*
+      hash.
+    - **Step 10.2: Write Plan:** Write the updated JSON back to `plan.json`.
+    - **Step 10.3: Sync Registry:** Update this track's `progress` (`completed_tasks`,
+      `percentage`) in `tracks.json`, and refresh its `updated_at`.
 
 11. **Commit Plan Update:**
-    - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Commit this change with a descriptive message (e.g., `conductor(plan): Mark task 'Create files DTOs' as complete`).
+    - **Action:** Stage the modified `plan.json` and `tracks.json`.
+    - **Action:** Commit this change with a descriptive message (e.g., `sebenza(plan): Mark task 'Create files DTOs' as complete`).
 
 ### Phase Completion Verification and Checkpointing Protocol
 
-**Trigger:** This protocol is executed immediately after a task is completed that also concludes a phase in `plan.md`.
+**Trigger:** This protocol is executed immediately after a task is completed that also concludes a phase in `plan.json`.
 
 1.  **Announce Protocol Start:** Inform the user that the phase is complete and the verification and checkpointing protocol has begun.
 
 2.  **Ensure Test Coverage for Phase Changes:**
-    -   **Step 2.1: Determine Phase Scope:** To identify the files changed in this phase, you must first find the starting point. Read `plan.md` to find the Git commit SHA of the *previous* phase's checkpoint. If no previous checkpoint exists, the scope is all changes since the first commit.
+    -   **Step 2.1: Determine Phase Scope:** To identify the files changed in this phase, you must first find the starting point. Read `plan.json` to find the *previous* phase's `checkpoint_sha`. If no previous checkpoint exists, the scope is all changes since the first commit.
     -   **Step 2.2: List Changed Files:** Execute `git diff --name-only <previous_checkpoint_sha> HEAD` to get a precise list of all files modified during this phase.
     -   **Step 2.3: Verify and Create Tests:** For each file in the list:
         -   **CRITICAL:** First, check its extension. Exclude non-code files (e.g., `.json`, `.md`, `.yaml`).
         -   For each remaining code file, verify a corresponding test file exists.
-        -   If a test file is missing, you **must** create one. Before writing the test, **first, analyze other test files in the repository to determine the correct naming convention and testing style.** The new tests **must** validate the functionality described in this phase's tasks (`plan.md`).
+        -   If a test file is missing, you **must** create one. Before writing the test, **first, analyze other test files in the repository to determine the correct naming convention and testing style.** The new tests **must** validate the functionality described in this phase's tasks (`plan.json`).
 
 3.  **Execute Automated Tests with Proactive Debugging:**
     -   Before execution, you **must** announce the exact shell command you will use to run the tests.
@@ -88,7 +99,7 @@ All tasks follow a strict lifecycle:
     -   If tests fail, you **must** inform the user and begin debugging. You may attempt to propose a fix a **maximum of two times**. If the tests still fail after your second proposed fix, you **must stop**, report the persistent failure, and ask the user for guidance.
 
 4.  **Propose a Detailed, Actionable Manual Verification Plan:**
-    -   **CRITICAL:** To generate the plan, first analyze `product.md`, `product-guidelines.md`, and `plan.md` to determine the user-facing goals of the completed phase.
+    -   **CRITICAL:** To generate the plan, first analyze `product.md`, `product-guidelines.md`, and `plan.json` to determine the user-facing goals of the completed phase.
     -   You **must** generate a step-by-step plan that walks the user through the verification process, including any necessary commands and specific, expected outcomes.
     -   Example format for this SDK:
 
@@ -107,7 +118,7 @@ All tasks follow a strict lifecycle:
 
 6.  **Create Checkpoint Commit:**
     -   Stage all changes. If no changes occurred in this step, proceed with an empty commit.
-    -   Perform the commit with a clear and concise message (e.g., `conductor(checkpoint): Checkpoint end of Phase X`).
+    -   Perform the commit with a clear and concise message (e.g., `sebenza(checkpoint): Checkpoint end of Phase X`).
 
 7.  **Attach Auditable Verification Report using Git Notes:**
     -   **Step 7.1: Draft Note Content:** Create a detailed verification report including the automated test command, the manual verification steps, and the user's confirmation.
@@ -115,12 +126,14 @@ All tasks follow a strict lifecycle:
 
 8.  **Get and Record Phase Checkpoint SHA:**
     -   **Step 8.1: Get Commit Hash:** Obtain the hash of the *just-created checkpoint commit* (`git log -1 --format="%H"`).
-    -   **Step 8.2: Update Plan:** Read `plan.md`, find the heading for the completed phase, and append the first 7 characters of the commit hash in the format `[checkpoint: <sha>]`.
-    -   **Step 8.3: Write Plan:** Write the updated content back to `plan.md`.
+    -   **Step 8.2: Update Plan:** Read `plan.json`, set the completed phase's `status` to `"done"`
+        and its `checkpoint_sha` to the first 7 characters of the commit hash.
+    -   **Step 8.3: Write Plan:** Write the updated JSON back to `plan.json`, and mirror the phase
+        status into `tracks.json` (`phases_summary` + `progress` + `updated_at`).
 
 9. **Commit Plan Update:**
-    - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Commit this change with a descriptive message following the format `conductor(plan): Mark phase '<PHASE NAME>' as complete`.
+    - **Action:** Stage the modified `plan.json` and `tracks.json`.
+    - **Action:** Commit this change with a descriptive message following the format `sebenza(plan): Mark phase '<PHASE NAME>' as complete`.
 
 10. **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been created, with the detailed verification report attached as a git note.
 
@@ -209,7 +222,7 @@ A task is complete when:
 3. Code coverage meets project requirements
 4. Documentation complete (if applicable)
 5. Code passes all configured linting and static analysis checks
-6. Implementation notes added to `plan.md`
+6. Implementation notes added to the task's `description` in `plan.json`
 7. Changes committed with proper message
 8. Git note with task summary attached to the commit
 

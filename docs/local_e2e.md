@@ -14,16 +14,26 @@ failure, and cleans up unconditionally so reruns are idempotent.
 
 For the work-queue ingestion delegate,
 [examples/quick_work_queue.py](../examples/quick_work_queue.py) is the
-equivalent vehicle: create-with-external-refs → the two **flat** 409 claim-lost
-bodies (`create` and `add_ref`, asserted _not_ to be the `{"error":{...}}`
-envelope) → org-scoped cross-queue `_by_ref` (+ 404 → `None`) → `add_ref` →
-a command → delete "full forget" (refs CASCADE). It scaffolds two throwaway
-queues via raw requests (the delegate has no queue CRUD — ingestion only) and
-tears everything down unconditionally. Same env vars as below, plus optional
+equivalent vehicle: create-with-external-refs → the two 409 claim-lost bodies
+(`create` and `add_ref`, asserted to be the standard `{"error":{...}}` envelope
+with the owner under `error.details`) → queue-scoped `_by_ref` list lookup
+(incl. the same ref claimed in two queues) → `add_ref` → a command → delete
+"full forget" (refs CASCADE). It scaffolds two throwaway queues via raw requests
+(the delegate has no queue CRUD — ingestion only) and tears everything down
+unconditionally. Same env vars as below, plus optional
 `AGENCY_SESSION_TEMPLATE_ID` (a template that exists in the org; only the
 `publish` step needs it — and `publish` dispatches a real session, so its
 completion is a Stage-2/full-chain concern, reported but never failing the
 contract steps).
+
+For the annotations delegate,
+[examples/quick_annotations.py](../examples/quick_annotations.py) is the vehicle:
+seed-or-find the `rule_validation` job specification → `push_graph` from a dict
+(create DRAFT → multipart upload → read back ACTIVE with `total_jobs`) → the same
+push from a file → `list_batches` → the 400 for a graph with no `rule` vertices
+(leaving an empty DRAFT batch, as documented) → the client-side `ValueError` when
+no graph source is given. It archives every batch it created on the way out.
+Only the env vars below are needed.
 
 ## Step 0 — Environment pre-check (seconds)
 
