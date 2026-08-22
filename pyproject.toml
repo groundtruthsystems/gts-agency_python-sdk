@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gts-agency_python-sdk"
-version = "0.0.1rc14"
+version = "0.0.1rc15"
 description = ""
 requires-python = ">=3.12"
 authors = [{name="Ground Control Systems", email="engineering@groundcontrolsystems.com"}]
