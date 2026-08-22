@@ -77,7 +77,8 @@
           "description": "Per the Phase Completion protocol in workflow.md.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "5699e9f"
     }
   ]
 }
