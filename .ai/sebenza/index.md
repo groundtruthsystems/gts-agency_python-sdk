@@ -8,6 +8,9 @@ The single Context-Driven-Development workspace for this repo. It absorbed the f
 - [Product Guidelines](./product-guidelines.md)
 - [Tech Stack](./tech-stack.md)
 
+## Security
+- [Threat Register](./SECURITY.md) — running STRIDE register, rewritten at each track close-out
+
 ## Workflow
 - [Workflow](./workflow.md)
 - [Code Style Guides](./code_styleguides/)
