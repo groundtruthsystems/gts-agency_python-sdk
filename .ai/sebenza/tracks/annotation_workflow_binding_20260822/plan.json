@@ -5,7 +5,7 @@
     {
       "id": "phase-1",
       "name": "Workflow binding + read-back model fix",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -75,7 +75,7 @@
           "id": "phase-1-task-10",
           "name": "Phase verification & checkpoint",
           "description": "Per the Phase Completion protocol in workflow.md.",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     }
