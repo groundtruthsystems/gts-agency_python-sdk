@@ -90,6 +90,14 @@ with a `null` body, making the read-back the only source of the job count). Also
 specifications that seed each job's checklist. Live-validated end-to-end against the local
 stack, including the failure paths.
 
+`0.0.1rc15` (2026-08-22) fixed that delegate against a control plane that had moved underneath it
+(issue #14): comand now requires a workflow binding on a batch before any job can be inserted, and
+nothing seeds one for an API-created batch, so `push_graph` failed with an opaque 500 on every
+current server. It now resolves a workflow, binds it, and only then uploads; `bind_workflow` and
+`list_workflows` are public in their own right. The same release follows comand's split of
+`completed_jobs` into `resolved_jobs` / `accepted_jobs` / `rejected_jobs`, which had been turning a
+fully successful publish into a validation error on the read-back.
+
 ## Non-Goals
 
 - **No CLI / TUI.** This is a pure library. Command-line tooling, if ever needed,
