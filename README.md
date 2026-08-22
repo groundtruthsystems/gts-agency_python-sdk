@@ -57,7 +57,7 @@ Access each API domain through the facade:
 - `client.work_queues()` — work-queue ingestion: create items with exactly-once external refs, publish, claim by ref, queue-scoped owner lookup (`get_items_by_ref`), unblock/retry/reprocess, delete, and `list()` to resolve a queue name→id (409 returns a typed claim-lost result from the error envelope's `error.details`, plus a `contended` flag — not an exception)
 - `client.sessions()` — report progress on a dispatched control-plane session: `attach` to the inherited session then `update` its status/result/events/metrics (the agent inherits the session, never self-registers — no `register`)
 - `client.session_templates()` — list session templates to resolve a template name → id (read-only)
-- `client.annotations()` — publish a knowledge graph as annotator work: `push_graph()` does create-batch → multipart upload → read-back in one call (one job per `class: "rule"` vertex), plus the individual legs, batch reads, and the job specifications that seed each job's checklist ([docs/annotations.md](docs/annotations.md))
+- `client.annotations()` — publish a knowledge graph as annotator work: `push_graph()` does resolve-workflow → create-batch → bind-workflow → multipart upload → read-back in one call (one job per `class: "rule"` vertex), plus the individual legs, `bind_workflow`/`list_workflows` (a batch cannot hold jobs until a workflow is bound to it), batch reads, and the job specifications that seed each job's checklist ([docs/annotations.md](docs/annotations.md))
 - `client.gateway(org_id=..., gateway_base_url=...)` — OpenAI-compatible LLM calls routed through the org's agentgateway (shared credentials + `x-org` routing header)
 
 ### Rules Example

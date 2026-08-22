@@ -3,8 +3,10 @@
   "version": "1.0",
   "project": {
     "name": "gts-agency_python-sdk",
-    "path": "/Users/xuqiluo/PycharmProjects/gts-agency_python-sdk",
-    "registered_at": "2026-08-03T00:00:00Z"
+    "path": "/Users/xuqiluo/PycharmProjects/gts-agency_python-sdk/.claude/worktrees/cranky-moser-96d783",
+    "registered_at": "2026-08-03T00:00:00Z",
+    "worktree": "cranky-moser-96d783",
+    "repo_path": "/Users/xuqiluo/PycharmProjects/gts-agency_python-sdk"
   },
   "tracks": [
     {

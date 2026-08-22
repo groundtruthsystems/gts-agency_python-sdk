@@ -311,23 +311,23 @@ class TestSpecs:
 
 
 class TestPushGraph:
+    """The push legs other than workflow resolution, which TestPushGraphBindsAWorkflow owns.
+
+    These pass ``workflow_id`` so the workflow lookup is skipped and each test stays
+    about one thing.
+    """
+
     def _queue_happy_path(self, stub_requests):
         stub_requests.queue(json_data=CREATED_ENVELOPE)  # create
+        stub_requests.queue(json_data=BOUND_ENVELOPE)  # bind
         stub_requests.queue(json_data=None)  # upload (null body)
         stub_requests.queue(json_data=ACTIVE_BATCH_JSON)  # read-back
 
-    def test_creates_uploads_and_reads_back_in_order(self, client, stub_requests):
+    def test_reports_the_read_back_batch(self, client, stub_requests):
         self._queue_happy_path(stub_requests)
 
-        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph=GRAPH)
+        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph=GRAPH, workflow_id="w-1")
 
-        create, upload, read_back = stub_requests.calls
-        assert (create.method, create.url) == ("POST", "http://cp.test/api/annotations/_command")
-        assert upload.url == f"http://cp.test/api/annotations/{CREATED_ENVELOPE['data']['id']}/upload"
-        assert (read_back.method, read_back.url) == (
-            "GET",
-            f"http://cp.test/api/annotations/{CREATED_ENVELOPE['data']['id']}",
-        )
         assert result.batch_id == CREATED_ENVELOPE["data"]["id"]
         assert result.total_jobs == 325
         assert result.status == BatchStatus.ACTIVE
@@ -346,9 +346,10 @@ class TestPushGraph:
             job_type="rule_validation",
             target_class="rule",
             hops=2,
+            workflow_id="w-1",
         )
 
-        create, upload, _ = stub_requests.calls
+        create, _bind, upload, _read_back = stub_requests.calls
         assert create.kwargs["json"]["payload"] == {
             "name": "MTUS Knee 2026",
             "batch_type": "graph",
@@ -368,9 +369,9 @@ class TestPushGraph:
         graph_file.write_text(json.dumps(GRAPH))
         self._queue_happy_path(stub_requests)
 
-        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", file_path=graph_file)
+        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", file_path=graph_file, workflow_id="w-1")
 
-        assert json.loads(stub_requests.calls[1].kwargs["files"]["file"][1]) == GRAPH
+        assert json.loads(stub_requests.calls[2].kwargs["files"]["file"][1]) == GRAPH
         assert result.total_jobs == 325
 
     def test_validates_the_graph_source_before_creating_a_batch(self, client, stub_requests):
@@ -381,11 +382,218 @@ class TestPushGraph:
 
     def test_a_failed_upload_propagates_and_leaves_the_draft_batch(self, client, stub_requests):
         stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
         stub_requests.queue(json_data={"error": {"message": "No vertices of class 'rule' found"}}, status_code=400)
 
         with pytest.raises(requests.HTTPError):
-            client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph={"vertices": []})
+            client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph={"vertices": []}, workflow_id="w-1")
 
-        # The batch was created before the upload failed: two calls, no read-back, and the
-        # DRAFT batch survives server-side (documented residue, recoverable via list_batches).
-        assert len(stub_requests.calls) == 2
+        # The batch was created and bound before the upload failed: three calls, no
+        # read-back, and the DRAFT batch survives server-side (documented residue,
+        # recoverable via list_batches).
+        assert len(stub_requests.calls) == 3
+
+
+WORKFLOWS_PAGE = {
+    "page": {"page": 0, "size": 50, "total": 3},
+    "items": [
+        {
+            "id": "sys-wf-dataset-2",
+            "code": "dataset_single_step",
+            "name": "Dataset single step",
+            "description": None,
+            "target_batch_type": "dataset",
+            "is_system": True,
+            "status": "active",
+            "current_published_version_id": "sys-wfv-dataset-2",
+            "draft_version_id": None,
+        },
+        {
+            "id": "org-wf-graph-draft",
+            "code": "graph_draft_only",
+            "name": "Graph, never published",
+            "description": None,
+            "target_batch_type": "graph",
+            "is_system": False,
+            "status": "active",
+            "current_published_version_id": None,
+            "draft_version_id": "draft-1",
+        },
+        {
+            "id": "sys-wf-graph-2",
+            "code": "graph_two_step",
+            "name": "Graph two-step review",
+            "description": None,
+            "target_batch_type": "graph",
+            "is_system": True,
+            "status": "active",
+            "current_published_version_id": "sys-wfv-graph-2",
+            "draft_version_id": None,
+        },
+    ],
+}
+
+BOUND_ENVELOPE = {
+    "success": True,
+    "message": "0 job(s) re-governed",
+    "data": {"jobs_regoverned": 0, "workflow_version_id": "sys-wfv-graph-2"},
+}
+
+
+class TestWorkflows:
+    def test_list_workflows_hits_the_workflows_root(self, client, stub_requests):
+        stub_requests.queue(json_data=WORKFLOWS_PAGE)
+
+        result = client.list_workflows(organisation_id=2)
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/annotation-workflows"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert [w.id for w in result.items] == ["sys-wf-dataset-2", "org-wf-graph-draft", "sys-wf-graph-2"]
+
+    def test_list_workflows_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 1, "size": 5, "total": 0}, "items": []})
+
+        client.list_workflows(organisation_id=9, page=1, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "1", "s": "5"}
+
+    def test_bind_workflow_posts_the_command_envelope(self, client, stub_requests):
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
+
+        result = client.bind_workflow(organisation_id=2, batch_id="b-1", workflow_id="sys-wf-graph-2")
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/annotations/b-1/_command"
+        assert call.kwargs["json"] == {
+            "command": "bind_workflow",
+            "organisation": 2,
+            "payload": {"job_type": "*", "workflow_id": "sys-wf-graph-2"},
+        }
+        assert result.workflow_version_id == "sys-wfv-graph-2"
+        assert result.jobs_regoverned == 0
+
+    def test_bind_workflow_forwards_job_type_and_rebind_reason(self, client, stub_requests):
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
+
+        client.bind_workflow(
+            organisation_id=2,
+            batch_id="b-1",
+            workflow_id="sys-wf-graph-2",
+            job_type="dbq_rules",
+            rebind_reason="moving to the two-step review",
+        )
+
+        assert stub_requests.calls[0].kwargs["json"]["payload"] == {
+            "job_type": "dbq_rules",
+            "workflow_id": "sys-wf-graph-2",
+            "rebind_reason": "moving to the two-step review",
+        }
+
+
+class TestPushGraphBindsAWorkflow:
+    """Issue #14: a batch cannot hold jobs until a workflow is bound to it.
+
+    The server's insert trigger refuses every job otherwise, surfacing as an opaque
+    500 from the upload, so push_graph has to bind between create and upload.
+    """
+
+    def _queue_full_push(self, stub_requests):
+        stub_requests.queue(json_data=WORKFLOWS_PAGE)  # resolve
+        stub_requests.queue(json_data=CREATED_ENVELOPE)  # create
+        stub_requests.queue(json_data=BOUND_ENVELOPE)  # bind
+        stub_requests.queue(json_data=None)  # upload (null body)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)  # read back
+
+    def test_resolves_creates_binds_uploads_then_reads_back_in_order(self, client, stub_requests):
+        self._queue_full_push(stub_requests)
+
+        result = client.push_graph(organisation_id=2, name="MTUS Knee 2026", graph=GRAPH)
+
+        batch_id = CREATED_ENVELOPE["data"]["id"]
+        assert [(c.method, c.url) for c in stub_requests.calls] == [
+            ("GET", "http://cp.test/api/annotation-workflows"),
+            ("POST", "http://cp.test/api/annotations/_command"),
+            ("POST", f"http://cp.test/api/annotations/{batch_id}/_command"),
+            ("POST", f"http://cp.test/api/annotations/{batch_id}/upload"),
+            ("GET", f"http://cp.test/api/annotations/{batch_id}"),
+        ]
+        assert result.total_jobs == 325
+
+    def test_binds_the_published_system_workflow_matching_the_batch_type(self, client, stub_requests):
+        # The page also holds a dataset workflow and an unpublished graph one; neither
+        # is bindable here — the dataset one governs the wrong batch type, and a
+        # workflow with no published version cannot be bound at all.
+        self._queue_full_push(stub_requests)
+
+        client.push_graph(organisation_id=2, name="n", graph=GRAPH)
+
+        assert stub_requests.calls[2].kwargs["json"]["payload"] == {
+            "job_type": "*",
+            "workflow_id": "sys-wf-graph-2",
+        }
+
+    def test_an_explicit_workflow_id_skips_the_lookup(self, client, stub_requests):
+        stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
+        stub_requests.queue(json_data=None)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)
+
+        client.push_graph(organisation_id=2, name="n", graph=GRAPH, workflow_id="org-wf-custom")
+
+        assert stub_requests.calls[0].url == "http://cp.test/api/annotations/_command"  # no workflow list
+        assert stub_requests.calls[1].kwargs["json"]["payload"]["workflow_id"] == "org-wf-custom"
+
+    def test_forwards_a_rebind_reason(self, client, stub_requests):
+        stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
+        stub_requests.queue(json_data=None)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)
+
+        client.push_graph(
+            organisation_id=2, name="n", graph=GRAPH, workflow_id="w-1", rebind_reason="switching review flow"
+        )
+
+        assert stub_requests.calls[1].kwargs["json"]["payload"]["rebind_reason"] == "switching review flow"
+
+    def test_no_bindable_workflow_raises_before_creating_a_batch(self, client, stub_requests):
+        # Only a dataset workflow on offer: pushing a graph batch cannot proceed, and
+        # must not leave a batch behind while failing.
+        stub_requests.queue(
+            json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [WORKFLOWS_PAGE["items"][0]]}
+        )
+
+        with pytest.raises(ValueError, match="no bindable annotation workflow"):
+            client.push_graph(organisation_id=2, name="n", graph=GRAPH)
+
+        assert len(stub_requests.calls) == 1  # the lookup only; nothing was created
+
+    def test_a_pre_workflow_server_404s_the_lookup_and_the_bind_is_skipped(self, client, stub_requests):
+        # Control planes older than the workflow model have no such endpoint and need
+        # no binding; the push must still work against them.
+        stub_requests.queue(json_data={"error": {"message": "Not Found"}}, status_code=404)
+        stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data=None)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)
+
+        result = client.push_graph(organisation_id=2, name="n", graph=GRAPH)
+
+        assert [c.method for c in stub_requests.calls] == ["GET", "POST", "POST", "GET"]
+        assert "_command" not in stub_requests.calls[2].url  # straight to the upload
+        assert result.total_jobs == 325
+
+    def test_other_errors_from_the_lookup_propagate(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "boom"}}, status_code=500)
+
+        with pytest.raises(requests.HTTPError):
+            client.push_graph(organisation_id=2, name="n", graph=GRAPH)
+
+        assert len(stub_requests.calls) == 1
+
+    def test_validates_the_graph_source_before_anything_else(self, client, stub_requests):
+        with pytest.raises(ValueError, match="exactly one"):
+            client.push_graph(organisation_id=2, name="n")
+
+        assert stub_requests.calls == []

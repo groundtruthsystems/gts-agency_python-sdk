@@ -118,6 +118,18 @@ def main() -> int:
         assert any(s.code == DEFAULT_JOB_TYPE for s in listed_specs.items), listed_specs
         print(f"1b. list_specs -> {listed_specs.page.total} spec(s) in org {org}")
 
+        # 1c. The workflows a batch can be bound to. push_graph resolves one of these
+        #     itself; a batch with no binding cannot hold jobs at all (issue #14).
+        workflows = annotations.list_workflows(organisation_id=org, size=100)
+        graph_workflows = [
+            w for w in workflows.items if w.target_batch_type == "graph" and w.current_published_version_id
+        ]
+        assert graph_workflows, f"org {org} has no published graph workflow: {workflows.items}"
+        print(
+            f"1c. list_workflows -> {workflows.page.total} total, bindable for graph: "
+            f"{[w.id for w in graph_workflows]}"
+        )
+
         # 2. The one-call push: create DRAFT -> upload -> read back ACTIVE with the job count.
         pushed = annotations.push_graph(
             organisation_id=org,
@@ -140,8 +152,11 @@ def main() -> int:
         # 3. Read the batch back independently: the count is server state, not a local echo.
         batch = annotations.get_batch(organisation_id=org, batch_id=pushed.batch_id)
         assert batch.total_jobs == EXPECTED_JOBS and batch.status == BatchStatus.ACTIVE, batch
-        assert batch.completed_jobs == 0, batch
-        print(f"3. get_batch -> {batch.completed_jobs}/{batch.total_jobs} done, context_hops={batch.context_hops}")
+        # Counters differ by server generation: pre-split servers send completed_jobs,
+        # current ones send resolved/accepted/rejected. Nothing is resolved yet either way.
+        done = batch.resolved_jobs if batch.resolved_jobs is not None else batch.completed_jobs
+        assert done == 0, batch
+        print(f"3. get_batch -> {done}/{batch.total_jobs} resolved, context_hops={batch.context_hops}")
 
         # 4. The same graph from a file: identical outcome, no local staging needed by callers.
         with tempfile.TemporaryDirectory() as workspace:
@@ -164,6 +179,12 @@ def main() -> int:
         #    (the documented residue of a half-completed push).
         empty = annotations.create_batch(organisation_id=org, name=f"annotations-e2e-{tag}-empty")
         created_batches.append(empty.id)
+        # Bind first: without a workflow the upload fails with an opaque 500 before the
+        # server ever looks at the vertices, which is a different bug (issue #14) and
+        # would make this step assert the wrong thing.
+        bound = annotations.bind_workflow(organisation_id=org, batch_id=empty.id, workflow_id=graph_workflows[0].id)
+        assert bound.workflow_version_id, bound
+        print(f"6a. bind_workflow -> version={bound.workflow_version_id} regoverned={bound.jobs_regoverned}")
         try:
             annotations.upload_graph(
                 organisation_id=org, batch_id=empty.id, graph={"vertices": [{"bid": "v", "class": "document"}]}
@@ -171,10 +192,10 @@ def main() -> int:
             raise AssertionError("expected a 400 for a graph with no rule vertices")
         except requests.HTTPError as error:
             assert error.response is not None and error.response.status_code == 400, error
-            print(f"6. upload with no rule vertices -> 400: {error.response.text[:120]}")
+            print(f"6b. upload with no rule vertices -> 400: {error.response.text[:120]}")
         residue = annotations.get_batch(organisation_id=org, batch_id=empty.id)
         assert residue.status == BatchStatus.DRAFT and residue.total_jobs == 0, residue
-        print(f"6b. failed push leaves batch {empty.id} DRAFT with 0 jobs (recoverable via list_batches)")
+        print(f"6c. failed push leaves batch {empty.id} DRAFT with 0 jobs (recoverable via list_batches)")
 
         # 7. Client-side guard: no graph source at all never reaches the network.
         try:

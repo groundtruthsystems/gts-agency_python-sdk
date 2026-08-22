@@ -14,7 +14,10 @@ from agency_sdk.delegates.annotations_dto import (
     AnnotationBatchResponse,
     AnnotationSpec,
     AnnotationSpecsPagedResult,
+    AnnotationWorkflow,
+    AnnotationWorkflowsPagedResult,
     BatchStatus,
+    BindWorkflowResult,
     CreateBatchResult,
     CreateSpecResult,
     PushGraphResult,
@@ -201,3 +204,96 @@ def test_status_enums_match_the_server_constants():
 
 def test_module_constants_document_the_server_defaults():
     assert (BATCH_TYPE_GRAPH, DEFAULT_JOB_TYPE, DEFAULT_TARGET_CLASS) == ("graph", "rule_validation", "rule")
+
+
+#: A batch as the control plane returns it since the job-counter split (gts-comand eda4f9ca):
+#: `completed_jobs` is gone, replaced by resolved/accepted/rejected. Transcribed from a live
+#: `GET /api/annotations/{id}?o=2`.
+SPLIT_COUNTER_BATCH_JSON = {
+    "id": "7324f779-3e61-418e-be3b-2a3faf296a27",
+    "organisation_id": 2,
+    "name": "DBQ: Knee and Lower Leg — source_text verification",
+    "description": "Rebuilt from archived run xval17 with the current producer.",
+    "instructions": None,
+    "batch_type": "graph",
+    "graph_uri": "2/annotations/7324f779-3e61-418e-be3b-2a3faf296a27/graph.json",
+    "graph_run_id": "ac4-source-text-probe",
+    "target_class": "rule",
+    "context_hops": 1,
+    "total_jobs": 14,
+    "resolved_jobs": 3,
+    "accepted_jobs": 2,
+    "rejected_jobs": 1,
+    "status": 1,
+    "confidentiality_level": "INTERNAL",
+    "audit_data": {"created_on": "2026-08-21 10:00:00Z", "created_by": "901"},
+}
+
+WORKFLOW_JSON = {
+    "id": "sys-wf-graph-2",
+    "code": "graph_two_step",
+    "name": "Graph two-step review",
+    "description": "One person annotates, a different person approves.",
+    "target_batch_type": "graph",
+    "is_system": True,
+    "status": "active",
+    "current_published_version_id": "sys-wfv-graph-2",
+    "draft_version_id": None,
+}
+
+
+def test_batch_parses_the_split_job_counters():
+    batch = AnnotationBatch(**SPLIT_COUNTER_BATCH_JSON)
+
+    assert batch.total_jobs == 14
+    assert batch.resolved_jobs == 3
+    assert batch.accepted_jobs == 2
+    assert batch.rejected_jobs == 1
+    # The pre-split counter simply is not sent any more; it must not be required.
+    assert batch.completed_jobs is None
+
+
+def test_batch_still_parses_a_pre_split_server_payload():
+    # One model has to cover both server generations: older control planes send
+    # completed_jobs and none of the three new counters.
+    batch = AnnotationBatch(**ACTIVE_BATCH_JSON)
+
+    assert batch.completed_jobs == 0
+    assert batch.resolved_jobs is None
+    assert batch.accepted_jobs is None
+    assert batch.rejected_jobs is None
+
+
+def test_batch_response_parses_the_live_single_read():
+    response = AnnotationBatchResponse(**{**SPLIT_COUNTER_BATCH_JSON, "viewer_role": "admin"})
+
+    assert response.viewer_role == "admin"
+    assert response.accepted_jobs == 2
+    assert response.status == BatchStatus.ACTIVE
+
+
+def test_annotation_workflow_deserialises():
+    workflow = AnnotationWorkflow(**WORKFLOW_JSON)
+
+    assert workflow.id == "sys-wf-graph-2"
+    assert workflow.target_batch_type == "graph"
+    assert workflow.is_system is True
+    assert workflow.status == "active"
+    assert workflow.current_published_version_id == "sys-wfv-graph-2"
+    assert workflow.draft_version_id is None
+
+
+def test_annotation_workflows_paged_result_wraps_page_and_items():
+    result = AnnotationWorkflowsPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [WORKFLOW_JSON]})
+
+    assert result.page.total == 1
+    assert [w.code for w in result.items] == ["graph_two_step"]
+
+
+def test_bind_workflow_result_carries_the_bound_version_and_regoverned_count():
+    result = BindWorkflowResult(
+        success=True, message="0 job(s) re-governed", workflow_version_id="sys-wfv-graph-2", jobs_regoverned=0
+    )
+
+    assert result.workflow_version_id == "sys-wfv-graph-2"
+    assert result.jobs_regoverned == 0

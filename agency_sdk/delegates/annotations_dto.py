@@ -78,7 +78,14 @@ class AnnotationBatch(BaseModel):
     target_class: str | None = None
     context_hops: int | None = None
     total_jobs: int
-    completed_jobs: int
+    # Job counters differ by server generation, so all four are optional and one
+    # model parses both. Older control planes send a single ``completed_jobs``;
+    # gts-comand replaced it with the three below, because "done" and "done well"
+    # are different questions that the one counter conflated.
+    completed_jobs: int | None = None
+    resolved_jobs: int | None = None
+    accepted_jobs: int | None = None
+    rejected_jobs: int | None = None
     status: int
     confidentiality_level: str
     audit_data: dict[str, Any] | None = None
@@ -137,6 +144,46 @@ class AnnotationSpec(BaseModel):
 class AnnotationSpecsPagedResult(BaseModel):
     page: Page
     items: list[AnnotationSpec]
+
+
+class AnnotationWorkflow(BaseModel):
+    """A workflow an organisation can bind to a batch, as listed by the API.
+
+    A batch cannot receive jobs until a workflow is bound to it, so publishing
+    starts by resolving one of these. ``target_batch_type`` says which batch type
+    it governs (``"graph"`` / ``"dataset"``), and only a workflow with a
+    ``current_published_version_id`` can be bound — the bind resolves the
+    *published* version server-side.
+    """
+
+    id: str
+    code: str
+    name: str
+    description: str | None = None
+    target_batch_type: str
+    is_system: bool
+    status: str
+    current_published_version_id: str | None = None
+    draft_version_id: str | None = None
+
+
+class AnnotationWorkflowsPagedResult(BaseModel):
+    page: Page
+    items: list[AnnotationWorkflow]
+
+
+class BindWorkflowResult(BaseModel):
+    """Outcome of binding a workflow to a batch.
+
+    ``jobs_regoverned`` is 0 for a batch that has no jobs yet — the normal case when
+    binding right after ``create_batch`` — and non-zero when re-binding a batch whose
+    jobs move to the new workflow.
+    """
+
+    success: bool
+    message: str
+    workflow_version_id: str
+    jobs_regoverned: int
 
 
 class PushGraphResult(BaseModel):
