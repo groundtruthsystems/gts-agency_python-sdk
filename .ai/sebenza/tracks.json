@@ -204,6 +204,30 @@
         "completed_tasks": 12,
         "percentage": 100.0
       }
+    },
+    {
+      "track_id": "annotation_workflow_binding_20260822",
+      "type": "bug",
+      "description": "push_graph is dead against any current control plane: comand's annotation_job_before_insert trigger requires a workflow binding on the batch and nothing seeds one for API-created batches, so upload_graph 500s and leaves an empty DRAFT batch. Add bind_workflow + list_workflows to the delegate and give push_graph the missing leg (resolve workflow -> create -> bind -> upload -> read back), resolving the workflow id rather than hardcoding it, and skipping the bind against pre-workflow servers. Also fix the read-back model: completed_jobs no longer exists server-side, having been split into resolved_jobs/accepted_jobs/rejected_jobs, so a successful publish currently ends in a pydantic validation error.",
+      "status": "doing",
+      "blocked_reason": null,
+      "created_at": "2026-08-22T00:00:00Z",
+      "updated_at": "2026-08-22T14:50:11Z",
+      "spec_path": ".ai/sebenza/tracks/annotation_workflow_binding_20260822/spec.md",
+      "plan_path": ".ai/sebenza/tracks/annotation_workflow_binding_20260822/plan.json",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "Workflow binding + read-back model fix",
+          "status": "doing",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 10,
+        "completed_tasks": 9,
+        "percentage": 90.0
+      }
     }
   ]
 }
