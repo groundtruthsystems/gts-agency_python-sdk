@@ -18,7 +18,9 @@ The single Context-Driven-Development workspace for this repo. It absorbed the f
 ## Tracks
 - [Tracks Registry](./tracks.json)
 - [Tracks Directory](./tracks/)
-- [Archived Tracks](./archive/) — out of the registry by design; cleanup removes them from it
+- [Change Log](../../CHANGE_LOG.md) — the permanent record; a completed track is written here and then deleted
+- [Archived Tracks](./archive/) — three pre-2026-08-22 tracks, kept deliberately. The convention no
+  longer archives: since then a completed track is recorded in `CHANGE_LOG.md` and its directory removed
 
 ## Plan formats
 
