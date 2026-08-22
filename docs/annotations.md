@@ -10,11 +10,15 @@ Entry point: `client.annotations()` → `AgencyAnnotationsClient`
 
 ## There is no single "publish" endpoint
 
-Publishing is **two calls**, and knowing why matters when something fails:
+Publishing is **three calls**, and knowing why matters when something fails:
 
 1. **Create the batch** — `POST /api/annotations/_command` (`command: "create"`).
    The batch starts in **DRAFT** with `total_jobs = 0`. It is an empty container.
-2. **Upload the graph** — `POST /api/annotations/{batch_id}/upload`
+2. **Bind a workflow** — `POST /api/annotations/{batch_id}/_command`
+   (`command: "bind_workflow"`). A batch is created governed by nothing, and the
+   server refuses to insert a job into an unbound batch, so **without this the next
+   step fails**. See [Binding a workflow](#binding-a-workflow) below.
+3. **Upload the graph** — `POST /api/annotations/{batch_id}/upload`
    (`multipart/form-data`, one `file` field). This is what materialises the work:
    the server creates **one job per vertex whose `class` matches `target_class`**
    (default `rule`), attaches each vertex's `hops`-hop neighbourhood as context,
@@ -22,7 +26,7 @@ Publishing is **two calls**, and knowing why matters when something fails:
    the `0/325` progress the annotation UI shows.
 
 The upload's response body is **`null`**, so the job count only becomes visible on
-a **read back** (`GET /api/annotations/{batch_id}`). `push_graph` does all three.
+a **read back** (`GET /api/annotations/{batch_id}`). `push_graph` does all four.
 
 ## The one-liner
 
@@ -51,15 +55,67 @@ The individual legs are available when a caller wants them:
 annotations = client.annotations()
 
 batch = annotations.create_batch(organisation_id=2, name="MTUS Knee 2026")   # DRAFT
+annotations.bind_workflow(organisation_id=2, batch_id=batch.id, workflow_id="…")
 annotations.upload_graph(organisation_id=2, batch_id=batch.id, graph=graph)  # -> ACTIVE
 active = annotations.get_batch(organisation_id=2, batch_id=batch.id)
-print(active.total_jobs, active.completed_jobs)
+print(active.total_jobs, active.resolved_jobs)
 
 page = annotations.list_batches(organisation_id=2, batch_type="graph")       # name → id
 ```
 
 `BatchStatus` (`DRAFT=0, ACTIVE=1, COMPLETED=2, ARCHIVED=3`) names the integer
 status the API returns.
+
+**Job counters differ by server generation.** Current control planes report
+`total_jobs` plus `resolved_jobs` / `accepted_jobs` / `rejected_jobs` — "done" and
+"done well" being different questions. Older ones report a single `completed_jobs`.
+All four are optional on the model so one SDK parses both; read `resolved_jobs` and
+fall back to `completed_jobs` if you must support both.
+
+## Binding a workflow
+
+A workflow decides how a job is reviewed — who annotates, whether a second person
+approves. Every job is governed by one, and the server resolves it **from the batch**
+at insert time: it looks for a binding on `(batch_id, job_type)`, falls back to
+`(batch_id, "*")`, and **refuses the insert** when neither exists.
+
+A freshly created batch has no binding, so an unbound batch can hold no jobs. The
+upload then fails with an opaque `500` whose real cause (`Batch has no workflow
+binding for this job type and no default`) appears only in the control plane's log —
+which is why this is worth knowing rather than discovering.
+
+`push_graph` handles it. Doing it by hand:
+
+```python
+workflows = client.annotations().list_workflows(organisation_id=2)
+graph_workflow = next(
+    w for w in workflows.items
+    if w.target_batch_type == "graph" and w.current_published_version_id
+)
+client.annotations().bind_workflow(
+    organisation_id=2, batch_id=batch.id, workflow_id=graph_workflow.id
+)
+```
+
+**Resolve, never hardcode.** The system workflows are seeded per organisation, so
+`sys-wf-graph-2` is org 2's id and nobody else's. `push_graph` picks a workflow whose
+`target_batch_type` matches the batch and that has a published version (the bind
+resolves the *published* version server-side, so a draft-only workflow cannot be
+bound), preferring system workflows. An organisation with several candidates is not
+an error — pass `workflow_id=` to choose:
+
+```python
+client.annotations().push_graph(organisation_id=2, name="…", graph=graph,
+                                workflow_id="org-wf-strict-review")
+```
+
+`job_type` defaults to `"*"`, the batch-wide default that covers every job type. Bind a
+specific type only when one type needs a different flow from the rest of the batch.
+
+Binding is a deliberate, separately-permissioned step: the server gates it on
+workflow-execute rather than batch admin, because which workflow governs a batch is a
+policy choice. Against a control plane predating workflows, the workflow lookup 404s
+and `push_graph` skips the bind.
 
 ## Checklists: seed the job specification first
 
@@ -103,6 +159,7 @@ segment `{id}`, but it resolves it with a by-code lookup — a UUID there return
 
 | Situation | What happens |
 |---|---|
+| Batch has no workflow bound | `500` with an opaque body — the job insert is refused. `push_graph` binds for you; a hand-rolled create → upload hits this. |
 | Graph has no vertex of `target_class` | `400` — jobs would be empty, so the server refuses. The **batch stays DRAFT and empty**; it is not rolled back. |
 | Batch already ACTIVE | `400` — upload requires DRAFT. Push a new batch instead. |
 | Graph over 50 MiB | Rejected by the server's body limit. `requests` also assembles the whole multipart body in memory. |
