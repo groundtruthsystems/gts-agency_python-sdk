@@ -42,13 +42,14 @@
           "id": "phase-2-task-1",
           "name": "Write protocol tests for list_jobs and get_job",
           "description": "In agency_sdk/test/test_annotations_client.py, assert the exact URL and query params: list_jobs -> GET {base}/api/annotations/{batch_id}/jobs with params o/p/s as strings; get_job -> GET {base}/api/annotations/{batch_id}/jobs/{job_id} with param o only and no pagination. Assert the parsed result types and that list_jobs surfaces summaries only. Red before green.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "364f938"
         },
         {
           "id": "phase-2-task-2",
           "name": "Implement list_jobs and get_job",
           "description": "Add both methods to AgencyAnnotationsClient over _make_request, organisation_id positional-first per the delegate's convention. list_jobs docstring states the summary-vs-full distinction explicitly — the server excludes the heavy payloads by design (the deferred join exists to keep those wide rows off the page), so a caller needing vertex_data / connected_* / delta / checklist_state / annotation_data must follow up with get_job.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-2-task-3",
