@@ -13,7 +13,14 @@ import requests
 
 from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.annotations_dto import BatchStatus, SpecStatus
-from agency_sdk.test.test_annotations_dto import ACTIVE_BATCH_JSON, DRAFT_BATCH_JSON, SPEC_JSON
+from agency_sdk.test.test_annotations_dto import (
+    ACTIVE_BATCH_JSON,
+    DRAFT_BATCH_JSON,
+    JOB_JSON,
+    JOB_SUMMARY_JSON,
+    SPEC_JSON,
+    TRANSITION_JSON,
+)
 
 GRAPH = {
     "run_id": "run-2026-08-03-a",
@@ -597,3 +604,69 @@ class TestPushGraphBindsAWorkflow:
             client.push_graph(organisation_id=2, name="n")
 
         assert stub_requests.calls == []
+
+
+class TestJobReads:
+    """The list read and the single read: different shapes, different params.
+
+    Both hang off the batch, but only the list is paginated — ``get_job`` takes
+    ``o`` and nothing else. The list deliberately returns summaries; a caller who
+    needs a payload has to follow up.
+    """
+
+    def test_list_jobs_pages_with_defaults(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
+
+        result = client.list_jobs(organisation_id=2, batch_id=JOB_SUMMARY_JSON["batch_id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{JOB_SUMMARY_JSON['batch_id']}/jobs"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert result.page.total == 1
+        assert [j.state_code for j in result.items] == ["completed"]
+
+    def test_list_jobs_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 3, "size": 5, "total": 0}, "items": []})
+
+        client.list_jobs(organisation_id=9, batch_id="b-1", page=3, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "3", "s": "5"}
+
+    def test_list_jobs_returns_summaries_without_the_heavy_payloads(self, client, stub_requests):
+        # The server excludes them from this shape on purpose; the SDK must not
+        # invent them or let a caller mistake a summary for a full row.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
+
+        summary = client.list_jobs(organisation_id=2, batch_id="b-1").items[0]
+
+        for payload in ("vertex_data", "connected_vertices", "connected_edges", "delta", "annotation_data"):
+            assert not hasattr(summary, payload)
+        assert summary.vertex_bid == "v-rule-1"
+
+    def test_get_job_reads_the_full_row(self, client, stub_requests):
+        stub_requests.queue(json_data=JOB_JSON)
+
+        job = client.get_job(organisation_id=2, batch_id=JOB_JSON["batch_id"], job_id=JOB_JSON["id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{JOB_JSON['batch_id']}/jobs/{JOB_JSON['id']}"
+        assert job.revision == 4
+        assert job.state_code == "completed"
+        assert job.annotation_data == JOB_JSON["annotation_data"]
+        assert job.checklist_state == JOB_JSON["checklist_state"]
+
+    def test_get_job_sends_o_only_and_no_pagination(self, client, stub_requests):
+        # JobQueryParams is `o` alone — this endpoint has no p/s to forward.
+        stub_requests.queue(json_data=JOB_JSON)
+
+        client.get_job(organisation_id=2, batch_id="b-1", job_id="j-1")
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "2"}
+
+    def test_get_job_propagates_a_404(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Not Found"}}, status_code=404)
+
+        with pytest.raises(requests.HTTPError):
+            client.get_job(organisation_id=2, batch_id="b-1", job_id="nope")
