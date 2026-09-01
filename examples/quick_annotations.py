@@ -4,9 +4,13 @@
 Drives AgencyAnnotationsClient through the whole publish contract against a live
 control plane: seed-or-find the job specification, push a rule graph in one call
 (create DRAFT -> multipart upload -> read back ACTIVE + total_jobs), push the same
-graph from a file, list the batch back, and exercise the two failure modes that
-matter — a graph with no target-class vertices (400, leaving an empty DRAFT batch)
-and a call with no graph source at all (client-side ValueError, no HTTP).
+graph from a file, list the batch back, read the published work back through the
+four job-level reads (the job list, one full job, its transition ledger, and the
+stored graph), and exercise the two failure modes that matter — a graph with no
+target-class vertices (400, leaving an empty DRAFT batch) and a call with no graph
+source at all (client-side ValueError, no HTTP).
+
+The transition ledger's ``note`` is PHI-capable and is deliberately never printed.
 
 Self-verifying: every step asserts its outcome and the script exits non-zero on
 failure. Batch names carry a unique per-run tag and every batch created is
@@ -175,7 +179,49 @@ def main() -> int:
         assert {pushed.batch_id, from_file.batch_id} <= listed_ids, sorted(listed_ids)
         print(f"5. list_batches -> {listed.page.total} batch(es); both e2e batches present")
 
-        # 6. Negative: a graph with no rule vertices is a 400, and the batch stays DRAFT+empty
+        # 6. Read the published work back: the four job-level reads the Publisher runs
+        #    (issue #16). Everything below is server state produced by step 2's upload.
+        jobs = annotations.list_jobs(organisation_id=org, batch_id=pushed.batch_id)
+        assert jobs.page.total == EXPECTED_JOBS, jobs.page
+        listed_bids = sorted(j.vertex_bid for j in jobs.items)
+        expected_bids = sorted(v["bid"] for v in RULE_GRAPH["vertices"] if v["class"] == "rule")
+        assert listed_bids == expected_bids, (listed_bids, expected_bids)
+        # The list shape carries no payloads: the server excludes them and so must we.
+        assert not hasattr(jobs.items[0], "annotation_data"), jobs.items[0]
+        print(f"6a. list_jobs -> {jobs.page.total} job(s), vertices={listed_bids} state={jobs.items[0].state_code!r}")
+
+        # 6b. The full row. hops=1 attached the document neighbour as context, and
+        #     revision is the counter a caller snapshots to detect an edit landing
+        #     underneath it.
+        job = annotations.get_job(organisation_id=org, batch_id=pushed.batch_id, job_id=jobs.items[0].id)
+        assert job.id == jobs.items[0].id and job.batch_id == pushed.batch_id, job
+        assert job.vertex_data, job
+        assert isinstance(job.revision, int), job
+        neighbours = [v.get("bid") for v in (job.connected_vertices or [])]
+        assert "v-doc-1" in neighbours, neighbours
+        print(
+            f"6b. get_job -> revision={job.revision} state={job.state_code!r} "
+            f"context={len(neighbours)} vertex(es) {neighbours} checklist={job.checklist_state}"
+        )
+
+        # 6c. The ledger. Fresh jobs, so nobody has acted twice: no conflict may be set.
+        #     NOTE: entry.note is PHI-capable and is deliberately never printed here.
+        transitions = annotations.list_job_transitions(organisation_id=org, batch_id=pushed.batch_id, job_id=job.id)
+        assert not any(e.prior_actor_conflict for e in transitions.items), "unexpected prior-actor conflict"
+        codes = [e.transition_code for e in transitions.items]
+        print(f"6c. list_job_transitions -> {transitions.page.total} entr(ies) codes={codes}")
+
+        # 6d. The pristine graph, echoed back exactly as uploaded — the cross-check copy
+        #     against per-job vertex_data once annotators have edited around it.
+        stored = annotations.get_graph(organisation_id=org, batch_id=pushed.batch_id)
+        assert isinstance(stored, dict), type(stored)
+        assert stored["run_id"] == RULE_GRAPH["run_id"], stored.get("run_id")
+        assert sorted(v["bid"] for v in stored["vertices"]) == sorted(v["bid"] for v in RULE_GRAPH["vertices"]), stored[
+            "vertices"
+        ]
+        print(f"6d. get_graph -> run_id={stored['run_id']!r} {len(stored['vertices'])} vertices, matches upload")
+
+        # 7. Negative: a graph with no rule vertices is a 400, and the batch stays DRAFT+empty
         #    (the documented residue of a half-completed push).
         empty = annotations.create_batch(organisation_id=org, name=f"annotations-e2e-{tag}-empty")
         created_batches.append(empty.id)
@@ -184,7 +230,7 @@ def main() -> int:
         # would make this step assert the wrong thing.
         bound = annotations.bind_workflow(organisation_id=org, batch_id=empty.id, workflow_id=graph_workflows[0].id)
         assert bound.workflow_version_id, bound
-        print(f"6a. bind_workflow -> version={bound.workflow_version_id} regoverned={bound.jobs_regoverned}")
+        print(f"7a. bind_workflow -> version={bound.workflow_version_id} regoverned={bound.jobs_regoverned}")
         try:
             annotations.upload_graph(
                 organisation_id=org, batch_id=empty.id, graph={"vertices": [{"bid": "v", "class": "document"}]}
@@ -192,17 +238,17 @@ def main() -> int:
             raise AssertionError("expected a 400 for a graph with no rule vertices")
         except requests.HTTPError as error:
             assert error.response is not None and error.response.status_code == 400, error
-            print(f"6b. upload with no rule vertices -> 400: {error.response.text[:120]}")
+            print(f"7b. upload with no rule vertices -> 400: {error.response.text[:120]}")
         residue = annotations.get_batch(organisation_id=org, batch_id=empty.id)
         assert residue.status == BatchStatus.DRAFT and residue.total_jobs == 0, residue
-        print(f"6c. failed push leaves batch {empty.id} DRAFT with 0 jobs (recoverable via list_batches)")
+        print(f"7c. failed push leaves batch {empty.id} DRAFT with 0 jobs (recoverable via list_batches)")
 
-        # 7. Client-side guard: no graph source at all never reaches the network.
+        # 8. Client-side guard: no graph source at all never reaches the network.
         try:
             annotations.push_graph(organisation_id=org, name="never-created")
             raise AssertionError("expected ValueError when neither graph nor file_path is given")
         except ValueError as error:
-            print(f"7. push_graph() with no graph source -> ValueError: {error}")
+            print(f"8. push_graph() with no graph source -> ValueError: {error}")
 
         ok = True
     except Exception:
