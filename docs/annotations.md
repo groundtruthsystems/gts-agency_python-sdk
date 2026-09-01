@@ -243,6 +243,13 @@ echoed back. It is deliberately not wrapped in a DTO: the SDK did not define tha
 payload and has no business constraining it. Use it as the pristine copy to
 cross-check against per-job `vertex_data`.
 
+One rough edge worth knowing: if the batch row points at an object that is not in
+the store, this answers **500**, not 404 — the control plane does not translate the
+object store's "no such key" into a not-found. So a batch whose graph was never
+uploaded, or whose object was lost behind a surviving database row, looks the same
+as a server fault. Treat a 500 here as "the graph is not retrievable" rather than
+something to retry.
+
 ## Failure modes worth knowing
 
 | Situation | What happens |
@@ -253,6 +260,7 @@ cross-check against per-job `vertex_data`.
 | Graph over 50 MiB | Rejected by the server's body limit. `requests` also assembles the whole multipart body in memory. |
 | Neither / both of `graph` and `file_path` | `ValueError`, raised before any HTTP call. |
 | Caller lacks annotations write | `403` (or `400 "User not supplied."` when the principal has no local user id — see below). |
+| `get_graph` on a batch whose object is gone | `500`, not `404` — the object store's "no such key" is not translated. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,

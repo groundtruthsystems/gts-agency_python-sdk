@@ -594,7 +594,14 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         against each job's ``vertex_data``, which annotators may have edited around.
 
         Raises:
-            requests.HTTPError: 400 if the stored file does not parse as JSON, or
-                404 if the batch has no graph (nothing was ever uploaded).
+            requests.HTTPError: 400 if the stored file does not parse as JSON.
+                **500** if the batch row points at an object that is not in the
+                store — the control plane does not translate the object store's
+                "no such key" into a 404, so a batch whose graph was never
+                uploaded, or whose object was lost, is indistinguishable from a
+                server fault at this level. (Observed against a live control
+                plane: a seeded batch whose ``graph_uri`` had no object behind it
+                answered 500 ``SERVICE_ERROR``.) Treat a 500 here as "the graph is
+                not retrievable", not as a transient error worth retrying.
         """
         return self._make_request("GET", f"/{batch_id}/graph", params={"o": str(organisation_id)})
