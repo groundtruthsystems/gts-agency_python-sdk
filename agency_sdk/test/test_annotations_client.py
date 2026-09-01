@@ -670,3 +670,82 @@ class TestJobReads:
 
         with pytest.raises(requests.HTTPError):
             client.get_job(organisation_id=2, batch_id="b-1", job_id="nope")
+
+
+class TestJobTransitions:
+    """The ledger read, whose query params are spelled out.
+
+    Every other read on this client abbreviates (``o``/``p``/``s``); this endpoint
+    binds ``OrganisationQuery``, which is ``organisation``/``page``/``size``. That
+    inconsistency is the server's wire contract, so the SDK mirrors it per endpoint
+    rather than normalising it — abbreviating here would simply 400.
+    """
+
+    def test_sends_the_SPELLED_OUT_param_names_not_the_abbreviations(self, client, stub_requests):
+        # Regression guard: a "consistency" refactor that renames these to o/p/s
+        # breaks the endpoint. The server's OrganisationQuery is the contract.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
+
+        client.list_job_transitions(organisation_id=2, batch_id="b-1", job_id="j-1")
+
+        params = stub_requests.calls[0].kwargs["params"]
+        assert params == {"organisation": "2", "page": "0", "size": "50"}
+        assert "o" not in params and "p" not in params and "s" not in params
+
+    def test_hits_the_transitions_path_under_the_job(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
+
+        result = client.list_job_transitions(organisation_id=2, batch_id=JOB_JSON["batch_id"], job_id=JOB_JSON["id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == (f"http://cp.test/api/annotations/{JOB_JSON['batch_id']}/jobs/{JOB_JSON['id']}/transitions")
+        assert [e.transition_code for e in result.items] == ["approve"]
+        assert result.items[0].acting_as_role == "approver"
+
+    def test_forwards_pagination_under_the_spelled_out_names(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 10, "total": 0}, "items": []})
+
+        client.list_job_transitions(organisation_id=9, batch_id="b-1", job_id="j-1", page=2, size=10)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"organisation": "9", "page": "2", "size": "10"}
+
+    def test_surfaces_the_prior_actor_conflict_flag(self, client, stub_requests):
+        # The distinct-actor guard was not satisfied. A consumer building on
+        # approval evidence needs to see this, so it must survive transport intact.
+        conflicted = {**TRANSITION_JSON, "prior_actor_conflict": True}
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [conflicted]})
+
+        entry = client.list_job_transitions(organisation_id=2, batch_id="b-1", job_id="j-1").items[0]
+
+        assert entry.prior_actor_conflict is True
+        assert entry.workflow_version_id == "sys-wfv-graph-1"
+
+
+class TestGetGraph:
+    def test_returns_the_uploaded_graph_unchanged(self, client, stub_requests):
+        # Deliberately unmodelled: this is the caller's own upload echoed back, and
+        # the SDK has no business constraining a payload it did not define.
+        stub_requests.queue(json_data=GRAPH)
+
+        graph = client.get_graph(organisation_id=2, batch_id="b-1")
+
+        assert graph == GRAPH
+        assert isinstance(graph, dict)
+        assert graph["vertices"][0]["bid"] == "v-rule-1"
+
+    def test_hits_the_graph_path_with_o_only(self, client, stub_requests):
+        stub_requests.queue(json_data=GRAPH)
+
+        client.get_graph(organisation_id=2, batch_id="b-1")
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/annotations/b-1/graph"
+        assert call.kwargs["params"] == {"o": "2"}
+
+    def test_propagates_a_400_when_the_stored_file_is_not_json(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Invalid graph JSON"}}, status_code=400)
+
+        with pytest.raises(requests.HTTPError):
+            client.get_graph(organisation_id=2, batch_id="b-1")
