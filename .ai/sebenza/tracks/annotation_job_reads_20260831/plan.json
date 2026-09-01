@@ -63,13 +63,14 @@
           "id": "phase-2-task-4",
           "name": "Implement list_job_transitions and get_graph",
           "description": "Add both methods. list_job_transitions builds its params from the transitions endpoint's own names; get_graph returns dict[str, Any] straight from _make_request with no model. Docstrings record why the param names differ and why the graph is deliberately unmodelled (it is the caller's own upload echoed back). No write-path methods (FR9).",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "646587a"
         },
         {
           "id": "phase-2-task-5",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: full offline suite, mypy strict, black --check, bandit, coverage >80% on the new methods; manual verification plan, checkpoint commit and git note.",
-          "status": "backlog"
+          "status": "doing"
         }
       ]
     },
