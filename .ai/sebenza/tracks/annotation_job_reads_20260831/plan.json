@@ -35,7 +35,7 @@
     {
       "id": "phase-2",
       "name": "The four read methods",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -70,21 +70,23 @@
           "id": "phase-2-task-5",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: full offline suite, mypy strict, black --check, bandit, coverage >80% on the new methods; manual verification plan, checkpoint commit and git note.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "7b7d992"
         }
-      ]
+      ],
+      "checkpoint_sha": "7b7d992"
     },
     {
       "id": "phase-3",
       "name": "Docs, example & quality gates",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-3-task-1",
           "name": "Extend examples/quick_annotations.py with the read-back leg",
           "description": "After the existing push_graph step — which has already materialised real jobs — add: list_jobs on that batch, get_job on the first summary, list_job_transitions on it, and get_graph cross-checked against the graph the script uploaded. Self-verifying (assertions, non-zero exit on failure) and idempotent, matching the script's existing style and its unconditional archive cleanup. The transition note is never printed.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-3-task-2",
