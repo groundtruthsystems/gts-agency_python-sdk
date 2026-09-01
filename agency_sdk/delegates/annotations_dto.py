@@ -15,12 +15,19 @@ Mirrors the gts-comand annotation models (`crates/comand/src/model/annotation.rs
 - ``CreateBatchResult`` / ``CreateSpecResult`` wrap the platform's standard command
   envelope ``{success, message, data}`` with ``data.id`` lifted to ``id`` — the
   ``_command`` endpoints do **not** return a bare ``{"id": ...}``.
+- A **job** is one unit of that work: one vertex for an annotator to review. The
+  list read and the single read return *different* server structs, so
+  ``AnnotationJobSummary`` and ``AnnotationJob`` are separate models rather than one
+  extending the other (job models verified at `90f95ad8`).
+- A job's **transition ledger** (``JobTransitionEntry``,
+  `model/annotation_workflow.rs`) is the approval evidence, read separately because
+  it is append-only and unbounded. Its ``note`` is PHI-capable.
 """
 
 from enum import IntEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agency_sdk.delegates.datasets_dto import Page
 
@@ -198,3 +205,135 @@ class PushGraphResult(BaseModel):
     total_jobs: int
     status: int
     batch: AnnotationBatchResponse
+
+
+class AnnotationJobSummary(BaseModel):
+    """A job as it appears in a **list** page: identity and pipeline position only.
+
+    The heavy payloads — ``vertex_data``, ``connected_vertices``,
+    ``connected_edges``, ``delta``, ``data``, ``checklist_state``,
+    ``annotation_data`` — are deliberately absent. A list page never renders them,
+    and the server's deferred join exists precisely to keep those wide rows off the
+    page. Follow up with
+    :meth:`~agency_sdk.delegates.annotations_client.AgencyAnnotationsClient.get_job`
+    for any of them.
+
+    ``vertex_bid`` / ``vertex_name`` / ``display`` are subtype labels and stay
+    ``None`` for a dataset job. Clients render ``vertex_name``, then ``display``,
+    then ``vertex_bid``.
+    """
+
+    id: str
+    batch_id: str
+    organisation_id: int
+    job_type: str
+    vertex_bid: str | None = None
+    vertex_name: str | None = None
+    display: str | None = None
+    state_code: str
+    workflow_version_id: str
+    audit_data: dict[str, Any] | None = None
+
+
+class AnnotationJob(BaseModel):
+    """A job as the **single** read returns it: the full row, payloads included.
+
+    Deliberately NOT a subclass of :class:`AnnotationJobSummary`. The two are
+    distinct server structs that happen to overlap, and modelling the full row as an
+    extension of the list row would claim a substitutability the API does not
+    promise — a summary would then satisfy a type annotation asking for the
+    payloads. (Contrast :class:`AnnotationBatchResponse`, which genuinely *is* a
+    batch plus one field.)
+
+    Four fields are **opaque blobs** and typed ``Any`` on purpose:
+    ``vertex_data`` / ``connected_vertices`` / ``connected_edges`` are the graph
+    context the upload attached, and ``delta`` / ``checklist_state`` /
+    ``annotation_data`` are written by whichever front-end saved the job. comand
+    never parses them — the update arm does whole-value column replacement — and
+    two different apps write different structures into the same columns. Validating
+    them here would break on a shape change the server itself tolerates, so the SDK
+    carries them through untouched and leaves interpretation to the caller.
+    """
+
+    id: str
+    batch_id: str
+    organisation_id: int
+    job_type: str
+    # Graph subtype (annotation_graph_job).
+    vertex_bid: str | None = None
+    vertex_name: str | None = None
+    vertex_data: Any = None
+    connected_vertices: Any = None
+    connected_edges: Any = None
+    delta: Any = None
+    # Dataset subtype (annotation_dataset_job); ``display`` is resolved for both.
+    display: str | None = None
+    data: Any = None
+    # Shared review fields (base table).
+    checklist_state: Any = None
+    annotation_data: Any = None
+    #: A state declared by the job's governing workflow **version**, not by the SDK
+    #: — which is why this is a plain string and not an enum. The dispositions a
+    #: publisher acts on are ``"completed"`` (accepted) and ``"skipped"``
+    #: (rejected); the full set belongs to the workflow.
+    state_code: str
+    #: Which version governs this job **right now**. Bindings move, so a transition's
+    #: own stamped ``workflow_version_id`` may differ — see
+    #: :class:`JobTransitionEntry`.
+    workflow_version_id: str
+    #: Bumped by every content write. Snapshot it at read and compare after
+    #: assembling: a change means the job was edited underneath you, so work built
+    #: on the earlier view must be discarded rather than published. Approved content
+    #: is not immutable server-side, which is what makes this check necessary.
+    revision: int
+    audit_data: dict[str, Any] | None = None
+
+
+class AnnotationJobsPagedResult(BaseModel):
+    page: Page
+    items: list[AnnotationJobSummary]
+
+
+class JobTransitionEntry(BaseModel):
+    """One row of a job's transition ledger — the approval evidence.
+
+    Append-only and unbounded, which is why it is a separate read from the job. It
+    is what makes a completed job attributable: who fired which transition, acting
+    as what role, and under which policy.
+
+    ``prior_actor_conflict`` flags a transition fired by someone who had already
+    acted on this job, i.e. the distinct-actor guard was not satisfied. A consumer
+    building on approval evidence should treat it as a stop signal rather than a
+    warning.
+    """
+
+    id: int
+    job_id: str
+    batch_id: str
+    organisation_id: int
+    #: The version **in force when this transition fired**, not the job's current
+    #: one. Bindings move, so only this stamped copy makes a past transition
+    #: attributable to the policy that permitted it.
+    workflow_version_id: str
+    from_state: str | None = None
+    to_state: str
+    transition_code: str
+    actor_type: str
+    actor_user_id: int | None = None
+    acting_as_role: str
+    note: str | None = Field(
+        default=None,
+        description=(
+            "Free-text reason attached to the transition. PHI-capable: it is written "
+            "by clinicians and may contain patient information. Never log it, trace "
+            "it, or copy it into telemetry — comand deliberately excludes it from its "
+            "own access log, and re-exporting it here would defeat that."
+        ),
+    )
+    prior_actor_conflict: bool
+    occurred_on: str
+
+
+class JobTransitionsPagedResult(BaseModel):
+    page: Page
+    items: list[JobTransitionEntry]

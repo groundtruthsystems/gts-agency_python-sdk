@@ -467,9 +467,7 @@ def test_annotation_job_state_code_is_a_plain_string():
 
 
 def test_annotation_jobs_paged_result_wraps_page_and_items():
-    result = AnnotationJobsPagedResult(
-        **{"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]}
-    )
+    result = AnnotationJobsPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
 
     assert result.page.total == 1
     assert [j.state_code for j in result.items] == ["completed"]
@@ -541,9 +539,7 @@ def test_job_transition_entry_note_docstring_warns_it_is_phi_capable():
 
 
 def test_job_transitions_paged_result_wraps_page_and_items():
-    result = JobTransitionsPagedResult(
-        **{"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]}
-    )
+    result = JobTransitionsPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
 
     assert result.page.total == 1
     assert [e.transition_code for e in result.items] == ["approve"]
