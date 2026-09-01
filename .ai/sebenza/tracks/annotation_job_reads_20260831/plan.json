@@ -86,13 +86,14 @@
           "id": "phase-3-task-1",
           "name": "Extend examples/quick_annotations.py with the read-back leg",
           "description": "After the existing push_graph step — which has already materialised real jobs — add: list_jobs on that batch, get_job on the first summary, list_job_transitions on it, and get_graph cross-checked against the graph the script uploaded. Self-verifying (assertions, non-zero exit on failure) and idempotent, matching the script's existing style and its unconditional archive cleanup. The transition note is never printed.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "785c7d3"
         },
         {
           "id": "phase-3-task-2",
           "name": "Document the read-back path",
           "description": "Add a 'Reading a batch back' section to docs/annotations.md covering the four methods, the summary-vs-full split, the per-endpoint param-name inconsistency, the opaque-blob rule, and the PHI warning on transition notes. Update the annotations bullet in CLAUDE.md per the Delegate Delivery Checklist. Note in docs that no server-side completed filter exists and callers filter list_batches client-side.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-3-task-3",
