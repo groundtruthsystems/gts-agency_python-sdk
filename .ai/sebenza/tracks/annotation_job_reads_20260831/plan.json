@@ -1,0 +1,122 @@
+{
+  "$schema": "sebenza-plan-v1",
+  "track_id": "annotation_job_reads_20260831",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Job DTOs",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-1-task-1",
+          "name": "Write tests for the job DTOs",
+          "description": "Extend agency_sdk/test/test_annotations_dto.py with fixtures built from the real gts-comand structs (90f95ad8): a full AnnotationJob payload, an AnnotationJobSummary page, and a JobTransitionEntry page. Assert (a) every field in FR5 survives parsing with nothing dropped, (b) annotation_data / checklist_state / delta round-trip an unusual shape unvalidated and unreshaped (FR6), (c) state_code parses as a plain str, not an enum (FR7), (d) explicit nulls on the optional fields parse — the server serialises nulls rather than omitting them. Tests must fail (red) before implementation.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-2",
+          "name": "Implement AnnotationJobSummary, AnnotationJob, JobTransitionEntry and the paged wrappers",
+          "description": "Add the five models to agency_sdk/delegates/annotations_dto.py per FR5. AnnotationJob is a standalone BaseModel, NOT a subclass of AnnotationJobSummary (they are two distinct server structs; inheritance would claim a substitutability the API does not promise). Blob fields typed Any and nullable; state_code a str; revision documented as the optimistic-concurrency counter the Publisher's drift fence snapshots. JobTransitionEntry.note carries the PHI never-log instruction in its own field documentation (FR8), and workflow_version_id is documented as the version in force when the transition fired, not the job's current one. Paged wrappers reuse the shared Page from datasets_dto.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-3",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: pytest agency_sdk/test/ -v, mypy agency_sdk/, black --check, coverage on the new models; then the manual verification plan and checkpoint commit with its git note.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "The four read methods",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-2-task-1",
+          "name": "Write protocol tests for list_jobs and get_job",
+          "description": "In agency_sdk/test/test_annotations_client.py, assert the exact URL and query params: list_jobs -> GET {base}/api/annotations/{batch_id}/jobs with params o/p/s as strings; get_job -> GET {base}/api/annotations/{batch_id}/jobs/{job_id} with param o only and no pagination. Assert the parsed result types and that list_jobs surfaces summaries only. Red before green.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-2",
+          "name": "Implement list_jobs and get_job",
+          "description": "Add both methods to AgencyAnnotationsClient over _make_request, organisation_id positional-first per the delegate's convention. list_jobs docstring states the summary-vs-full distinction explicitly — the server excludes the heavy payloads by design (the deferred join exists to keep those wide rows off the page), so a caller needing vertex_data / connected_* / delta / checklist_state / annotation_data must follow up with get_job.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-3",
+          "name": "Write protocol tests for list_job_transitions and get_graph",
+          "description": "Assert list_job_transitions sends organisation/page/size SPELLED OUT — not o/p/s — with a test named so its intent survives a future consistency refactor; the server's OrganisationQuery is the contract and mirroring it is deliberate, not an oversight. Assert get_graph hits {batch_id}/graph with param o and returns the raw dict unchanged (identity of content, no DTO). Red before green.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-4",
+          "name": "Implement list_job_transitions and get_graph",
+          "description": "Add both methods. list_job_transitions builds its params from the transitions endpoint's own names; get_graph returns dict[str, Any] straight from _make_request with no model. Docstrings record why the param names differ and why the graph is deliberately unmodelled (it is the caller's own upload echoed back). No write-path methods (FR9).",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-5",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: full offline suite, mypy strict, black --check, bandit, coverage >80% on the new methods; manual verification plan, checkpoint commit and git note.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Docs, example & quality gates",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-3-task-1",
+          "name": "Extend examples/quick_annotations.py with the read-back leg",
+          "description": "After the existing push_graph step — which has already materialised real jobs — add: list_jobs on that batch, get_job on the first summary, list_job_transitions on it, and get_graph cross-checked against the graph the script uploaded. Self-verifying (assertions, non-zero exit on failure) and idempotent, matching the script's existing style and its unconditional archive cleanup. The transition note is never printed.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-2",
+          "name": "Document the read-back path",
+          "description": "Add a 'Reading a batch back' section to docs/annotations.md covering the four methods, the summary-vs-full split, the per-endpoint param-name inconsistency, the opaque-blob rule, and the PHI warning on transition notes. Update the annotations bullet in CLAUDE.md per the Delegate Delivery Checklist. Note in docs that no server-side completed filter exists and callers filter list_batches client-side.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-3",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: black --check agency_sdk/ examples/, mypy agency_sdk/, pytest agency_sdk/test/, bandit -r agency_sdk/ -x agency_sdk/test — all green before the checkpoint commit and git note.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Local-stack E2E & PR",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-4-task-1",
+          "name": "Run the example against the local control plane",
+          "description": "Per docs/local_e2e.md, export the AGENCY_* variables and run examples/quick_annotations.py end to end, confirming all four reads return real data on jobs the same run created — in particular that state_code, revision and audit_data.modified_on are populated, since the consuming Publisher's disposition gate and drift fence depend on them. If the local stack is not available, raise it as a blocker rather than doing environment work here: standing up the stack belongs to gts-local-environment, not this repo.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-2",
+          "name": "Open the PR against main",
+          "description": "Push feat/annotation-job-reads and open a PR linking issue #16, summarising the four methods, the per-endpoint param-name mirroring, the opaque-blob decision, and the E2E evidence. State explicitly that rc16 is NOT cut here — the version bump and tag wait on the consuming track's Gate A sign-off.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-3",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: final gate run, manual verification plan covering the E2E output, checkpoint commit and git note.",
+          "status": "backlog"
+        }
+      ]
+    }
+  ]
+}
