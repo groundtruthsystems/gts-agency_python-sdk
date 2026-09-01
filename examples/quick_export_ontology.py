@@ -21,18 +21,27 @@ def main():
 
     print(f"Token: {credentials.bearer_token()}")
 
-    # 2. Export an ontology
-    ontology_id = "b8a45108-9952-4202-88d6-5cb1fadea23d"  # Update this with the correct ontology ID
-
     try:
-        # Export as JSON (default)
-        print(f"\nExporting ontology '{ontology_id}' as JSON...")
-        json_export = ontology_client.export(
+        # 2. List ontologies (name → id)
+        listed = ontology_client.list(organisation_id=organisation_id)
+        print(f"Found {listed.page.total} ontology(ies)")
+        for item in listed.items:
+            print(f"  - [{item.kind}/{item.status}] {item.display_name or item.name} ({item.id})")
+
+        ontology_id = listed.items[0].id if listed.items else "b8a45108-9952-4202-88d6-5cb1fadea23d"
+        # Agent path: typed JSON snapshot (entities, relations, properties)
+        print(f"\nExporting ontology '{ontology_id}' as a typed snapshot...")
+        snapshot = ontology_client.export_snapshot(
             ontology_id=ontology_id,
             organisation_id=organisation_id,
         )
-        print(f"JSON export ({len(json_export)} chars):")
-        print(json_export[:500])
+        print(
+            f"{len(snapshot.entities)} entities, {len(snapshot.relations)} relations, {len(snapshot.properties)} properties"
+        )
+        for entity in list(snapshot.entities.values())[:5]:
+            print(f"  [{entity.entity_type}] {entity.label} ({entity.id})")
+        for relation in list(snapshot.relations.values())[:5]:
+            print(f"  {relation.source_id} -{relation.label}-> {relation.target_id} ({relation.relation_type})")
 
         # Export as Turtle/OWL
         print(f"\nExporting ontology '{ontology_id}' as Turtle...")
@@ -44,15 +53,24 @@ def main():
         print(f"Turtle export ({len(turtle_export)} chars):")
         print(turtle_export[:500])
 
-        # Export as Turtle/OWL
-        print(f"\nExporting ontology '{ontology_id}' as ison...")
-        ison_export = ontology_client.export(
+        # Unified package (this ontology + imported upper ontologies, one Turtle file)
+        print(f"\nExporting ontology '{ontology_id}' as a package...")
+        package_export = ontology_client.export(
             ontology_id=ontology_id,
             organisation_id=organisation_id,
-            export_format="ison",
+            export_format="package",
         )
-        print(f"ison export ({len(ison_export)} chars):")
-        print(ison_export[:500])
+        print(f"package export ({len(package_export)} chars):")
+        print(package_export[:500])
+
+        # Zip of separate Turtle files — binary, so export_bytes
+        print(f"\nExporting ontology '{ontology_id}' as package-zip...")
+        zip_export = ontology_client.export_bytes(
+            ontology_id=ontology_id,
+            organisation_id=organisation_id,
+            export_format="package-zip",
+        )
+        print(f"package-zip export ({len(zip_export)} bytes)")
 
         # Export a specific branch/version
         # print(f"\nExporting ontology '{ontology_id}' from branch 'dev'...")
