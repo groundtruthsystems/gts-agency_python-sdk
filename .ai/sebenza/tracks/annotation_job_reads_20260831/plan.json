@@ -79,7 +79,7 @@
     {
       "id": "phase-3",
       "name": "Docs, example & quality gates",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -100,21 +100,23 @@
           "id": "phase-3-task-3",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: black --check agency_sdk/ examples/, mypy agency_sdk/, pytest agency_sdk/test/, bandit -r agency_sdk/ -x agency_sdk/test — all green before the checkpoint commit and git note.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "d051bbd"
         }
-      ]
+      ],
+      "checkpoint_sha": "d051bbd"
     },
     {
       "id": "phase-4",
       "name": "Local-stack E2E & PR",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
           "name": "Run the example against the local control plane",
           "description": "Per docs/local_e2e.md, export the AGENCY_* variables and run examples/quick_annotations.py end to end, confirming all four reads return real data on jobs the same run created — in particular that state_code, revision and audit_data.modified_on are populated, since the consuming Publisher's disposition gate and drift fence depend on them. If the local stack is not available, raise it as a blocker rather than doing environment work here: standing up the stack belongs to gts-local-environment, not this repo.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-4-task-2",
