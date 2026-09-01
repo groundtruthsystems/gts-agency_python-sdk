@@ -36,6 +36,8 @@ from agency_sdk.delegates.annotations_dto import (
     BATCH_TYPE_GRAPH,
     AnnotationBatchesPagedResult,
     AnnotationBatchResponse,
+    AnnotationJob,
+    AnnotationJobsPagedResult,
     AnnotationSpec,
     AnnotationSpecsPagedResult,
     AnnotationWorkflow,
@@ -493,3 +495,51 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         """List the org's job specifications (paged; the server's own default size is 10)."""
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
         return AnnotationSpecsPagedResult(**self._specs._make_request("GET", "", params=params))
+
+    def list_jobs(
+        self, organisation_id: int, batch_id: str, *, page: int = 0, size: int = 50
+    ) -> AnnotationJobsPagedResult:
+        """List a batch's jobs (paged) — **summaries only**.
+
+        Each item carries identity and pipeline position: ``id``, ``state_code``,
+        ``workflow_version_id``, the vertex labels and ``audit_data``. The heavy
+        payloads — ``vertex_data``, ``connected_vertices``, ``connected_edges``,
+        ``delta``, ``data``, ``checklist_state``, ``annotation_data`` — are
+        **deliberately absent**: a list page never renders them, and the server's
+        deferred join exists precisely to keep those wide rows off the page. Follow
+        up with :meth:`get_job` for any of them.
+
+        There is no server-side "completed" filter and this method does not fake
+        one; filter on ``state_code`` (or on the batch's ``status`` against
+        :class:`~agency_sdk.delegates.annotations_dto.BatchStatus`) client-side.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch whose jobs to list.
+            page: Zero-indexed page number.
+            size: Page size (the server's own default is 20).
+        """
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        return AnnotationJobsPagedResult(**self._make_request("GET", f"/{batch_id}/jobs", params=params))
+
+    def get_job(self, organisation_id: int, batch_id: str, job_id: str) -> AnnotationJob:
+        """Read one job in full: the graph context, the human edits, and ``revision``.
+
+        This is the only read that returns ``annotation_data`` (the annotator's
+        edits), ``checklist_state``, and the ``vertex_data`` / ``connected_*``
+        context the upload attached — see :meth:`list_jobs` for why the list omits
+        them. Those columns are opaque blobs whose shape belongs to whichever
+        front-end wrote them, so they arrive unvalidated and unreshaped.
+
+        ``revision`` is worth capturing even when you only want the content:
+        approved work is not immutable server-side, so a caller assembling several
+        jobs should snapshot each one's revision and re-read afterwards to detect an
+        edit that landed underneath it.
+
+        Note this endpoint takes ``o`` alone — no pagination params.
+
+        Raises:
+            requests.HTTPError: 404 when the job does not exist in that batch.
+        """
+        params = {"o": str(organisation_id)}
+        return AnnotationJob(**self._make_request("GET", f"/{batch_id}/jobs/{job_id}", params=params))
