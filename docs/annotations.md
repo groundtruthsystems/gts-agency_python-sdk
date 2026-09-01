@@ -1,12 +1,16 @@
-# Annotations — publishing a graph as work for annotators
+# Annotations — publishing a graph as work for annotators, and reading it back
 
-Push an extracted knowledge graph to the control plane so humans can review it.
-The graph is the **same `create.graph` payload** an agent already builds for the
-ontology sandbox (`run_id` / `vertices` / `edges`), so an agent that produces one
-can publish it unchanged.
+Push an extracted knowledge graph to the control plane so humans can review it,
+then recover what they did. The graph is the **same `create.graph` payload** an
+agent already builds for the ontology sandbox (`run_id` / `vertices` / `edges`), so
+an agent that produces one can publish it unchanged.
 
 Entry point: `client.annotations()` → `AgencyAnnotationsClient`
-(`/api/annotations`, plus `/api/annotation-specs` for the checklists).
+(`/api/annotations`, plus `/api/annotation-specs` for the checklists and
+`/api/annotation-workflows` for the review flows).
+
+Publishing is [three calls](#there-is-no-single-publish-endpoint) wrapped by one;
+[reading back](#reading-a-batch-back) is four.
 
 ## There is no single "publish" endpoint
 
@@ -155,6 +159,90 @@ race, and hiding it would only make the race invisible.
 segment `{id}`, but it resolves it with a by-code lookup — a UUID there returns
 404.
 
+## Reading a batch back
+
+Once annotators have worked a batch, four reads recover what they did. They are
+read-only by design: a consumer of annotation output never writes to the control
+plane, so the delegate exposes no transition, claim, or save methods.
+
+```python
+jobs = annotations.list_jobs(org, batch_id)                       # paged summaries
+job = annotations.get_job(org, batch_id, jobs.items[0].id)        # the full row
+ledger = annotations.list_job_transitions(org, batch_id, job.id)  # approval evidence
+graph = annotations.get_graph(org, batch_id)                      # the upload, echoed back
+```
+
+### The list gives you summaries, not jobs
+
+`list_jobs` returns identity and pipeline position — `id`, `state_code`,
+`workflow_version_id`, the vertex labels, `audit_data` — and **none** of the
+payloads. `vertex_data`, `connected_vertices`, `connected_edges`, `delta`, `data`,
+`checklist_state` and `annotation_data` exist only on `get_job`.
+
+That is the server's design, not an SDK shortcut: a list page never renders those
+columns, and the query behind it uses a deferred join specifically to keep the wide
+rows off the page. Plan for one `get_job` per job you actually need.
+
+There is also **no server-side "completed" filter**, and the SDK does not fake one.
+Filter `list_batches` on `status == BatchStatus.COMPLETED` yourself, then re-check
+each job's `state_code` — batch completion is revertible, so the batch-level answer
+can go stale under you.
+
+### Query parameter names differ per endpoint
+
+| Read | Params |
+|---|---|
+| `list_jobs` | `o` / `p` / `s` |
+| `get_job` | `o` |
+| `list_job_transitions` | **`organisation` / `page` / `size`** |
+| `get_graph` | `o` |
+
+The transitions route binds a different query type server-side (`OrganisationQuery`
+rather than `JobListParams`), so the abbreviations do not work there. The SDK
+mirrors each endpoint rather than normalising them — this inconsistency is the wire
+contract, and "fixing" it would produce a request the server cannot bind.
+
+### The edit columns are opaque
+
+`annotation_data`, `checklist_state` and `delta` come back as whatever was stored,
+unvalidated and unreshaped. The control plane never parses them — a save is a
+whole-value column replacement — and their structure belongs to whichever front-end
+wrote them. Two different apps write **different shapes into the same columns**, so
+a consumer that cares must check which shape it got rather than assume.
+
+`vertex_data` is the *original* vertex and is never overwritten by an annotator;
+edits live in `annotation_data`. Nothing merges the two server-side, so a consumer
+that wants the final content merges them itself.
+
+### `revision` is a fence, not a version label
+
+Approved content is not immutable server-side: a save arriving after approval still
+lands. If you are assembling several jobs into one output, snapshot each job's
+`revision` when you read it and re-read before you commit — a change means the job
+moved underneath you and the assembled result is stale.
+
+### The ledger carries PHI
+
+> **Never log, trace, or export `JobTransitionEntry.note`.** It is clinician-written
+> free text that may contain patient information, and the control plane deliberately
+> keeps it out of its own access log. Re-exporting it from the SDK would defeat that.
+
+The rest of the entry is the approval evidence: `transition_code`, `from_state` →
+`to_state`, `actor_user_id`, `acting_as_role`, and `prior_actor_conflict` — which
+marks a transition fired by someone who had already acted on that job. Treat the
+conflict flag as a stop signal rather than a warning.
+
+Note that an entry's `workflow_version_id` is the version **in force when it fired**,
+not the job's current one. Bindings move; only the stamped copy makes a past
+transition attributable to the policy that permitted it.
+
+### The stored graph is returned unmodelled
+
+`get_graph` hands back a plain `dict` — your own `{run_id, vertices, edges}` upload,
+echoed back. It is deliberately not wrapped in a DTO: the SDK did not define that
+payload and has no business constraining it. Use it as the pristine copy to
+cross-check against per-job `vertex_data`.
+
 ## Failure modes worth knowing
 
 | Situation | What happens |
@@ -180,19 +268,21 @@ something the SDK can work around.
 
 ## Scope
 
-The delegate covers the publish path, its specifications, and the read-back that
-proves the push landed. Deliberately **not** included: dataset batches
-(`upload-dataset`), job reads/updates (`/jobs`), the stored-graph read
-(`/{batch_id}/graph`), batch members, the access audit log, and the
-`archive` / `unarchive` / `set_confidentiality` commands. Add them when a consumer
-needs them.
+The delegate covers the publish path, its specifications, and the **read** side:
+the batch read-back that proves the push landed, plus the four job-level reads
+above. Deliberately **not** included: any *write* to a job (the `_command`
+transitions, `/actions`, claims, checklist saves) — a consumer of annotation output
+never writes back — along with dataset batches (`upload-dataset`), batch members,
+the access audit log, and the `archive` / `unarchive` / `set_confidentiality`
+commands. Add them when a consumer needs them.
 
 ## End-to-end example
 
 [`examples/quick_annotations.py`](../examples/quick_annotations.py) runs the whole
 flow against a live control plane — seed-or-find the spec, push from a dict and
-from a file, read back, list, then the 400 and `ValueError` paths — and archives
-every batch it created on the way out.
+from a file, read the batch and its jobs back (all four reads above), list, then
+the 400 and `ValueError` paths — and archives every batch it created on the way
+out.
 
 ```bash
 python examples/quick_annotations.py
