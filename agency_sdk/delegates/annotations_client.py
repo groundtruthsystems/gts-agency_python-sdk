@@ -45,6 +45,7 @@ from agency_sdk.delegates.annotations_dto import (
     BindWorkflowResult,
     CreateBatchResult,
     CreateSpecResult,
+    JobTransitionsPagedResult,
     PushGraphResult,
 )
 from agency_sdk.delegates.base_client import BaseDelegateClient
@@ -543,3 +544,57 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         """
         params = {"o": str(organisation_id)}
         return AnnotationJob(**self._make_request("GET", f"/{batch_id}/jobs/{job_id}", params=params))
+
+    def list_job_transitions(
+        self, organisation_id: int, batch_id: str, job_id: str, *, page: int = 0, size: int = 50
+    ) -> JobTransitionsPagedResult:
+        """Read a job's transition ledger (paged) — the approval evidence.
+
+        Who fired which transition, acting as what role, and under which workflow
+        version. It is a separate read from :meth:`get_job` because the ledger is
+        append-only and unbounded, and because it carries PHI-capable notes.
+
+        Two fields matter more than they look:
+
+        - ``prior_actor_conflict`` marks a transition fired by someone who had
+          already acted on this job — the distinct-actor guard was not satisfied.
+          Treat it as a stop signal, not a warning.
+        - ``workflow_version_id`` is the version **in force when the transition
+          fired**, not the job's current one. Bindings move, so only this stamped
+          copy makes a past transition attributable to the policy that permitted it.
+
+        **PHI:** ``note`` is clinician-written free text and may contain patient
+        information. Never log, trace, or export it — comand deliberately keeps it
+        out of its own access log.
+
+        Note the query params here are ``organisation`` / ``page`` / ``size``,
+        spelled out, unlike every other read on this client. The server binds a
+        different query type on this route (``OrganisationQuery``, not
+        ``JobListParams``), so the SDK mirrors each endpoint rather than
+        normalising: abbreviating here would simply fail to bind.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch the job belongs to.
+            job_id: The job whose history to read.
+            page: Zero-indexed page number.
+            size: Page size (the server's own default is 100).
+        """
+        params = {"organisation": str(organisation_id), "page": str(page), "size": str(size)}
+        return JobTransitionsPagedResult(
+            **self._make_request("GET", f"/{batch_id}/jobs/{job_id}/transitions", params=params)
+        )
+
+    def get_graph(self, organisation_id: int, batch_id: str) -> dict[str, Any]:
+        """Read back the graph that was uploaded to this batch, as a raw ``dict``.
+
+        Deliberately unmodelled: this is the caller's own ``{run_id, vertices,
+        edges}`` upload echoed back, and the SDK has no business constraining a
+        payload it did not define. Use it as the pristine copy to cross-check
+        against each job's ``vertex_data``, which annotators may have edited around.
+
+        Raises:
+            requests.HTTPError: 400 if the stored file does not parse as JSON, or
+                404 if the batch has no graph (nothing was ever uploaded).
+        """
+        return self._make_request("GET", f"/{batch_id}/graph", params={"o": str(organisation_id)})
