@@ -5,7 +5,7 @@
     {
       "id": "phase-1",
       "name": "Job DTOs",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -26,21 +26,23 @@
           "id": "phase-1-task-3",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: pytest agency_sdk/test/ -v, mypy agency_sdk/, black --check, coverage on the new models; then the manual verification plan and checkpoint commit with its git note.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "49fc68f"
         }
-      ]
+      ],
+      "checkpoint_sha": "49fc68f"
     },
     {
       "id": "phase-2",
       "name": "The four read methods",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-2-task-1",
           "name": "Write protocol tests for list_jobs and get_job",
           "description": "In agency_sdk/test/test_annotations_client.py, assert the exact URL and query params: list_jobs -> GET {base}/api/annotations/{batch_id}/jobs with params o/p/s as strings; get_job -> GET {base}/api/annotations/{batch_id}/jobs/{job_id} with param o only and no pagination. Assert the parsed result types and that list_jobs surfaces summaries only. Red before green.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-2-task-2",
