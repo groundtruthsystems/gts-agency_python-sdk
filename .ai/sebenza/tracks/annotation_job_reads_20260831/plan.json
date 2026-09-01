@@ -116,7 +116,8 @@
           "id": "phase-4-task-1",
           "name": "Run the example against the local control plane",
           "description": "Per docs/local_e2e.md, export the AGENCY_* variables and run examples/quick_annotations.py end to end, confirming all four reads return real data on jobs the same run created — in particular that state_code, revision and audit_data.modified_on are populated, since the consuming Publisher's disposition gate and drift fence depend on them. If the local stack is not available, raise it as a blocker rather than doing environment work here: standing up the stack belongs to gts-local-environment, not this repo.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "dd2632a"
         },
         {
           "id": "phase-4-task-2",

@@ -212,7 +212,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-09-01T03:28:23Z",
-      "updated_at": "2026-09-01T04:07:14Z",
+      "updated_at": "2026-09-01T04:11:17Z",
       "spec_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/plan.json",
       "phases_summary": [
@@ -243,8 +243,8 @@
       ],
       "progress": {
         "total_tasks": 14,
-        "completed_tasks": 11,
-        "percentage": 78.6
+        "completed_tasks": 12,
+        "percentage": 85.7
       }
     }
   ]
