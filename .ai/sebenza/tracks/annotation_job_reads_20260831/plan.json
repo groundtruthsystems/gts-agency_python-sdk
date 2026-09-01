@@ -49,13 +49,14 @@
           "id": "phase-2-task-2",
           "name": "Implement list_jobs and get_job",
           "description": "Add both methods to AgencyAnnotationsClient over _make_request, organisation_id positional-first per the delegate's convention. list_jobs docstring states the summary-vs-full distinction explicitly — the server excludes the heavy payloads by design (the deferred join exists to keep those wide rows off the page), so a caller needing vertex_data / connected_* / delta / checklist_state / annotation_data must follow up with get_job.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "0b6ed54"
         },
         {
           "id": "phase-2-task-3",
           "name": "Write protocol tests for list_job_transitions and get_graph",
           "description": "Assert list_job_transitions sends organisation/page/size SPELLED OUT — not o/p/s — with a test named so its intent survives a future consistency refactor; the server's OrganisationQuery is the contract and mirroring it is deliberate, not an oversight. Assert get_graph hits {batch_id}/graph with param o and returns the raw dict unchanged (identity of content, no DTO). Red before green.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-2-task-4",
