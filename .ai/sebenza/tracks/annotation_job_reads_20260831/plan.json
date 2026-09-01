@@ -19,13 +19,14 @@
           "id": "phase-1-task-2",
           "name": "Implement AnnotationJobSummary, AnnotationJob, JobTransitionEntry and the paged wrappers",
           "description": "Add the five models to agency_sdk/delegates/annotations_dto.py per FR5. AnnotationJob is a standalone BaseModel, NOT a subclass of AnnotationJobSummary (they are two distinct server structs; inheritance would claim a substitutability the API does not promise). Blob fields typed Any and nullable; state_code a str; revision documented as the optimistic-concurrency counter the Publisher's drift fence snapshots. JobTransitionEntry.note carries the PHI never-log instruction in its own field documentation (FR8), and workflow_version_id is documented as the version in force when the transition fired, not the job's current one. Paged wrappers reuse the shared Page from datasets_dto.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "2bee3b7"
         },
         {
           "id": "phase-1-task-3",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: pytest agency_sdk/test/ -v, mypy agency_sdk/, black --check, coverage on the new models; then the manual verification plan and checkpoint commit with its git note.",
-          "status": "backlog"
+          "status": "doing"
         }
       ]
     },
