@@ -93,13 +93,14 @@
           "id": "phase-3-task-2",
           "name": "Document the read-back path",
           "description": "Add a 'Reading a batch back' section to docs/annotations.md covering the four methods, the summary-vs-full split, the per-endpoint param-name inconsistency, the opaque-blob rule, and the PHI warning on transition notes. Update the annotations bullet in CLAUDE.md per the Delegate Delivery Checklist. Note in docs that no server-side completed filter exists and callers filter list_batches client-side.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "ea107d5"
         },
         {
           "id": "phase-3-task-3",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: black --check agency_sdk/ examples/, mypy agency_sdk/, pytest agency_sdk/test/, bandit -r agency_sdk/ -x agency_sdk/test — all green before the checkpoint commit and git note.",
-          "status": "backlog"
+          "status": "doing"
         }
       ]
     },
