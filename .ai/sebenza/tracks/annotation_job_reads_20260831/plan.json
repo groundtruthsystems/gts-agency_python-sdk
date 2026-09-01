@@ -5,20 +5,21 @@
     {
       "id": "phase-1",
       "name": "Job DTOs",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-1-task-1",
           "name": "Write tests for the job DTOs",
           "description": "Extend agency_sdk/test/test_annotations_dto.py with fixtures built from the real gts-comand structs (90f95ad8): a full AnnotationJob payload, an AnnotationJobSummary page, and a JobTransitionEntry page. Assert (a) every field in FR5 survives parsing with nothing dropped, (b) annotation_data / checklist_state / delta round-trip an unusual shape unvalidated and unreshaped (FR6), (c) state_code parses as a plain str, not an enum (FR7), (d) explicit nulls on the optional fields parse — the server serialises nulls rather than omitting them. Tests must fail (red) before implementation.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "7209031"
         },
         {
           "id": "phase-1-task-2",
           "name": "Implement AnnotationJobSummary, AnnotationJob, JobTransitionEntry and the paged wrappers",
           "description": "Add the five models to agency_sdk/delegates/annotations_dto.py per FR5. AnnotationJob is a standalone BaseModel, NOT a subclass of AnnotationJobSummary (they are two distinct server structs; inheritance would claim a substitutability the API does not promise). Blob fields typed Any and nullable; state_code a str; revision documented as the optimistic-concurrency counter the Publisher's drift fence snapshots. JobTransitionEntry.note carries the PHI never-log instruction in its own field documentation (FR8), and workflow_version_id is documented as the version in force when the transition fired, not the job's current one. Paged wrappers reuse the shared Page from datasets_dto.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-1-task-3",
