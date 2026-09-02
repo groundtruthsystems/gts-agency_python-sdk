@@ -135,6 +135,42 @@ exists and faking one client-side inside the SDK would hide the cost; callers fi
   back — asserting the round-trip and keeping the script self-verifying and idempotent.
 - `CLAUDE.md`'s annotations bullet is updated per the Delegate Delivery Checklist.
 
+### FR11 — the annotations list reads tolerate a malformed row (added 2026-09-01)
+
+**Added after the fact**, on the consumer's integration review (issue #16 follow-up comment) and
+with the user's approval. The original spec put `list_batches` out of scope as "existing method,
+unchanged"; that line no longer holds and has been corrected below.
+
+Every list read on this delegate builds its page in one construction —
+`AnnotationBatchesPagedResult(**body)` over `items: list[AnnotationBatch]` — so pydantic validates
+the whole list and **one bad row loses the entire page**. Reproduced: a page of five where the third
+row lacks `confidentiality_level` raises `ValidationError` and returns nothing; the four well-formed
+rows are unreachable, not merely unreported.
+
+The blast radius is what is wrong, not the strictness. The Publisher's sweep lists batches, then
+filters `COMPLETED` and DBQ scope **client-side, after parsing** — so a malformed row it would have
+discarded as out-of-scope wedges the sweep anyway, and keeps wedging it every six hours because the
+row does not heal. A caller cannot work around it without abandoning the method and re-implementing
+the paged read.
+
+- The five list reads — `list_batches`, `list_jobs`, `list_specs`, `list_workflows`,
+  `list_job_transitions` — validate items **individually**. Well-formed rows are returned.
+- A row that fails is **reported, never silently dropped**, as a `RejectedRow` carrying its `index`
+  within the page as the server sent it, the `raw` dict, and the validation `error`. Silent
+  degradation is the specific failure the consumer's own review found to be worse than a crash
+  (a degraded graph published while its closure check reported zero problems).
+- The rejects are surfaced on the paged result as `rejected`, defaulted empty, so existing callers
+  are source-compatible and a new caller cannot reach the good rows without the bad ones being in
+  hand.
+- A malformed `page` envelope still raises. That is a broken response, not a bad row.
+- **Single-item reads keep failing hard** — `get_batch`, `get_job`, `get_spec`, `get_graph`. The
+  boundary is principled rather than incidental: a discovery read killed by a row the caller was
+  going to discard is disproportionate; a single read that cannot return the one thing you named
+  has nothing useful to return.
+- Scope is this delegate only. The SDK's other nine paged reads keep whole-page semantics; the
+  resulting inconsistency is **documented rather than silent**, and extending the policy is a
+  separate decision.
+
 ## Non-Functional Requirements
 
 - `mypy agency_sdk/` strict passes; `black --check` at 120 chars; `bandit -r agency_sdk/ -x agency_sdk/test` clean.
@@ -158,6 +194,9 @@ exists and faking one client-side inside the SDK would hide the cost; callers fi
 8. `examples/quick_annotations.py` runs green against the local stack, exercising all four reads on
    jobs the same run created.
 9. `docs/annotations.md` and `CLAUDE.md` updated.
+10. (FR11) A page with one unparseable row returns the well-formed rows and reports the bad one with
+    its index, raw dict and error; a malformed `page` envelope still raises; the four single-item
+    reads still raise; the policy and its deliberate limit to this delegate are documented.
 
 ## Out of Scope
 
@@ -165,6 +204,10 @@ exists and faking one client-side inside the SDK would hide the cost; callers fi
   version bump and PyPI tag wait on the consuming track's Gate A sign-off, which is not this repo's
   gate to call.
 - **Any write path** — job commands, transitions, claims, checklist saves (FR9).
+- **Whole-page tolerance for the SDK's other delegates.** FR11 covers this delegate's five list
+  reads only; `datasets`, `files`, `datasource`, `ontology`, `prompts`, `rules`, `session_templates`
+  and `work_queues` keep whole-page validation. Changing them is a separate decision — this PR
+  should not quietly rewrite nine surfaces nobody reviewed.
 - **The Publisher's own logic** — the merge, the contamination check, the unresolved-variables gate,
   the drift fence. Those are the consuming track's; this repo supplies the reads they run on.
 - **The ontology-service `_publish` call**, which goes through guideline-agent's own `OntologyClient`.

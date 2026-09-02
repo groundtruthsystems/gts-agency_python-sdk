@@ -209,10 +209,10 @@
       "track_id": "annotation_job_reads_20260831",
       "type": "chore",
       "description": "Add the four read-only job delegates the annotation→KG Publisher needs (issue #16, Track B1): list_jobs, get_job, list_job_transitions and get_graph on AgencyAnnotationsClient, plus AnnotationJobSummary/AnnotationJob/JobTransitionEntry and their paged wrappers. Mirrors each endpoint's own query-param names rather than normalising them (jobs use o/p/s, transitions use organisation/page/size), keeps annotation_data/checklist_state/delta opaque because their shape is owned by whichever front-end wrote them, and carries the PHI never-log warning on transition notes. Read-only by design: the Publisher never writes to comand. Zero comand changes; rc16 is cut separately once the consuming track's Gate A signs off.",
-      "status": "blocked",
-      "blocked_reason": "User deferred publishing on 2026-09-01: the branch is not to be pushed to origin and no PR is to be opened yet. The work itself is complete and verified — 291 offline tests, mypy strict, black, bandit all green, and all four reads live-verified against the local control plane. Resume by confirming the push, or close the track without a PR if it will be published another way.",
+      "status": "doing",
+      "blocked_reason": null,
       "created_at": "2026-09-01T03:28:23Z",
-      "updated_at": "2026-09-01T14:19:07Z",
+      "updated_at": "2026-09-02T02:03:53Z",
       "spec_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/plan.json",
       "phases_summary": [
@@ -236,15 +236,27 @@
         },
         {
           "id": "phase-4",
-          "name": "Local-stack E2E & PR",
-          "status": "blocked",
-          "blocked_reason": "User deferred publishing on 2026-09-01: the branch is not to be pushed to origin and no PR is to be opened yet. The work itself is complete and verified — 291 offline tests, mypy strict, black, bandit all green, and all four reads live-verified against the local control plane. Resume by confirming the push, or close the track without a PR if it will be published another way."
+          "name": "Local-stack E2E",
+          "status": "doing",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-5",
+          "name": "Paged-read fault tolerance (annotations surface)",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-6",
+          "name": "PR",
+          "status": "backlog",
+          "blocked_reason": null
         }
       ],
       "progress": {
-        "total_tasks": 14,
+        "total_tasks": 19,
         "completed_tasks": 12,
-        "percentage": 85.7
+        "percentage": 63.2
       }
     }
   ]
