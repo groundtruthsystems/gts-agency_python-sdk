@@ -27,17 +27,22 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import requests
+from pydantic import ValidationError
+
+from pydantic import BaseModel
 
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.annotations_dto import (
     BATCH_TYPE_GRAPH,
+    AnnotationBatch,
     AnnotationBatchesPagedResult,
     AnnotationBatchResponse,
     AnnotationJob,
     AnnotationJobsPagedResult,
+    AnnotationJobSummary,
     AnnotationSpec,
     AnnotationSpecsPagedResult,
     AnnotationWorkflow,
@@ -45,8 +50,11 @@ from agency_sdk.delegates.annotations_dto import (
     BindWorkflowResult,
     CreateBatchResult,
     CreateSpecResult,
+    JobTransitionEntry,
     JobTransitionsPagedResult,
     PushGraphResult,
+    RejectedRow,
+    TolerantPage,
 )
 from agency_sdk.delegates.base_client import BaseDelegateClient
 
@@ -78,6 +86,42 @@ def _command_id(body: Mapping[str, Any], subject: str) -> str:
     if not isinstance(identifier, str) or not identifier:
         raise ValueError(f"server returned no {subject} id: {body!r}")
     return identifier
+
+
+_PageT = TypeVar("_PageT", bound=TolerantPage)
+_ItemT = TypeVar("_ItemT", bound=BaseModel)
+
+
+def _parse_page(page_type: type[_PageT], item_type: type[_ItemT], body: Mapping[str, Any]) -> _PageT:
+    """Build a paged result, validating each row on its own.
+
+    The obvious construction — ``PagedResult(**body)`` over ``items: list[Item]`` —
+    validates the list as a unit, so **one bad row loses the whole page**: the
+    well-formed rows beside it become unreachable, not merely unreported. That blast
+    radius is what this avoids. A consumer typically filters scope *after* parsing, so
+    without this a row it was going to discard can stop it reading the rows it wanted
+    — every time, since a malformed row does not heal on its own.
+
+    Rows that fail land in ``rejected`` with their original index, so nothing is lost
+    silently. A row that is not a mapping at all is rejected too rather than escaping
+    as a ``TypeError``: ``Item(**row)`` on a string or ``None`` does not raise
+    ``ValidationError``, and a guard that only expects one would still lose the page.
+
+    The ``page`` envelope is deliberately NOT tolerated. A page whose paging does not
+    parse is a broken response, and handing back rows under paging that cannot be
+    trusted is worse than failing.
+    """
+    items: list[_ItemT] = []
+    rejected: list[RejectedRow] = []
+    for index, row in enumerate(body.get("items") or []):
+        if not isinstance(row, Mapping):
+            rejected.append(RejectedRow(index=index, raw=row, error=f"expected an object, got {type(row).__name__}"))
+            continue
+        try:
+            items.append(item_type(**row))
+        except ValidationError as error:
+            rejected.append(RejectedRow(index=index, raw=row, error=str(error)))
+    return page_type(page=body.get("page") or {}, items=items, rejected=rejected)
 
 
 class _AnnotationWorkflowsEndpoint(BaseDelegateClient):
@@ -240,7 +284,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         nobody else's.
         """
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
-        return AnnotationWorkflowsPagedResult(**self._workflows._make_request("GET", "", params=params))
+        body = self._workflows._make_request("GET", "", params=params)
+        return _parse_page(AnnotationWorkflowsPagedResult, AnnotationWorkflow, body)
 
     def bind_workflow(
         self,
@@ -440,7 +485,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             params["batch_type"] = batch_type
         if view is not None:
             params["view"] = view
-        return AnnotationBatchesPagedResult(**self._make_request("GET", "", params=params))
+        body = self._make_request("GET", "", params=params)
+        return _parse_page(AnnotationBatchesPagedResult, AnnotationBatch, body)
 
     def create_spec(
         self,
@@ -495,7 +541,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
     def list_specs(self, organisation_id: int, *, page: int = 0, size: int = 50) -> AnnotationSpecsPagedResult:
         """List the org's job specifications (paged; the server's own default size is 10)."""
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
-        return AnnotationSpecsPagedResult(**self._specs._make_request("GET", "", params=params))
+        body = self._specs._make_request("GET", "", params=params)
+        return _parse_page(AnnotationSpecsPagedResult, AnnotationSpec, body)
 
     def list_jobs(
         self, organisation_id: int, batch_id: str, *, page: int = 0, size: int = 50
@@ -521,7 +568,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             size: Page size (the server's own default is 20).
         """
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
-        return AnnotationJobsPagedResult(**self._make_request("GET", f"/{batch_id}/jobs", params=params))
+        body = self._make_request("GET", f"/{batch_id}/jobs", params=params)
+        return _parse_page(AnnotationJobsPagedResult, AnnotationJobSummary, body)
 
     def get_job(self, organisation_id: int, batch_id: str, job_id: str) -> AnnotationJob:
         """Read one job in full: the graph context, the human edits, and ``revision``.
@@ -581,9 +629,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             size: Page size (the server's own default is 100).
         """
         params = {"organisation": str(organisation_id), "page": str(page), "size": str(size)}
-        return JobTransitionsPagedResult(
-            **self._make_request("GET", f"/{batch_id}/jobs/{job_id}/transitions", params=params)
-        )
+        body = self._make_request("GET", f"/{batch_id}/jobs/{job_id}/transitions", params=params)
+        return _parse_page(JobTransitionsPagedResult, JobTransitionEntry, body)
 
     def get_graph(self, organisation_id: int, batch_id: str) -> dict[str, Any]:
         """Read back the graph that was uploaded to this batch, as a raw ``dict``.

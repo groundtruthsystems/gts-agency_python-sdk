@@ -108,8 +108,42 @@ class AnnotationBatchResponse(AnnotationBatch):
     viewer_role: str | None = None
 
 
-class AnnotationBatchesPagedResult(BaseModel):
+class RejectedRow(BaseModel):
+    """A row the server sent that this SDK could not parse.
+
+    Reported rather than dropped. A list read that silently shrank would leave the
+    caller believing it had seen everything, which is worse than either failing or
+    complaining: the caller can handle a row it has been told about, and cannot
+    handle one it never learns of.
+    """
+
+    #: Position in the page **as the server sent it** — not among the survivors, so
+    #: it still lines up with a server-side log or a re-fetch of the same page.
+    index: int
+    #: The row verbatim, for logging or for a caller that wants to salvage it.
+    raw: Any
+    #: The validation failure, as pydantic reported it.
+    error: str
+
+
+class TolerantPage(BaseModel):
+    """Base for a paged result that survives a malformed row.
+
+    Every list read on this delegate validates its items one at a time: the
+    well-formed rows come back in ``items``, and anything that failed is in
+    ``rejected``. ``rejected`` is empty on a healthy page, so a caller that never
+    looks at it behaves exactly as before — but a caller that cares can, which was
+    impossible when one bad row raised for the whole page.
+
+    A malformed ``page`` envelope still raises. That is a broken response rather than
+    a bad row, and a page whose paging cannot be trusted is not worth handing back.
+    """
+
     page: Page
+    rejected: list[RejectedRow] = Field(default_factory=list)
+
+
+class AnnotationBatchesPagedResult(TolerantPage):
     items: list[AnnotationBatch]
 
 
@@ -148,8 +182,7 @@ class AnnotationSpec(BaseModel):
     audit_data: dict[str, Any] | None = None
 
 
-class AnnotationSpecsPagedResult(BaseModel):
-    page: Page
+class AnnotationSpecsPagedResult(TolerantPage):
     items: list[AnnotationSpec]
 
 
@@ -174,8 +207,7 @@ class AnnotationWorkflow(BaseModel):
     draft_version_id: str | None = None
 
 
-class AnnotationWorkflowsPagedResult(BaseModel):
-    page: Page
+class AnnotationWorkflowsPagedResult(TolerantPage):
     items: list[AnnotationWorkflow]
 
 
@@ -289,8 +321,7 @@ class AnnotationJob(BaseModel):
     audit_data: dict[str, Any] | None = None
 
 
-class AnnotationJobsPagedResult(BaseModel):
-    page: Page
+class AnnotationJobsPagedResult(TolerantPage):
     items: list[AnnotationJobSummary]
 
 
@@ -334,6 +365,5 @@ class JobTransitionEntry(BaseModel):
     occurred_on: str
 
 
-class JobTransitionsPagedResult(BaseModel):
-    page: Page
+class JobTransitionsPagedResult(TolerantPage):
     items: list[JobTransitionEntry]
