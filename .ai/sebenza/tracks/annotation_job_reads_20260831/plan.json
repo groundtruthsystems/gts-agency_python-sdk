@@ -168,15 +168,15 @@
     {
       "id": "phase-6",
       "name": "PR",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back.",
       "tasks": [
         {
           "id": "phase-6-task-1",
           "name": "Open the PR against main",
           "description": "Push feat/annotation-job-reads and open a PR linking issue #16, summarising the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, and the phase-5 tolerance change. Cite the consumer's integration verification (gts-guideline-agent docs/dbq/annotation-publisher-sdk-integration-verification-20260901.md) as the Gate A evidence: the four reads needed no adaptation. State that rc16 is not cut here.",
-          "status": "doing",
-          "blocked_reason": null
+          "status": "blocked",
+          "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back."
         },
         {
           "id": "phase-6-task-2",
