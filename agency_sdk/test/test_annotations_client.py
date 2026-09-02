@@ -10,6 +10,7 @@ import json
 
 import pytest
 import requests
+from pydantic import ValidationError
 
 from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.annotations_dto import BatchStatus, SpecStatus
@@ -749,3 +750,115 @@ class TestGetGraph:
 
         with pytest.raises(requests.HTTPError):
             client.get_graph(organisation_id=2, batch_id="b-1")
+
+
+class TestPageTolerance:
+    """FR11: one malformed row must not cost the whole page.
+
+    Every list read here used to build its page in a single construction, so pydantic
+    validated the list as a unit and a single bad row raised — the well-formed rows
+    alongside it were unreachable, not merely unreported. The blast radius was the
+    problem, not the strictness: a consumer filters scope AFTER parsing, so a row it
+    would have discarded wedged it anyway, and kept wedging it because the row does
+    not heal.
+    """
+
+    def _page(self, *items, total=None):
+        return {
+            "page": {"page": 0, "size": 50, "total": total if total is not None else len(items)},
+            "items": list(items),
+        }
+
+    def _batch(self, i, **over):
+        row = {
+            "id": f"batch-{i}",
+            "organisation_id": 2,
+            "name": f"DBQ: Batch {i}",
+            "batch_type": "graph",
+            "total_jobs": 10,
+            "status": 2,
+            "confidentiality_level": "INTERNAL",
+        }
+        row.update(over)
+        return row
+
+    def test_list_batches_keeps_the_good_rows_when_one_is_unparseable(self, client, stub_requests):
+        bad = {k: v for k, v in self._batch(3, name="MTUS: unrelated").items() if k != "confidentiality_level"}
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), bad, self._batch(4)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2", "batch-4"]
+        assert len(result.rejected) == 1
+
+    def test_a_rejected_row_reports_its_index_raw_body_and_error(self, client, stub_requests):
+        bad = {k: v for k, v in self._batch(3).items() if k != "confidentiality_level"}
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), bad, self._batch(4)))
+
+        rejected = client.list_batches(organisation_id=2).rejected[0]
+
+        # The index is the row's position in the page AS THE SERVER SENT IT, not its
+        # position among the survivors — otherwise it cannot be correlated with a log
+        # or a re-fetch.
+        assert rejected.index == 2
+        assert rejected.raw == bad
+        assert "confidentiality_level" in rejected.error
+
+    def test_a_clean_page_reports_no_rejects(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2"]
+        assert result.rejected == []
+
+    def test_a_row_that_is_not_even_a_mapping_is_rejected_rather_than_raising(self, client, stub_requests):
+        # A string or null where an object belongs would blow up `Model(**row)` with a
+        # TypeError, which is not a ValidationError and would escape a naive guard.
+        stub_requests.queue(json_data=self._page(self._batch(1), "not-an-object", None, self._batch(2)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2"]
+        assert [r.index for r in result.rejected] == [1, 2]
+
+    def test_a_malformed_page_envelope_still_raises(self, client, stub_requests):
+        # A broken response is not a bad row. Tolerating this would hand the caller a
+        # page whose paging is a lie, which is worse than failing.
+        stub_requests.queue(json_data={"page": {"page": "not-an-int"}, "items": []})
+
+        with pytest.raises(ValidationError):
+            client.list_batches(organisation_id=2)
+
+    def test_every_list_read_on_this_delegate_tolerates(self, client, stub_requests):
+        # The policy is the delegate's, not one method's — five reads, one behaviour.
+        cases = [
+            (lambda: client.list_batches(organisation_id=2), self._batch(1), {"id": "x"}),
+            (lambda: client.list_jobs(organisation_id=2, batch_id="b"), JOB_SUMMARY_JSON, {"id": "x"}),
+            (lambda: client.list_specs(organisation_id=2), SPEC_JSON, {"id": "x"}),
+            (lambda: client.list_workflows(organisation_id=2), WORKFLOWS_PAGE["items"][0], {"id": "x"}),
+            (
+                lambda: client.list_job_transitions(organisation_id=2, batch_id="b", job_id="j"),
+                TRANSITION_JSON,
+                {"id": 1},
+            ),
+        ]
+        for call, good, bad in cases:
+            stub_requests.queue(json_data=self._page(good, bad))
+            result = call()
+            assert len(result.items) == 1, result
+            assert len(result.rejected) == 1, result
+            assert result.rejected[0].index == 1
+
+    def test_single_item_reads_still_fail_hard(self, client, stub_requests):
+        # Deliberate boundary: a read that cannot return the one thing you named has
+        # nothing useful to hand back, so tolerance would only hide the problem.
+        broken = {k: v for k, v in self._batch(1).items() if k != "confidentiality_level"}
+        for queue_body, call in (
+            (broken, lambda: client.get_batch(organisation_id=2, batch_id="b")),
+            ({"id": "j"}, lambda: client.get_job(organisation_id=2, batch_id="b", job_id="j")),
+            ({"id": "s"}, lambda: client.get_spec(organisation_id=2, code="c")),
+        ):
+            stub_requests.queue(json_data=queue_body)
+            with pytest.raises(ValidationError):
+                call()
