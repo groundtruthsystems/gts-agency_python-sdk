@@ -109,7 +109,7 @@
     {
       "id": "phase-4",
       "name": "Local-stack E2E",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -123,53 +123,59 @@
           "id": "phase-4-task-2",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: final gate run, manual verification plan covering the E2E output, checkpoint commit and git note. The PR task that used to close this phase moved to phase-6 — it must run after the phase-5 tolerance work the consumer's integration review asked for.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "101894f"
         }
       ]
     },
     {
       "id": "phase-5",
       "name": "Paged-read fault tolerance (annotations surface)",
-      "status": "backlog",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-5-task-1",
           "name": "Write failing tests for per-row page tolerance",
           "description": "Cover FR11 across the five annotations list reads. Assert: a page with one unparseable row still returns every well-formed row; the bad row is reported with its index within the page as the server sent it, its raw dict, and the validation message; a row that is not even a mapping is rejected rather than raising; a malformed `page` envelope still raises, because that is a broken response rather than a bad row; an all-good page reports no rejects; and the four single-item reads (get_batch/get_job/get_spec/get_graph) still fail hard. Red before green.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "9e7da08"
         },
         {
           "id": "phase-5-task-2",
           "name": "Implement RejectedRow and the shared page parser",
           "description": "Add RejectedRow (index, raw, error) and route the five annotations list reads through one shared parse helper that validates items individually. Add `rejected` to the five paged-result DTOs, defaulted empty so existing callers are unaffected. Rejects are surfaced, never silently dropped — silent degradation is the failure mode the consumer's own integration review found to be worse than a crash. Docstrings must tell a caller to check `rejected` and say what the right reaction is per read: skip-and-continue for a batch list, refuse-to-publish for a job list where completeness is the point.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "ca98794"
         },
         {
           "id": "phase-5-task-3",
           "name": "Document the tolerance policy",
           "description": "docs/annotations.md gains the policy and its boundary: list reads tolerate and report, single-item reads fail hard, and why (a discovery read killed by an out-of-scope row is disproportionate; a single read that cannot return the thing you named is not). Note the other delegates still fail whole-page, so the inconsistency is recorded rather than silent. Update CLAUDE.md's annotations bullet. Reply on issue #16 with the decision and its scope.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "d872ff3"
         },
         {
           "id": "phase-5-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: full gates, manual verification plan, checkpoint commit and git note.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "101894f"
         }
-      ]
+      ],
+      "checkpoint_sha": "101894f"
     },
     {
       "id": "phase-6",
       "name": "PR",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-6-task-1",
           "name": "Open the PR against main",
           "description": "Push feat/annotation-job-reads and open a PR linking issue #16, summarising the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, and the phase-5 tolerance change. Cite the consumer's integration verification (gts-guideline-agent docs/dbq/annotation-publisher-sdk-integration-verification-20260901.md) as the Gate A evidence: the four reads needed no adaptation. State that rc16 is not cut here.",
-          "status": "backlog",
+          "status": "doing",
           "blocked_reason": null
         },
         {
