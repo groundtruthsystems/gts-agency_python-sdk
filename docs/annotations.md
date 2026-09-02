@@ -188,6 +188,50 @@ Filter `list_batches` on `status == BatchStatus.COMPLETED` yourself, then re-che
 each job's `state_code` — batch completion is revertible, so the batch-level answer
 can go stale under you.
 
+### A bad row costs its row, not the page
+
+Every list read here validates its items **one at a time**. Well-formed rows come
+back in `items`; anything that failed to parse is in `rejected`, carrying its index
+in the page as the server sent it, the raw row, and the validation error.
+
+```python
+page = annotations.list_batches(org, size=100)
+for batch in page.items:      # the rows that parsed
+    ...
+if page.rejected:             # the rows that did not — do not ignore this
+    log.warning("%d unparseable batch rows: %s",
+                len(page.rejected), [r.index for r in page.rejected])
+```
+
+This exists because the alternative has a blast radius out of all proportion to the
+fault. Building the page in one construction — `AnnotationBatchesPagedResult(**body)`
+over `items: list[AnnotationBatch]` — validates the list as a unit, so a single bad
+row raises and the well-formed rows beside it become *unreachable*, not merely
+unreported. Callers filter scope **after** parsing, so a row you were going to throw
+away can stop you reading the rows you wanted — and keep doing it on every run,
+because a malformed row does not heal.
+
+Two boundaries are deliberate:
+
+- **The `page` envelope is not tolerated.** If the paging itself does not parse, the
+  read raises. Rows handed back under paging that cannot be trusted are worse than no
+  rows.
+- **Single-item reads still fail hard** — `get_batch`, `get_job`, `get_spec`,
+  `get_graph`. A read that cannot return the one thing you named has nothing useful
+  to hand back, so tolerating the failure would only hide it.
+
+`rejected` is reported rather than skipped for the same reason: a list that quietly
+shrank would leave you believing you had seen everything. What to do about it is the
+caller's call, and it differs by read — a batch list can skip the row and keep
+sweeping, whereas a **job** list usually cannot, because a batch you are about to
+publish is exactly the case where you need to know the job set is complete.
+
+> **Scope note.** This policy covers the annotations delegate only. The SDK's other
+> paged reads — datasets, files, datasources, ontology mappings, prompts, rules,
+> session templates, work queues — still validate a page as a unit and still lose it
+> to one bad row. Extending the policy is a separate decision; it is recorded here so
+> the inconsistency is visible rather than surprising.
+
 ### Query parameter names differ per endpoint
 
 | Read | Params |
@@ -261,6 +305,7 @@ something to retry.
 | Neither / both of `graph` and `file_path` | `ValueError`, raised before any HTTP call. |
 | Caller lacks annotations write | `403` (or `400 "User not supplied."` when the principal has no local user id — see below). |
 | `get_graph` on a batch whose object is gone | `500`, not `404` — the object store's "no such key" is not translated. |
+| One unparseable row in a list read | The row lands in `rejected`; the rest of the page still returns. Check `rejected`. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,
