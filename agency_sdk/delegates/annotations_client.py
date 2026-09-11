@@ -39,6 +39,8 @@ from agency_sdk.delegates.annotations_dto import (
     BATCH_TYPE_GRAPH,
     AnnotationBatch,
     AnnotationBatchesPagedResult,
+    AnnotationBatchMember,
+    AnnotationBatchMembersPagedResult,
     AnnotationBatchResponse,
     AnnotationJob,
     AnnotationJobsPagedResult,
@@ -652,3 +654,49 @@ class AgencyAnnotationsClient(BaseDelegateClient):
                 not retrievable", not as a transient error worth retrying.
         """
         return self._make_request("GET", f"/{batch_id}/graph", params={"o": str(organisation_id)})
+
+    def list_batch_members(
+        self, organisation_id: int, batch_id: str, *, page: int = 0, size: int = 50
+    ) -> AnnotationBatchMembersPagedResult:
+        """List a batch's members (paged): who may see it, as what, and for how long.
+
+        Two things this read is good for, and one it is not:
+
+        - **Membership windows.** Each row carries ``eff_from`` and an ``eff_to``
+          that is ``None`` while the membership is still in force.
+        - **Seeing a RESTRICTED batch's roster at all.** Confidentiality is enforced
+          on the *list*: the server appends ``AND (confidentiality_level NOT IN (...)
+          OR EXISTS (active membership))`` to :meth:`list_batches`, so a RESTRICTED
+          batch the caller is not an active member of is **invisible** there rather
+          than rejected. If a batch you expect is simply missing from a list, check
+          membership before suspecting the page parser.
+        - **Who held which role, and when** — including the workflow roles. ``role``
+          is an open vocabulary: ``"member"`` and ``"admin"`` plus whatever codes
+          the batch's workflow declares (``"annotator"``, ``"reviewer"``,
+          ``"approver"``, …). This table is the server's record of review
+          authority — its foreign key is ``RESTRICT`` so a batch delete cannot
+          erase it, and the distinct-actor check resolves against it — so read role
+          windows from here rather than inferring them from the first ledger row in
+          that role, which only sees people who actually acted.
+
+        Rows are **role-per-row**: the key is ``(batch_id, user_id, role,
+        eff_from)``, so one person appears once per role they hold. A lookup keyed
+        on ``user_id`` alone will find several.
+
+        **PII:** the display fields (``given_name``, ``family_name``, ``known_as``,
+        ``email``) name a real person. Do not log or export them casually.
+
+        Note the wire shape: the endpoint's published OpenAPI annotation says it
+        returns ``Vec<AnnotationBatchMember>``, but the handler binds pagination and
+        returns a paged result — a caller trusting the spec would unpack a bare
+        array and get nothing. Params are the abbreviated ``o`` / ``p`` / ``s``.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch whose members to list.
+            page: Zero-indexed page number.
+            size: Page size (the server's own default is 50).
+        """
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        body = self._make_request("GET", f"/{batch_id}/members", params=params)
+        return _parse_page(AnnotationBatchMembersPagedResult, AnnotationBatchMember, body)

@@ -603,12 +603,21 @@ def test_eff_from_is_required_but_the_display_fields_are_not():
     assert bare.eff_to is None and bare.modified_on is None
 
 
-def test_member_role_is_the_access_level_not_a_workflow_role():
-    # annotation_batch_member.role is member/admin — batch ACCESS. The workflow
-    # roles a transition stamps (annotator/reviewer/approver) are derived from
-    # permission bits at action time and are not recorded here. A caller wanting
-    # "when was this person an approver" must read the ledger, not this.
-    assert AnnotationBatchMember(**MEMBER_JSON).role in {"member", "admin"}
+def test_member_role_is_an_open_vocabulary_not_just_member_and_admin():
+    # The column takes 'member' | 'admin' | any role code the workflow declares
+    # (VARCHAR(50), widened because "role codes are author-defined"). Observed
+    # live on one batch: admin, approver, reviewer, annotator, member. So no enum.
+    for role in ("member", "admin", "approver", "reviewer", "annotator", "a_future_role"):
+        assert AnnotationBatchMember(**{**MEMBER_JSON, "role": role}).role == role
+
+
+def test_one_person_can_hold_several_roles_on_a_batch():
+    # Key is (batch_id, user_id, role, eff_from) — role-per-row. A caller keying
+    # on user_id alone and expecting one hit will silently take whichever came first.
+    rows = [AnnotationBatchMember(**{**MEMBER_JSON, "role": r}) for r in ("admin", "approver", "reviewer")]
+
+    assert {r.user_id for r in rows} == {907}
+    assert sorted(r.role for r in rows) == ["admin", "approver", "reviewer"]
 
 
 def test_batch_members_paged_result_wraps_page_and_items():

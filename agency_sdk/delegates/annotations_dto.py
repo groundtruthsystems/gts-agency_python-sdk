@@ -393,3 +393,68 @@ class JobTransitionEntry(BaseModel):
 
 class JobTransitionsPagedResult(TolerantPage):
     items: list[JobTransitionEntry]
+
+
+#: The two roles the server names as constants. The column is **not** limited to
+#: them — see :class:`AnnotationBatchMember`.
+MEMBER_ROLE_MEMBER = "member"
+MEMBER_ROLE_ADMIN = "admin"
+
+
+class AnnotationBatchMember(BaseModel):
+    """One (person, role) membership of a batch, and the window it was held for.
+
+    **Role-per-row, not member-per-row.** The primary key is
+    ``(batch_id, user_id, role, eff_from)``, so one person holds several roles at
+    once by having several rows — a two-person team needs someone who can both
+    annotate and review. Do not key a lookup on ``user_id`` alone and expect one
+    hit; observed live, a single user held ``admin``, ``approver`` and ``reviewer``
+    on the same batch.
+
+    ``role`` is an **open vocabulary**: ``"member"`` and ``"admin"`` are the two the
+    server names as constants, and everything else is a role code declared by the
+    batch's workflow (``"annotator"``, ``"reviewer"``, ``"approver"``, …). Because
+    workflow authors define those, there is no enum here — the same reasoning as
+    :attr:`AnnotationJob.state_code`.
+
+    This table **is** the record of who held review authority and when. The server
+    treats it that way: its foreign key is ``RESTRICT`` rather than ``CASCADE``
+    specifically so deleting a batch cannot silently erase the evidence, and the
+    distinct-actor and allowed-roles checks resolve against it. So a caller asking
+    "when was this person an approver" should read this, not reconstruct it from
+    the first ledger row in that role — the ledger only knows about people who
+    actually acted.
+
+    ``eff_to`` is ``None`` while the membership is still in force. The audit fields
+    are **flat** here, unlike :class:`AnnotationBatch` and :class:`AnnotationJob`,
+    which nest theirs in ``audit_data``; that is the server's shape and this mirrors
+    it rather than imposing a consistency the API does not have.
+
+    **PII:** ``given_name``, ``family_name``, ``known_as`` and ``email`` identify a
+    real person. They are populated only on the joined read, which is why they are
+    optional. They are not PHI, so the rule is weaker than the one on
+    :attr:`JobTransitionEntry.note`, but they are still personal data — do not log
+    or export them casually.
+    """
+
+    batch_id: str
+    user_id: int
+    #: ``"member"`` / ``"admin"`` / any role code the batch's workflow declares.
+    role: str
+    #: Start of the window this (user, role) pair was held from.
+    eff_from: str
+    #: End of the window; ``None`` while it is still in force.
+    eff_to: str | None = None
+    created_on: str
+    created_by: str
+    modified_on: str | None = None
+    modified_by: str | None = None
+    # Display fields — PII, and only present on the joined read.
+    given_name: str | None = None
+    family_name: str | None = None
+    known_as: str | None = None
+    email: str | None = None
+
+
+class AnnotationBatchMembersPagedResult(TolerantPage):
+    items: list[AnnotationBatchMember]
