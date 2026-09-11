@@ -209,10 +209,10 @@
       "track_id": "annotation_job_reads_20260831",
       "type": "chore",
       "description": "Add the four read-only job delegates the annotation→KG Publisher needs (issue #16, Track B1): list_jobs, get_job, list_job_transitions and get_graph on AgencyAnnotationsClient, plus AnnotationJobSummary/AnnotationJob/JobTransitionEntry and their paged wrappers. Mirrors each endpoint's own query-param names rather than normalising them (jobs use o/p/s, transitions use organisation/page/size), keeps annotation_data/checklist_state/delta opaque because their shape is owned by whichever front-end wrote them, and carries the PHI never-log warning on transition notes. Read-only by design: the Publisher never writes to comand. Zero comand changes; rc16 is cut separately once the consuming track's Gate A signs off.",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Held on 2026-09-10 by decision: stays local until guideline-agent's verification of the phase-6 row_count correction and the phase-7 members read comes back. The branch is complete and green (314 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage), is editable-installed in gts-guideline-agent's venv, and is also built as a pinnable wheel at 0.0.1rc16.dev0. Note this is now the consumer's own stated blocker (issue #16, 2026-09-11): no environment built from their pyproject/uv.lock can import the publisher, because the pin is rc15 and nothing here is released. Resume by confirming the push once verification returns.",
       "created_at": "2026-09-01T03:28:23Z",
-      "updated_at": "2026-09-11T03:37:31Z",
+      "updated_at": "2026-09-11T03:40:24Z",
       "spec_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/plan.json",
       "phases_summary": [
@@ -261,8 +261,8 @@
         {
           "id": "phase-8",
           "name": "PR",
-          "status": "doing",
-          "blocked_reason": null
+          "status": "blocked",
+          "blocked_reason": "Held on 2026-09-10 by decision: stays local until guideline-agent's verification of the phase-6 row_count correction and the phase-7 members read comes back. The branch is complete and green (314 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage), is editable-installed in gts-guideline-agent's venv, and is also built as a pinnable wheel at 0.0.1rc16.dev0. Note this is now the consumer's own stated blocker (issue #16, 2026-09-11): no environment built from their pyproject/uv.lock can import the publisher, because the pin is rc15 and nothing here is released. Resume by confirming the push once verification returns."
         }
       ],
       "progress": {
