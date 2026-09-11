@@ -5,12 +5,14 @@ Drives AgencyAnnotationsClient through the whole publish contract against a live
 control plane: seed-or-find the job specification, push a rule graph in one call
 (create DRAFT -> multipart upload -> read back ACTIVE + total_jobs), push the same
 graph from a file, list the batch back, read the published work back through the
-four job-level reads (the job list, one full job, its transition ledger, and the
-stored graph), and exercise the two failure modes that matter — a graph with no
+five annotation reads (the job list, one full job, its transition ledger, the
+stored graph, and the batch's members), and exercise the two failure modes that
+matter — a graph with no
 target-class vertices (400, leaving an empty DRAFT batch) and a call with no graph
 source at all (client-side ValueError, no HTTP).
 
-The transition ledger's ``note`` is PHI-capable and is deliberately never printed.
+The transition ledger's ``note`` is PHI-capable and the member display fields are PII;
+neither is ever printed here.
 
 Self-verifying: every step asserts its outcome and the script exits non-zero on
 failure. Batch names carry a unique per-run tag and every batch created is
@@ -220,6 +222,21 @@ def main() -> int:
             "vertices"
         ]
         print(f"6d. get_graph -> run_id={stored['run_id']!r} {len(stored['vertices'])} vertices, matches upload")
+
+        # 6e. Who may see this batch, and as what. Rows are role-per-row, so a user
+        #     holding two roles appears twice; a freshly pushed batch has whatever
+        #     membership the server seeds (often none for an INTERNAL batch).
+        #     NOTE: given_name/family_name/known_as/email are PII and are never
+        #     printed here — only their presence is reported.
+        members = annotations.list_batch_members(organisation_id=org, batch_id=pushed.batch_id)
+        assert members.row_count == len(members.items) + len(members.rejected), members
+        pairs = sorted((m.user_id, m.role) for m in members.items)
+        assert all(m.eff_from for m in members.items), members.items
+        print(
+            f"6e. list_batch_members -> {members.row_count} row(s) {pairs} "
+            f"open={sum(1 for m in members.items if m.eff_to is None)} "
+            f"display_fields_present={any(m.email or m.given_name for m in members.items)}"
+        )
 
         # 7. Negative: a graph with no rule vertices is a 400, and the batch stays DRAFT+empty
         #    (the documented residue of a half-completed push).

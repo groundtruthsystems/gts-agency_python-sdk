@@ -170,6 +170,7 @@ jobs = annotations.list_jobs(org, batch_id)                       # paged summar
 job = annotations.get_job(org, batch_id, jobs.items[0].id)        # the full row
 ledger = annotations.list_job_transitions(org, batch_id, job.id)  # approval evidence
 graph = annotations.get_graph(org, batch_id)                      # the upload, echoed back
+members = annotations.list_batch_members(org, batch_id)           # who held which role, when
 ```
 
 ### The list gives you summaries, not jobs
@@ -329,6 +330,57 @@ uploaded, or whose object was lost behind a surviving database row, looks the sa
 as a server fault. Treat a 500 here as "the graph is not retrievable" rather than
 something to retry.
 
+### Who held which role, and when
+
+`list_batch_members` is the server's record of review authority over a batch. Read
+it rather than reconstructing role windows from the ledger: the ledger only knows
+about people who actually fired a transition, while this knows who was *entitled*
+to, and for how long.
+
+```python
+for m in annotations.list_batch_members(org, batch_id).items:
+    still_held = m.eff_to is None
+    ...  # m.user_id, m.role, m.eff_from
+```
+
+Three things that catch people:
+
+- **Rows are role-per-row, not member-per-row.** The key is `(batch_id, user_id,
+  role, eff_from)`, so one person holding three roles is three rows. A lookup keyed
+  on `user_id` alone finds several and will quietly take whichever came first. Seen
+  live: one user holding `admin`, `approver` and `reviewer` on the same batch.
+- **`role` is an open vocabulary.** `member` and `admin` are the two the server
+  names as constants; everything else is a role code the batch's *workflow* declares
+  — `annotator`, `reviewer`, `approver`, and whatever an author adds next. There is
+  no enum for the same reason there is none for `state_code`.
+- **The audit fields are flat here** (`created_on`, `created_by`, …), not nested in
+  `audit_data` the way the batch and job models nest theirs.
+
+`eff_to` is `None` while a membership is still in force.
+
+> **PII.** `given_name`, `family_name`, `known_as` and `email` name a real person.
+> They appear only on the joined read, which is why they are optional. Not PHI, so
+> the rule is weaker than the one on transition notes — but still personal data, and
+> not for logs or exports.
+
+Worth knowing even if you never call this: the endpoint's published OpenAPI
+annotation says it returns `Vec<AnnotationBatchMember>`, but it is paged like the
+rest. A caller trusting the spec would unpack a bare array and find nothing.
+
+### A RESTRICTED batch you are not in is invisible, not rejected
+
+Confidentiality is enforced on the **list**. The server appends
+
+```sql
+AND (b.confidentiality_level NOT IN (...) OR EXISTS (active membership))
+```
+
+to `list_batches`, so a `RESTRICTED` batch the caller is not an active member of
+never appears — it is not a `rejected` row, and no amount of page tolerance will
+surface it. If a batch you expect is simply absent from a list, check membership
+before suspecting the parser. Observed by a consumer as eleven batches returned out
+of twelve.
+
 ## Failure modes worth knowing
 
 | Situation | What happens |
@@ -341,6 +393,7 @@ something to retry.
 | Caller lacks annotations write | `403` (or `400 "User not supplied."` when the principal has no local user id — see below). |
 | `get_graph` on a batch whose object is gone | `500`, not `404` — the object store's "no such key" is not translated. |
 | One unparseable row in a list read | The row lands in `rejected`; the rest of the page still returns. Check `rejected`. |
+| A RESTRICTED batch is missing from `list_batches` | Not an error — the caller is not an active member. Check `list_batch_members`. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,
@@ -358,7 +411,7 @@ something the SDK can work around.
 
 The delegate covers the publish path, its specifications, and the **read** side:
 the batch read-back that proves the push landed, plus the four job-level reads
-above. Deliberately **not** included: any *write* to a job (the `_command`
+above and the batch-members read. Deliberately **not** included: any *write* to a job (the `_command`
 transitions, `/actions`, claims, checklist saves) — a consumer of annotation output
 never writes back — along with dataset batches (`upload-dataset`), batch members,
 the access audit log, and the `archive` / `unarchive` / `set_confidentiality`
