@@ -205,39 +205,44 @@
     {
       "id": "phase-7",
       "name": "list_batch_members (fifth read)",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-7-task-1",
           "name": "Write failing tests for list_batch_members",
           "description": "FR13. Assert GET {batch_id}/members with params o/p/s (BatchQueryParams, the abbreviated form — NOT the transitions spelling); the DTO parses the full server row including eff_from/eff_to under the SERVER's names, not the consumer's effective_from/effective_to; eff_to is nullable (an open membership) while eff_from is not; the display fields are optional because they are only populated on the joined read; and the page goes through _parse_page so one bad member row does not lose the page. Red before green.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "473e99e"
         },
         {
           "id": "phase-7-task-2",
           "name": "Implement AnnotationBatchMember and list_batch_members",
           "description": "Add the DTO and its paged result, and the method over _parse_page. Mirror the server's field names. Docstring must carry: that given_name/family_name/known_as/email are PII and only present on the joined read; that the OpenAPI annotation claims Vec<AnnotationBatchMember> while the handler actually returns a paged result, so a reader of the spec will expect the wrong shape; and that this read is not only about membership windows — a RESTRICTED batch the caller is not an active member of is filtered out of list_batches entirely by the server.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "c4f58ce"
         },
         {
           "id": "phase-7-task-3",
           "name": "Document the members read and the RESTRICTED visibility rule",
           "description": "docs/annotations.md gains the fifth read, the PII note, and — separately, because it is a list_batches gotcha rather than a members one — the fact that a RESTRICTED batch without active membership never appears in list_batches at all. Update CLAUDE.md and README.md. Extend examples/quick_annotations.py.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fd48e22"
         },
         {
           "id": "phase-7-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: full gates, live verification against the local stack, checkpoint and git note.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "6ec1afd"
         }
-      ]
+      ],
+      "checkpoint_sha": "6ec1afd"
     },
     {
       "id": "phase-8",
       "name": "PR",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
