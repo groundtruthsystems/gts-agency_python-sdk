@@ -167,22 +167,87 @@
     },
     {
       "id": "phase-6",
-      "name": "PR",
-      "status": "blocked",
-      "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back.",
+      "name": "Paging-count correction",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-6-task-1",
-          "name": "Open the PR against main",
-          "description": "Push feat/annotation-job-reads and open a PR linking issue #16, summarising the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, and the phase-5 tolerance change. Cite the consumer's integration verification (gts-guideline-agent docs/dbq/annotation-publisher-sdk-integration-verification-20260901.md) as the Gate A evidence: the four reads needed no adaptation. State that rc16 is not cut here.",
-          "status": "blocked",
-          "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back."
+          "name": "Write failing tests for row_count",
+          "description": "FR12. Assert row_count equals the rows the server sent — items plus rejects — on a clean page, a partly-rejected page, and an all-rejected page, across all five list reads. Assert the short-page paging idiom is correct when written on row_count and wrong when written on len(items), so the test states the trap rather than only guarding the getter. Red before green.",
+          "status": "doing"
         },
         {
           "id": "phase-6-task-2",
+          "name": "Add TolerantPage.row_count and correct the false docstring",
+          "description": "Add row_count as a computed property on TolerantPage. Then FIX the docstring sentence 'a caller that never looks at rejected behaves exactly as before' — it is false and it is the sentence the consumer quoted when reporting the trap. Before the tolerance change there were two outcomes: every row parsed, or the construction raised. There was no third case, so len(items) WAS the server's row count. A paging caller that ignores rejected now silently under-reads.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-6-task-3",
+          "name": "Document the paging trap",
+          "description": "docs/annotations.md: the sentence the consumer asked for, next to the tolerance section, plus the concrete consequence they measured — a ledger loop that stops early turns the separation-of-duties gate from fail-closed to fail-open, which is the case that makes this worth more than a footnote. Update CLAUDE.md.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-6-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: full gates, manual verification, checkpoint commit and git note.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "list_batch_members (fifth read)",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-7-task-1",
+          "name": "Write failing tests for list_batch_members",
+          "description": "FR13. Assert GET {batch_id}/members with params o/p/s (BatchQueryParams, the abbreviated form — NOT the transitions spelling); the DTO parses the full server row including eff_from/eff_to under the SERVER's names, not the consumer's effective_from/effective_to; eff_to is nullable (an open membership) while eff_from is not; the display fields are optional because they are only populated on the joined read; and the page goes through _parse_page so one bad member row does not lose the page. Red before green.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-7-task-2",
+          "name": "Implement AnnotationBatchMember and list_batch_members",
+          "description": "Add the DTO and its paged result, and the method over _parse_page. Mirror the server's field names. Docstring must carry: that given_name/family_name/known_as/email are PII and only present on the joined read; that the OpenAPI annotation claims Vec<AnnotationBatchMember> while the handler actually returns a paged result, so a reader of the spec will expect the wrong shape; and that this read is not only about membership windows — a RESTRICTED batch the caller is not an active member of is filtered out of list_batches entirely by the server.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-7-task-3",
+          "name": "Document the members read and the RESTRICTED visibility rule",
+          "description": "docs/annotations.md gains the fifth read, the PII note, and — separately, because it is a list_batches gotcha rather than a members one — the fact that a RESTRICTED batch without active membership never appears in list_batches at all. Update CLAUDE.md and README.md. Extend examples/quick_annotations.py.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-7-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md: full gates, live verification against the local stack, checkpoint and git note.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "name": "PR",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-8-task-1",
+          "name": "Open the PR against main",
+          "description": "Push feat/annotation-job-reads and open a PR linking issue #16: the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, the phase-5 tolerance change, the phase-6 paging-count correction, and the phase-7 members read. Cite the consumer's two verification rounds (2026-09-01 integration, 2026-09-02 tolerance: 249 tests unchanged, byte-identical live run) as the Gate A evidence. Note that the branch being unpushed is itself the blocker the consumer raised on 2026-09-11 — 'delivered' and 'installable' had drifted apart.",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-8-task-2",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: final gate run, checkpoint commit and git note.",
-          "status": "backlog"
+          "status": "backlog",
+          "blocked_reason": null
         }
       ]
     }

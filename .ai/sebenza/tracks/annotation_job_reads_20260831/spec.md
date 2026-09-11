@@ -1,7 +1,7 @@
 # Spec — Annotations: four read-only job delegates for the annotation→KG Publisher
 
 **Track:** `annotation_job_reads_20260831`
-**Type:** Chore (additive; no existing behaviour changes)
+**Type:** Chore (additive; FR11 changed how a page parses, though not what a well-formed one returns)
 **Branch:** `feat/annotation-job-reads`
 **Issue:** [gts-agency_python-sdk#16](https://github.com/groundtruthsystems/gts-agency_python-sdk/issues/16)
 **Design of record:** `gts-guideline-agent` `docs/dbq/annotation-publisher-transfer-design-20260829.md` §2.2 (this repo is its Track **B1**)
@@ -171,6 +171,73 @@ the paged read.
   resulting inconsistency is **documented rather than silent**, and extending the policy is a
   separate decision.
 
+### FR12 — `row_count`: the page's real size (added 2026-09-10)
+
+**Added on the consumer's verification of FR11** (issue #16, 2026-09-02). FR11 passed every check
+they ran, but it broke an invariant nobody had written down.
+
+Before FR11 there were exactly two outcomes: every row parsed and `len(items)` **was** the number of
+rows the server sent, or the construction raised and there was no result. No third case. FR11
+created one, and the near-universal paging idiom silently encodes the old invariant:
+
+```python
+if len(items) < page_size:
+    break          # a full page carrying two rejects now reads as a short page
+```
+
+Measured by the consumer with two malformed rows on page 0 of two: a batch sweep returned 3 of 8 and
+never requested page 1; a job read returned 4 of 6; and a ledger loop stopped after page 0 — that
+last one being the separation-of-duties gate, so **a safety check that had been failing closed
+started failing open**. A malformed row does not heal, so it repeats every run.
+
+- `TolerantPage` gains **`row_count`** — `len(items) + len(rejected)`, the rows the server actually
+  sent on this page. It is what a paging loop must compare against `size`.
+- The `TolerantPage` docstring sentence *"a caller that never looks at `rejected` behaves exactly as
+  before"* is **false and must be corrected**, not merely supplemented. It is the sentence the
+  consumer quoted when reporting the trap: it is true for a caller that reads one page and uses
+  `.items`, and wrong for any caller that pages.
+- `docs/annotations.md` states the trap next to the tolerance description, with the fail-open
+  consequence — that is what makes it worth more than a footnote.
+
+This is the cost of FR11 rather than an argument against it: the fix is a name and a sentence, and
+the alternative was losing whole pages indefinitely.
+
+### FR13 — `list_batch_members(organisation_id, batch_id, *, page=0, size=50)` (added 2026-09-10)
+
+**Added on the consumer's request** (issue #16, 2026-09-11), with the user's approval to fold it into
+this track so one release carries the whole read surface. Wraps
+`GET /api/annotations/{batch_id}/members?o=&p=&s=` — already live in comand, no server change.
+
+Verified against gts-comand `crates/comand/src/handler/annotations.rs:482` and
+`model/annotation_member.rs:67`. Three things the request's description does not match, and the
+server wins each time:
+
+1. **The fields are `eff_from` / `eff_to`**, not `effective_from` / `effective_to`. Those are the
+   consumer's own model's names; the SDK mirrors the wire, and the consumer maps on its side — the
+   same rule that governs the query-param spellings in FR3.
+2. **The endpoint is paged.** Its OpenAPI annotation claims `Vec<AnnotationBatchMember>`, but the
+   handler returns `PagedResult<AnnotationBatchMember>` and takes `p`/`s`. A reader of the published
+   spec will expect a bare array; the docstring must say so.
+3. **Query params are the abbreviated `o`/`p`/`s`** (`BatchQueryParams`), not the transitions
+   endpoint's spelled-out form.
+
+`AnnotationBatchMember` carries `batch_id`, `user_id`, `role`, `eff_from` (required), `eff_to`
+(nullable — an open membership), the audit quartet, and four **display fields**
+(`given_name`, `family_name`, `known_as`, `email`) that are populated only on the joined read and
+are therefore optional.
+
+- **The display fields are PII.** They identify clinicians by name and email. They are not PHI, so
+  the rule is weaker than `JobTransitionEntry.note`'s, but the docstring must still say they are
+  personal data and not for casual logging.
+- The read goes through the FR11 page parser like the other five, for one behaviour across the
+  surface.
+- The docs must also record what the consumer found while asking for this, because it is a
+  **`list_batches` fact rather than a members one**: a RESTRICTED batch the caller is not an active
+  member of does not appear in `list_batches` at all. The server filters it —
+  `annotation_repository.rs:413`, `AND (b.confidentiality_level NOT IN (...) OR EXISTS (active
+  membership))` — so such a batch is invisible rather than rejected, and no amount of page tolerance
+  will surface it.
+
 ## Non-Functional Requirements
 
 - `mypy agency_sdk/` strict passes; `black --check` at 120 chars; `bandit -r agency_sdk/ -x agency_sdk/test` clean.
@@ -197,6 +264,11 @@ the paged read.
 10. (FR11) A page with one unparseable row returns the well-formed rows and reports the bad one with
     its index, raw dict and error; a malformed `page` envelope still raises; the four single-item
     reads still raise; the policy and its deliberate limit to this delegate are documented.
+11. (FR12) `row_count` equals items plus rejects on every list read; the false docstring sentence is
+    corrected; the paging trap and its fail-open consequence are documented.
+12. (FR13) `list_batch_members` exists, mirrors the server's `eff_from`/`eff_to` names and `o`/`p`/`s`
+    params, parses the full member row, flags the display fields as PII, and rides the FR11 page
+    parser. The RESTRICTED-invisibility rule is documented against `list_batches`.
 
 ## Out of Scope
 

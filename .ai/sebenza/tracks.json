@@ -209,10 +209,10 @@
       "track_id": "annotation_job_reads_20260831",
       "type": "chore",
       "description": "Add the four read-only job delegates the annotation→KG Publisher needs (issue #16, Track B1): list_jobs, get_job, list_job_transitions and get_graph on AgencyAnnotationsClient, plus AnnotationJobSummary/AnnotationJob/JobTransitionEntry and their paged wrappers. Mirrors each endpoint's own query-param names rather than normalising them (jobs use o/p/s, transitions use organisation/page/size), keeps annotation_data/checklist_state/delta opaque because their shape is owned by whichever front-end wrote them, and carries the PHI never-log warning on transition notes. Read-only by design: the Publisher never writes to comand. Zero comand changes; rc16 is cut separately once the consuming track's Gate A signs off.",
-      "status": "blocked",
-      "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back.",
+      "status": "doing",
+      "blocked_reason": null,
       "created_at": "2026-09-01T03:28:23Z",
-      "updated_at": "2026-09-02T02:23:41Z",
+      "updated_at": "2026-09-11T03:27:45Z",
       "spec_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/plan.json",
       "phases_summary": [
@@ -248,15 +248,27 @@
         },
         {
           "id": "phase-6",
+          "name": "Paging-count correction",
+          "status": "doing",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-7",
+          "name": "list_batch_members (fifth read)",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-8",
           "name": "PR",
-          "status": "blocked",
-          "blocked_reason": "Held on 2026-09-01 pending guideline-agent's verification of the phase-5 paged-read tolerance. The branch is complete and green (298 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage) and is already live in gts-guideline-agent's venv via the editable install, so the consumer can verify against it now without a PR or a release. Version stays at 0.0.1rc16.dev0 by decision. Resume by confirming the push once that verification comes back."
+          "status": "backlog",
+          "blocked_reason": null
         }
       ],
       "progress": {
-        "total_tasks": 19,
+        "total_tasks": 27,
         "completed_tasks": 17,
-        "percentage": 89.5
+        "percentage": 63.0
       }
     }
   ]
