@@ -994,3 +994,23 @@ class TestBatchMembers:
         assert len(result.items) == 1
         assert [r.index for r in result.rejected] == [1]
         assert result.row_count == 2
+
+    def test_the_members_page_is_measured_in_people_not_rows(self, client, stub_requests):
+        # The server pages a derived table of DISTINCT users and then joins every
+        # role row back, so rows > people and the envelope mixes units: total counts
+        # people, size comes back as rows. row_count is therefore the ROW count, not
+        # the paging unit — safe to end a walk on (it is never below the people
+        # count) but not tight.
+        rows = [
+            {**MEMBER_JSON, "user_id": u, "role": r}
+            for u, roles in ((1, ("admin", "approver")), (7, ("member",)))
+            for r in roles
+        ]
+        stub_requests.queue(json_data={"page": {"page": 0, "size": len(rows), "total": 2}, "items": rows})
+
+        result = client.list_batch_members(organisation_id=2, batch_id="b-1")
+
+        assert result.row_count == 3  # rows
+        assert result.page.total == 2  # people
+        assert len({m.user_id for m in result.items}) == 2  # the exact test
+        assert result.row_count >= len({m.user_id for m in result.items})  # safe direction

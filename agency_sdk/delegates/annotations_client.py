@@ -691,11 +691,25 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         returns a paged result — a caller trusting the spec would unpack a bare
         array and get nothing. Params are the abbreviated ``o`` / ``p`` / ``s``.
 
+        **This page is measured in people, not rows.** ``size`` caps distinct users;
+        the server then returns *every* role row for the users on that page, so a
+        page of 4 people can be 9 rows. The envelope reflects that unevenly:
+        ``page.total`` counts distinct **people** (matching the paging unit), while
+        ``page.size`` comes back as the number of **rows** returned — neither the
+        size you asked for nor the people count.
+
+        Consequently :attr:`~agency_sdk.delegates.annotations_dto.TolerantPage.row_count`
+        is the row count here, not the paging unit. It is still safe to end a walk
+        on it — ``row_count`` is never less than the number of people, so
+        ``row_count < size`` really does mean the last page — but it is not tight,
+        and a page that ends exactly on the cap costs one extra empty request. To be
+        exact, compare ``len({m.user_id for m in result.items})`` against ``size``.
+
         Args:
             organisation_id: The organisation ID.
             batch_id: The batch whose members to list.
-            page: Zero-indexed page number.
-            size: Page size (the server's own default is 50).
+            page: Zero-indexed page number — of **people**.
+            size: Maximum distinct users per page (the server's own default is 50).
         """
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
         body = self._make_request("GET", f"/{batch_id}/members", params=params)

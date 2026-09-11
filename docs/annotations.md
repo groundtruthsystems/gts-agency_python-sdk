@@ -358,6 +358,23 @@ Three things that catch people:
 
 `eff_to` is `None` while a membership is still in force.
 
+**This page is measured in people, not rows.** `size` caps distinct users and the
+server returns every role row belonging to them, so a page of 4 people can be 9
+rows — and the envelope is uneven about it: `page.total` counts *people* (the
+paging unit), while `page.size` comes back as the *rows* returned, which is neither
+what you asked for nor the people count.
+
+So `row_count` is the row count here rather than the paging unit. Ending a walk on
+it is still safe — `row_count` is never below the number of people, so
+`row_count < size` really is the last page — but it is not tight. For an exact
+test, count distinct `user_id`:
+
+```python
+if len({m.user_id for m in page.items}) < size:
+    break
+```
+
+
 > **PII.** `given_name`, `family_name`, `known_as` and `email` name a real person.
 > They appear only on the joined read, which is why they are optional. Not PHI, so
 > the rule is weaker than the one on transition notes — but still personal data, and
