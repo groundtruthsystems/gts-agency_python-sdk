@@ -862,3 +862,92 @@ class TestPageTolerance:
             stub_requests.queue(json_data=queue_body)
             with pytest.raises(ValidationError):
                 call()
+
+
+class TestRowCount:
+    """FR12: ``row_count`` is the page's real size — items plus rejects.
+
+    Tolerating a bad row broke an invariant nobody had written down. Before it,
+    either every row parsed and ``len(items)`` WAS the number of rows the server
+    sent, or the construction raised and there was no result; there was no third
+    case. There is now, and the near-universal "a short page is the last page"
+    idiom silently encodes the old invariant — a full page carrying two rejects
+    reads as a short page and the loop stops early.
+
+    The consumer measured that against a transition ledger, where a loop stopping
+    early means a later ``prior_actor_conflict`` row is never read: a
+    separation-of-duties gate that had been failing closed starts failing open.
+    """
+
+    def _page(self, *items):
+        return {"page": {"page": 0, "size": 50, "total": len(items)}, "items": list(items)}
+
+    def _batch(self, i, **over):
+        row = {
+            "id": f"batch-{i}",
+            "organisation_id": 2,
+            "name": f"DBQ: Batch {i}",
+            "batch_type": "graph",
+            "total_jobs": 10,
+            "status": 2,
+            "confidentiality_level": "INTERNAL",
+        }
+        row.update(over)
+        return row
+
+    def test_row_count_equals_items_on_a_clean_page(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), self._batch(3)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert result.row_count == 3 == len(result.items)
+
+    def test_row_count_counts_the_rejects_too(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), {"bad": True}, self._batch(3), "nope"))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert len(result.items) == 2
+        assert len(result.rejected) == 2
+        assert result.row_count == 4  # what the server actually sent
+
+    def test_row_count_on_an_all_rejected_page_is_not_zero(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page({"bad": 1}, {"bad": 2}))
+
+        result = client.list_batches(organisation_id=2)
+
+        # The page was full. Reading zero here is what stops a loop dead.
+        assert result.items == []
+        assert result.row_count == 2
+
+    def test_row_count_is_zero_on_a_genuinely_empty_page(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page())
+
+        assert client.list_batches(organisation_id=2).row_count == 0
+
+    def test_the_short_page_idiom_is_right_on_row_count_and_wrong_on_items(self, client, stub_requests):
+        # This is the trap itself, stated as a test rather than only guarded against.
+        size = 4
+        stub_requests.queue(
+            json_data={
+                "page": {"page": 0, "size": size, "total": 8},
+                "items": [self._batch(1), {"bad": True}, {"bad": True}, self._batch(4)],
+            }
+        )
+
+        result = client.list_batches(organisation_id=2, size=size)
+
+        assert len(result.items) < size  # the old idiom concludes "last page" —
+        assert result.row_count == size  # — while the server sent a full one, and page 1 exists.
+
+    def test_every_list_read_exposes_row_count(self, client, stub_requests):
+        cases = [
+            (lambda: client.list_batches(organisation_id=2), self._batch(1)),
+            (lambda: client.list_jobs(organisation_id=2, batch_id="b"), JOB_SUMMARY_JSON),
+            (lambda: client.list_specs(organisation_id=2), SPEC_JSON),
+            (lambda: client.list_workflows(organisation_id=2), WORKFLOWS_PAGE["items"][0]),
+            (lambda: client.list_job_transitions(organisation_id=2, batch_id="b", job_id="j"), TRANSITION_JSON),
+        ]
+        for call, good in cases:
+            stub_requests.queue(json_data=self._page(good, {"bad": True}))
+            assert call().row_count == 2
