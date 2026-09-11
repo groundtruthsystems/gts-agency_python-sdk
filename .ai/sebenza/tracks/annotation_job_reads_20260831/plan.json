@@ -168,46 +168,51 @@
     {
       "id": "phase-6",
       "name": "Paging-count correction",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-6-task-1",
           "name": "Write failing tests for row_count",
           "description": "FR12. Assert row_count equals the rows the server sent — items plus rejects — on a clean page, a partly-rejected page, and an all-rejected page, across all five list reads. Assert the short-page paging idiom is correct when written on row_count and wrong when written on len(items), so the test states the trap rather than only guarding the getter. Red before green.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "71c3609"
         },
         {
           "id": "phase-6-task-2",
           "name": "Add TolerantPage.row_count and correct the false docstring",
           "description": "Add row_count as a computed property on TolerantPage. Then FIX the docstring sentence 'a caller that never looks at rejected behaves exactly as before' — it is false and it is the sentence the consumer quoted when reporting the trap. Before the tolerance change there were two outcomes: every row parsed, or the construction raised. There was no third case, so len(items) WAS the server's row count. A paging caller that ignores rejected now silently under-reads.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "341fdf1"
         },
         {
           "id": "phase-6-task-3",
           "name": "Document the paging trap",
           "description": "docs/annotations.md: the sentence the consumer asked for, next to the tolerance section, plus the concrete consequence they measured — a ledger loop that stops early turns the separation-of-duties gate from fail-closed to fail-open, which is the case that makes this worth more than a footnote. Update CLAUDE.md.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "cf04080"
         },
         {
           "id": "phase-6-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: full gates, manual verification, checkpoint commit and git note.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "208e3c9"
         }
-      ]
+      ],
+      "checkpoint_sha": "208e3c9"
     },
     {
       "id": "phase-7",
       "name": "list_batch_members (fifth read)",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-7-task-1",
           "name": "Write failing tests for list_batch_members",
           "description": "FR13. Assert GET {batch_id}/members with params o/p/s (BatchQueryParams, the abbreviated form — NOT the transitions spelling); the DTO parses the full server row including eff_from/eff_to under the SERVER's names, not the consumer's effective_from/effective_to; eff_to is nullable (an open membership) while eff_from is not; the display fields are optional because they are only populated on the joined read; and the page goes through _parse_page so one bad member row does not lose the page. Red before green.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-7-task-2",
