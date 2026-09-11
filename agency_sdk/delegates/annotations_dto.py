@@ -131,16 +131,42 @@ class TolerantPage(BaseModel):
 
     Every list read on this delegate validates its items one at a time: the
     well-formed rows come back in ``items``, and anything that failed is in
-    ``rejected``. ``rejected`` is empty on a healthy page, so a caller that never
-    looks at it behaves exactly as before — but a caller that cares can, which was
-    impossible when one bad row raised for the whole page.
+    ``rejected``, which is empty on a healthy page. One bad row used to raise for
+    the whole page, making the good rows unreachable rather than merely unreported.
 
     A malformed ``page`` envelope still raises. That is a broken response rather than
     a bad row, and a page whose paging cannot be trusted is not worth handing back.
+
+    **If you page, page on** :attr:`row_count`. Tolerating a bad row cost an
+    invariant that was never written down: there used to be exactly two outcomes —
+    every row parsed, so ``len(items)`` *was* the number of rows the server sent, or
+    the construction raised and there was no result. There is now a third, and the
+    usual "a short page is the last page" test silently assumes the old one::
+
+        if len(items) < page_size:   # WRONG: a full page with two rejects
+            break                    #        looks short, and the loop stops early
+
+        if page.row_count < page_size:   # right: what the server actually sent
+            break
+
+    Reading it the first way truncates the walk, and a malformed row does not heal,
+    so it truncates it again on every run. On a transition ledger that is not merely
+    incomplete: a later row carrying ``prior_actor_conflict`` never gets read, so a
+    separation-of-duties check that was failing closed begins failing **open**.
     """
 
     page: Page
     rejected: list[RejectedRow] = Field(default_factory=list)
+
+    @property
+    def row_count(self) -> int:
+        """Rows the server sent on this page — parsed or not.
+
+        ``len(items)`` counts only what parsed, so it is the wrong number to compare
+        against the page size when deciding whether another page exists.
+        """
+        items: list[Any] = getattr(self, "items", [])
+        return len(items) + len(self.rejected)
 
 
 class AnnotationBatchesPagedResult(TolerantPage):
