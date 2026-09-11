@@ -203,6 +203,11 @@ if page.rejected:             # the rows that did not — do not ignore this
                 len(page.rejected), [r.index for r in page.rejected])
 ```
 
+> **If you page, page on `row_count`.** `items` now holds the rows that *parsed*,
+> not the rows the server *sent*. Compare `page.row_count` — `len(items) +
+> len(rejected)` — against the page size, never `len(items)`.
+
+
 This exists because the alternative has a blast radius out of all proportion to the
 fault. Building the page in one construction — `AnnotationBatchesPagedResult(**body)`
 over `items: list[AnnotationBatch]` — validates the list as a unit, so a single bad
@@ -231,6 +236,36 @@ publish is exactly the case where you need to know the job set is complete.
 > session templates, work queues — still validate a page as a unit and still lose it
 > to one bad row. Extending the policy is a separate decision; it is recorded here so
 > the inconsistency is visible rather than surprising.
+
+#### The paging trap this creates
+
+Tolerance cost an invariant that was never written down. Before it there were two
+outcomes and no third: every row parsed, so `len(items)` **was** the number of rows
+the server sent, or the construction raised and there was no result at all. The
+near-universal end-of-pages test quietly relies on that:
+
+```python
+# WRONG once a page can carry rejects
+if len(items) < page_size:
+    break                     # a full page with two rejects looks short
+
+# right
+if page.row_count < page_size:
+    break
+```
+
+Read it the wrong way and the walk stops early — and because a malformed row does
+not heal, it stops early on every run rather than once. Measured by a consumer with
+two malformed rows on page 0 of two: a batch sweep returned 3 of 8 and never asked
+for page 1, and a job read returned 4 of 6.
+
+On a **transition ledger** it is worse than incomplete. A loop that stops after page
+0 never reads a later row carrying `prior_actor_conflict`, so a separation-of-duties
+check that was failing closed begins failing **open** — the one direction a safety
+gate must never drift.
+
+Treat a reject as a result rather than a silence, too: recover what you can from
+`raw`, and let the gate that cared about the row fail closed rather than skipping it.
 
 ### Query parameter names differ per endpoint
 
