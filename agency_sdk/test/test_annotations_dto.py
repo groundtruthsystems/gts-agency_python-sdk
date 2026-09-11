@@ -11,6 +11,8 @@ from agency_sdk.delegates.annotations_dto import (
     DEFAULT_TARGET_CLASS,
     AnnotationBatch,
     AnnotationBatchesPagedResult,
+    AnnotationBatchMember,
+    AnnotationBatchMembersPagedResult,
     AnnotationBatchResponse,
     AnnotationJob,
     AnnotationJobsPagedResult,
@@ -543,3 +545,75 @@ def test_job_transitions_paged_result_wraps_page_and_items():
 
     assert result.page.total == 1
     assert [e.transition_code for e in result.items] == ["approve"]
+
+
+#: A member row as the server sends it. Note the audit fields are FLAT here, unlike
+#: the batch and job models which nest them in ``audit_data`` — mirroring the server
+#: rather than imposing consistency it does not have.
+MEMBER_JSON = {
+    "batch_id": "7324f779-3e61-418e-be3b-2a3faf296a27",
+    "user_id": 907,
+    "role": "admin",
+    "eff_from": "2026-08-27T09:00:00Z",
+    "eff_to": None,
+    "created_on": "2026-08-27T09:00:00Z",
+    "created_by": "901",
+    "modified_on": None,
+    "modified_by": None,
+    "given_name": "Dana",
+    "family_name": "Okonkwo",
+    "known_as": "Dr Okonkwo",
+    "email": "dana.okonkwo@example.org",
+}
+
+
+def test_annotation_batch_member_parses_the_row_with_the_servers_field_names():
+    member = AnnotationBatchMember(**MEMBER_JSON)
+
+    assert member.batch_id == MEMBER_JSON["batch_id"]
+    assert member.user_id == 907
+    assert member.role == "admin"
+    # eff_from / eff_to, NOT effective_from / effective_to. The SDK mirrors the wire.
+    assert member.eff_from == "2026-08-27T09:00:00Z"
+    assert member.eff_to is None
+    assert member.created_by == "901"
+
+
+def test_an_open_membership_has_no_eff_to():
+    member = AnnotationBatchMember(**MEMBER_JSON)
+
+    assert member.eff_to is None  # still a member
+    closed = AnnotationBatchMember(**{**MEMBER_JSON, "eff_to": "2026-09-01T00:00:00Z"})
+    assert closed.eff_to == "2026-09-01T00:00:00Z"
+
+
+def test_eff_from_is_required_but_the_display_fields_are_not():
+    # The display fields are only populated on the joined read, so a row without
+    # them is normal rather than malformed.
+    bare = AnnotationBatchMember(
+        batch_id="b",
+        user_id=1,
+        role="member",
+        eff_from="2026-08-27T09:00:00Z",
+        created_on="2026-08-27T09:00:00Z",
+        created_by="901",
+    )
+
+    assert (bare.given_name, bare.family_name, bare.known_as, bare.email) == (None, None, None, None)
+    assert bare.eff_to is None and bare.modified_on is None
+
+
+def test_member_role_is_the_access_level_not_a_workflow_role():
+    # annotation_batch_member.role is member/admin — batch ACCESS. The workflow
+    # roles a transition stamps (annotator/reviewer/approver) are derived from
+    # permission bits at action time and are not recorded here. A caller wanting
+    # "when was this person an approver" must read the ledger, not this.
+    assert AnnotationBatchMember(**MEMBER_JSON).role in {"member", "admin"}
+
+
+def test_batch_members_paged_result_wraps_page_and_items():
+    result = AnnotationBatchMembersPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [MEMBER_JSON]})
+
+    assert result.page.total == 1
+    assert [m.user_id for m in result.items] == [907]
+    assert result.rejected == []

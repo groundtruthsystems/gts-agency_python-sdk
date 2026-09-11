@@ -19,6 +19,7 @@ from agency_sdk.test.test_annotations_dto import (
     DRAFT_BATCH_JSON,
     JOB_JSON,
     JOB_SUMMARY_JSON,
+    MEMBER_JSON,
     SPEC_JSON,
     TRANSITION_JSON,
 )
@@ -951,3 +952,45 @@ class TestRowCount:
         for call, good in cases:
             stub_requests.queue(json_data=self._page(good, {"bad": True}))
             assert call().row_count == 2
+
+
+class TestBatchMembers:
+    """FR13: the members read.
+
+    Wraps ``GET /api/annotations/{batch_id}/members``. Its OpenAPI annotation
+    advertises ``Vec<AnnotationBatchMember>``, but the handler binds
+    ``BatchQueryParams`` and returns a paged result — the spec is wrong about the
+    shape, so a caller who trusted it would unpack the wrong thing.
+    """
+
+    def test_hits_the_members_path_with_the_abbreviated_params(self, client, stub_requests):
+        # BatchQueryParams is o/p/s — the abbreviated form, NOT the transitions
+        # endpoint's spelled-out organisation/page/size.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [MEMBER_JSON]})
+
+        result = client.list_batch_members(organisation_id=2, batch_id=MEMBER_JSON["batch_id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{MEMBER_JSON['batch_id']}/members"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert [m.user_id for m in result.items] == [907]
+        assert result.items[0].eff_to is None
+
+    def test_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 5, "total": 0}, "items": []})
+
+        client.list_batch_members(organisation_id=9, batch_id="b-1", page=2, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "2", "s": "5"}
+
+    def test_rides_the_shared_page_parser(self, client, stub_requests):
+        stub_requests.queue(
+            json_data={"page": {"page": 0, "size": 50, "total": 2}, "items": [MEMBER_JSON, {"user_id": 1}]}
+        )
+
+        result = client.list_batch_members(organisation_id=2, batch_id="b-1")
+
+        assert len(result.items) == 1
+        assert [r.index for r in result.rejected] == [1]
+        assert result.row_count == 2
