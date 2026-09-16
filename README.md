@@ -50,7 +50,7 @@ Access each API domain through the facade:
 - `client.dataset()` — datasets CRUD, filesystem traversal, clone
 - `client.datasource()` — datasource and table introspection
 - `client.files()` — tenant file storage: list, upload, folder management, delete, signed URLs, `gtsf://` URI resolution, streamed download
-- `client.ontology()` — ontology export (JSON, Turtle, ISON) and entity-datasource mappings
+- `client.ontology()` — list ontologies (name → id, optional `kind` filter), export (JSON snapshot, Turtle/OWL, SHACL, package, package-zip), and entity-datasource mappings
 - `client.prompts()` — prompt CRUD via command pattern
 - `client.rules()` — rule listing, detail, execution, and execution history
 - `client.session_vault()` — session-scoped key/value vault for agent state (classification-based encryption, audited reveal)
@@ -105,6 +105,27 @@ files.download(file_id=file_id, organisation_id=2, target_path="./report.pdf")
 
 See [docs/files_storage_flows.md](docs/files_storage_flows.md) for the full
 upload/download architecture.
+
+### Ontology Export Example
+
+Agents retrieve a typed JSON snapshot and use its classes, relations, and
+properties to decide how to treat data. Text formats (`turtle`, `shacl`,
+`package`) return `str`; `package-zip` is binary and must go through
+`export_bytes()`.
+
+```python
+ontology = client.ontology()
+
+listed = ontology.list(organisation_id=2)
+ontology_id = next(item.id for item in listed.items if item.name == "claims")
+
+snapshot = ontology.export_snapshot(ontology_id=ontology_id, organisation_id=2)
+for entity in snapshot.entities.values():
+    print(f"{entity.entity_type}: {entity.label}")
+
+turtle = ontology.export(ontology_id=ontology_id, organisation_id=2, export_format="turtle")
+zip_bytes = ontology.export_bytes(ontology_id=ontology_id, organisation_id=2, export_format="package-zip")
+```
 
 ### Observability Example
 

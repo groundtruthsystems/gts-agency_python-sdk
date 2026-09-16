@@ -43,7 +43,7 @@ pytest
 - `datasets_client.py` / `datasets_dto.py` — CRUD + filesystem traversal + clone
 - `datasource_client.py` / `datasource_dto.py` — datasource + table introspection
 - `files_client.py` / `files_dto.py` — tenant file storage: list/upload/folders/delete, signed URLs, `gtsf://` resolution, streamed download (see `docs/files_storage_flows.md`)
-- `ontology_client.py` / `ontology_dto.py` — export (multiple formats) + entity-datasource mappings
+- `ontology_client.py` / `ontology_dto.py` — list (`GET /api/ontologies`, optional `kind`) so a caller can resolve a name → id; export (`json`, `owl`/`turtle`, `shacl`, `shacl-package`, `package`, `package-zip`) + typed `OntologySnapshot` (`export_snapshot`) + entity-datasource mappings. Zip is binary: `export()` raises, `export_bytes()` returns `bytes`.
 - `prompts_client.py` + `domain.py` — prompt CRUD via command pattern (`POST /_command`)
 - `rules_client.py` / `rules_dto.py` — rule listing, detail, execution + execution history
 - `session_vault_client.py` / `session_vault_dto.py` — session-scoped key/value vault for agent state (classification-based encryption, audited reveal)
@@ -53,7 +53,7 @@ pytest
 - `session_templates_client.py` / `session_templates_dto.py` — read-only list of an org's session templates (`GET /api/session_templates`), via `AgencyClient.session_templates().list(org)`, so a caller can resolve a template **name → id** at runtime (the guideline-agent dispatcher wires queue/template by name from `schedule.static_input` instead of hardcoding ids)
 - `gateway_client.py` / `gateway_dto.py` — LLM calls through the org's agentgateway, **openai-SDK-only**. `AgencyClient.gateway(*, org_id, gateway_base_url=None, environment=None)` (DCL-cached per `(org_id, gateway_base_url/environment)` identity; URL and environment are mutually exclusive) returns an `AgencyGatewayClient` that is a thin **factory**, not an HTTP client: `openai_client()`/`async_openai_client()` return standard `openai.OpenAI`/`AsyncOpenAI` wired to the gateway host (`/v1`), with the `x-org` routing header (not `x-org-id`) and a per-request rotating-bearer httpx auth hook (from `agency_sdk/auth_hooks.py`; the construction-time `api_key` is a placeholder). `openai` is a **core dependency**. `gateway_dto.py` holds only the discovery DTOs (`AgentGatewayStatusResponse`, `extra="allow"`); omitting `gateway_base_url` discovers the URL via `GET /api/agentgateways?o={org}` (Page-wrapped response; live-verified 2026-07-07). See `docs/gateway.md`, design in `docs/gateway_design.md`
 
-**DTOs:** All models use Pydantic v2 `BaseModel`. Datasource, ontology, and rules DTOs use `ConfigDict(alias_generator=_to_camel, populate_by_name=True)` for camelCase JSON mapping. Prompt/dataset/files DTOs use snake_case matching the API.
+**DTOs:** All models use Pydantic v2 `BaseModel`. Datasource, ontology mappings, and rules DTOs use `ConfigDict(alias_generator=_to_camel, populate_by_name=True)` for camelCase JSON mapping. Ontology list items (`Ontology`) and *export snapshots* (`OntologySnapshot` and nested entity/relation/property models) are snake_case — that is how the Control Plane serialises them. Prompt/dataset/files DTOs use snake_case matching the API.
 
 **Shared type:** `Page` is defined in `datasets_dto.py` and imported by other DTO modules for pagination.
 
