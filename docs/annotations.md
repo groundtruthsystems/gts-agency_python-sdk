@@ -428,11 +428,11 @@ something the SDK can work around.
 
 The delegate covers the publish path, its specifications, and the **read** side:
 the batch read-back that proves the push landed, plus the four job-level reads
-above and the batch-members read. Deliberately **not** included: any *write* to a job (the `_command`
-transitions, `/actions`, claims, checklist saves) — a consumer of annotation output
-never writes back — along with dataset batches (`upload-dataset`), batch members,
-the access audit log, and the `archive` / `unarchive` / `set_confidentiality`
-commands. Add them when a consumer needs them.
+above and the batch-members read. Deliberately **not** included: any *write* to a job
+(the `_command` transitions, `/actions`, claims, checklist saves) — a consumer of
+annotation output never writes back — along with dataset batches
+(`upload-dataset`), the access audit log, and the `archive` / `unarchive` /
+`set_confidentiality` commands. Add them when a consumer needs them.
 
 ## End-to-end example
 

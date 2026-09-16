@@ -241,16 +241,28 @@
     },
     {
       "id": "phase-8",
-      "name": "PR",
-      "status": "blocked",
-      "blocked_reason": "Held on 2026-09-10 by decision: stays local until guideline-agent's verification of the phase-6 row_count correction and the phase-7 members read comes back. The branch is complete and green (314 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage), is editable-installed in gts-guideline-agent's venv, and is also built as a pinnable wheel at 0.0.1rc16.dev0. Note this is now the consumer's own stated blocker (issue #16, 2026-09-11): no environment built from their pyproject/uv.lock can import the publisher, because the pin is rc15 and nothing here is released. Resume by confirming the push once verification returns.",
+      "name": "Verification follow-ups & PR",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
+        {
+          "id": "phase-8-task-0a",
+          "name": "Fix the self-contradicting Scope section",
+          "description": "docs/annotations.md's Scope says the delegate covers the batch-members read and then, four lines later, lists 'batch members' under 'Deliberately not included'. Phase 7 added the inclusion without removing the exclusion; the consumer found it. Remove the stale exclusion.",
+          "status": "doing"
+        },
+        {
+          "id": "phase-8-task-0b",
+          "name": "Document the server's 500 clamp on list_job_transitions",
+          "description": "gts-comand annotation_transition_service.rs:465 does limit.clamp(1, 500) — the only clamp on the annotation service, and silent. A caller asking for more gets 500 with no signal, and a walk ending on 'returned < requested' reads that as the last page: the same shape as the bug phase 6 removed, arriving from the server instead of from len(items). Record it in the docstring and docs.",
+          "status": "backlog"
+        },
         {
           "id": "phase-8-task-1",
           "name": "Open the PR against main",
           "description": "Push feat/annotation-job-reads and open a PR linking issue #16: the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, the phase-5 tolerance change, the phase-6 paging-count correction, and the phase-7 members read. Cite the consumer's two verification rounds (2026-09-01 integration, 2026-09-02 tolerance: 249 tests unchanged, byte-identical live run) as the Gate A evidence. Note that the branch being unpushed is itself the blocker the consumer raised on 2026-09-11 — 'delivered' and 'installable' had drifted apart.",
-          "status": "blocked",
-          "blocked_reason": "Held on 2026-09-10 by decision: stays local until guideline-agent's verification of the phase-6 row_count correction and the phase-7 members read comes back. The branch is complete and green (314 tests, mypy strict, black, bandit; annotations client and DTOs at 100% coverage), is editable-installed in gts-guideline-agent's venv, and is also built as a pinnable wheel at 0.0.1rc16.dev0. Note this is now the consumer's own stated blocker (issue #16, 2026-09-11): no environment built from their pyproject/uv.lock can import the publisher, because the pin is rc15 and nothing here is released. Resume by confirming the push once verification returns."
+          "status": "backlog",
+          "blocked_reason": null
         },
         {
           "id": "phase-8-task-2",
