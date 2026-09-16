@@ -282,6 +282,14 @@ rather than `JobListParams`), so the abbreviations do not work there. The SDK
 mirrors each endpoint rather than normalising them — this inconsistency is the wire
 contract, and "fixing" it would produce a request the server cannot bind.
 
+`list_job_transitions` also **has a silent ceiling**: the server clamps `size` to
+500 — the only clamp on this service, and it says nothing when it applies. Ask for
+9999 and 500 comes back looking like a deliberate answer. Beyond the missing rows,
+a walk that ends on "fewer than I asked for" reads that clamp as the last page,
+which is the `len(items)` trap again arriving from the server instead of from the
+parse. Keep `size` at or below 500, or refuse rather than clamp, so a caller who
+typed a larger number finds out they were wrong.
+
 ### The edit columns are opaque
 
 `annotation_data`, `checklist_state` and `delta` come back as whatever was stored,
@@ -411,6 +419,7 @@ of twelve.
 | `get_graph` on a batch whose object is gone | `500`, not `404` — the object store's "no such key" is not translated. |
 | One unparseable row in a list read | The row lands in `rejected`; the rest of the page still returns. Check `rejected`. |
 | A RESTRICTED batch is missing from `list_batches` | Not an error — the caller is not an active member. Check `list_batch_members`. |
+| `list_job_transitions` returns 500 for a larger `size` | The server clamps to 500 silently. Not the last page — keep `size` <= 500. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,

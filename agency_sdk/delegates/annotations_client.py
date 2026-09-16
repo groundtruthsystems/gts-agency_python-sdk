@@ -623,12 +623,23 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         ``JobListParams``), so the SDK mirrors each endpoint rather than
         normalising: abbreviating here would simply fail to bind.
 
+        **The server silently clamps ``size`` to 500.** It is the only clamp on the
+        annotation service and it reports nothing: ask for 9999 and you get 500 back
+        with no signal that your number was ignored. That matters beyond the missing
+        rows, because a walk that ends on "I got back fewer than I asked for" reads
+        the clamp as the last page — the same failure shape as counting
+        ``len(items)`` instead of
+        :attr:`~agency_sdk.delegates.annotations_dto.TolerantPage.row_count`, but
+        arriving from the server rather than from the parse. Keep ``size`` at or
+        below 500 so the number you pass is the number that applies.
+
         Args:
             organisation_id: The organisation ID.
             batch_id: The batch the job belongs to.
             job_id: The job whose history to read.
             page: Zero-indexed page number.
-            size: Page size (the server's own default is 100).
+            size: Page size. The server's own default is 100 and it **caps this at
+                500 without saying so** — see above.
         """
         params = {"organisation": str(organisation_id), "page": str(page), "size": str(size)}
         body = self._make_request("GET", f"/{batch_id}/jobs/{job_id}/transitions", params=params)
