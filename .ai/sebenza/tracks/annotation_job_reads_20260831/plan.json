@@ -249,13 +249,15 @@
           "id": "phase-8-task-0a",
           "name": "Fix the self-contradicting Scope section",
           "description": "docs/annotations.md's Scope says the delegate covers the batch-members read and then, four lines later, lists 'batch members' under 'Deliberately not included'. Phase 7 added the inclusion without removing the exclusion; the consumer found it. Remove the stale exclusion.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "d92a011"
         },
         {
           "id": "phase-8-task-0b",
           "name": "Document the server's 500 clamp on list_job_transitions",
           "description": "gts-comand annotation_transition_service.rs:465 does limit.clamp(1, 500) — the only clamp on the annotation service, and silent. A caller asking for more gets 500 with no signal, and a walk ending on 'returned < requested' reads that as the last page: the same shape as the bug phase 6 removed, arriving from the server instead of from len(items). Record it in the docstring and docs.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "9f3bef5"
         },
         {
           "id": "phase-8-task-1",
