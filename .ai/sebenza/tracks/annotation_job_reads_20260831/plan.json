@@ -263,7 +263,7 @@
           "id": "phase-8-task-1",
           "name": "Open the PR against main",
           "description": "Push feat/annotation-job-reads and open a PR linking issue #16: the four reads, the per-endpoint param mirroring, the opaque-blob decision, the live E2E evidence, the phase-5 tolerance change, the phase-6 paging-count correction, and the phase-7 members read. Cite the consumer's two verification rounds (2026-09-01 integration, 2026-09-02 tolerance: 249 tests unchanged, byte-identical live run) as the Gate A evidence. Note that the branch being unpushed is itself the blocker the consumer raised on 2026-09-11 — 'delivered' and 'installable' had drifted apart.",
-          "status": "backlog",
+          "status": "doing",
           "blocked_reason": null
         },
         {
