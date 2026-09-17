@@ -28,7 +28,11 @@ dev = [
     "pytest==7.4.0",
     "pytest-cov==4.1.0",
     "pre-commit==3.8.0",
-    "black==23.12.1"
+    "black==23.12.1",
+    # The release workflow gates on bandit and CLAUDE.md tells contributors to run
+    # it before committing, so it belongs in the extra that claims to install the
+    # dev toolchain. Left unpinned to match what CI installs.
+    "bandit"
 ]
 
 [tool.pytest.ini_options]
