@@ -1,12 +1,16 @@
-# Annotations — publishing a graph as work for annotators
+# Annotations — publishing a graph as work for annotators, and reading it back
 
-Push an extracted knowledge graph to the control plane so humans can review it.
-The graph is the **same `create.graph` payload** an agent already builds for the
-ontology sandbox (`run_id` / `vertices` / `edges`), so an agent that produces one
-can publish it unchanged.
+Push an extracted knowledge graph to the control plane so humans can review it,
+then recover what they did. The graph is the **same `create.graph` payload** an
+agent already builds for the ontology sandbox (`run_id` / `vertices` / `edges`), so
+an agent that produces one can publish it unchanged.
 
 Entry point: `client.annotations()` → `AgencyAnnotationsClient`
-(`/api/annotations`, plus `/api/annotation-specs` for the checklists).
+(`/api/annotations`, plus `/api/annotation-specs` for the checklists and
+`/api/annotation-workflows` for the review flows).
+
+Publishing is [three calls](#there-is-no-single-publish-endpoint) wrapped by one;
+[reading back](#reading-a-batch-back) is four.
 
 ## There is no single "publish" endpoint
 
@@ -155,6 +159,253 @@ race, and hiding it would only make the race invisible.
 segment `{id}`, but it resolves it with a by-code lookup — a UUID there returns
 404.
 
+## Reading a batch back
+
+Once annotators have worked a batch, four reads recover what they did. They are
+read-only by design: a consumer of annotation output never writes to the control
+plane, so the delegate exposes no transition, claim, or save methods.
+
+```python
+jobs = annotations.list_jobs(org, batch_id)                       # paged summaries
+job = annotations.get_job(org, batch_id, jobs.items[0].id)        # the full row
+ledger = annotations.list_job_transitions(org, batch_id, job.id)  # approval evidence
+graph = annotations.get_graph(org, batch_id)                      # the upload, echoed back
+members = annotations.list_batch_members(org, batch_id)           # who held which role, when
+```
+
+### The list gives you summaries, not jobs
+
+`list_jobs` returns identity and pipeline position — `id`, `state_code`,
+`workflow_version_id`, the vertex labels, `audit_data` — and **none** of the
+payloads. `vertex_data`, `connected_vertices`, `connected_edges`, `delta`, `data`,
+`checklist_state` and `annotation_data` exist only on `get_job`.
+
+That is the server's design, not an SDK shortcut: a list page never renders those
+columns, and the query behind it uses a deferred join specifically to keep the wide
+rows off the page. Plan for one `get_job` per job you actually need.
+
+There is also **no server-side "completed" filter**, and the SDK does not fake one.
+Filter `list_batches` on `status == BatchStatus.COMPLETED` yourself, then re-check
+each job's `state_code` — batch completion is revertible, so the batch-level answer
+can go stale under you.
+
+### A bad row costs its row, not the page
+
+Every list read here validates its items **one at a time**. Well-formed rows come
+back in `items`; anything that failed to parse is in `rejected`, carrying its index
+in the page as the server sent it, the raw row, and the validation error.
+
+```python
+page = annotations.list_batches(org, size=100)
+for batch in page.items:      # the rows that parsed
+    ...
+if page.rejected:             # the rows that did not — do not ignore this
+    log.warning("%d unparseable batch rows: %s",
+                len(page.rejected), [r.index for r in page.rejected])
+```
+
+> **If you page, page on `row_count`.** `items` now holds the rows that *parsed*,
+> not the rows the server *sent*. Compare `page.row_count` — `len(items) +
+> len(rejected)` — against the page size, never `len(items)`.
+
+
+This exists because the alternative has a blast radius out of all proportion to the
+fault. Building the page in one construction — `AnnotationBatchesPagedResult(**body)`
+over `items: list[AnnotationBatch]` — validates the list as a unit, so a single bad
+row raises and the well-formed rows beside it become *unreachable*, not merely
+unreported. Callers filter scope **after** parsing, so a row you were going to throw
+away can stop you reading the rows you wanted — and keep doing it on every run,
+because a malformed row does not heal.
+
+Two boundaries are deliberate:
+
+- **The `page` envelope is not tolerated.** If the paging itself does not parse, the
+  read raises. Rows handed back under paging that cannot be trusted are worse than no
+  rows.
+- **Single-item reads still fail hard** — `get_batch`, `get_job`, `get_spec`,
+  `get_graph`. A read that cannot return the one thing you named has nothing useful
+  to hand back, so tolerating the failure would only hide it.
+
+`rejected` is reported rather than skipped for the same reason: a list that quietly
+shrank would leave you believing you had seen everything. What to do about it is the
+caller's call, and it differs by read — a batch list can skip the row and keep
+sweeping, whereas a **job** list usually cannot, because a batch you are about to
+publish is exactly the case where you need to know the job set is complete.
+
+> **Scope note.** This policy covers the annotations delegate only. The SDK's other
+> paged reads — datasets, files, datasources, ontology mappings, prompts, rules,
+> session templates, work queues — still validate a page as a unit and still lose it
+> to one bad row. Extending the policy is a separate decision; it is recorded here so
+> the inconsistency is visible rather than surprising.
+
+#### The paging trap this creates
+
+Tolerance cost an invariant that was never written down. Before it there were two
+outcomes and no third: every row parsed, so `len(items)` **was** the number of rows
+the server sent, or the construction raised and there was no result at all. The
+near-universal end-of-pages test quietly relies on that:
+
+```python
+# WRONG once a page can carry rejects
+if len(items) < page_size:
+    break                     # a full page with two rejects looks short
+
+# right
+if page.row_count < page_size:
+    break
+```
+
+Read it the wrong way and the walk stops early — and because a malformed row does
+not heal, it stops early on every run rather than once. Measured by a consumer with
+two malformed rows on page 0 of two: a batch sweep returned 3 of 8 and never asked
+for page 1, and a job read returned 4 of 6.
+
+On a **transition ledger** it is worse than incomplete. A loop that stops after page
+0 never reads a later row carrying `prior_actor_conflict`, so a separation-of-duties
+check that was failing closed begins failing **open** — the one direction a safety
+gate must never drift.
+
+Treat a reject as a result rather than a silence, too: recover what you can from
+`raw`, and let the gate that cared about the row fail closed rather than skipping it.
+
+### Query parameter names differ per endpoint
+
+| Read | Params |
+|---|---|
+| `list_jobs` | `o` / `p` / `s` |
+| `get_job` | `o` |
+| `list_job_transitions` | **`organisation` / `page` / `size`** |
+| `get_graph` | `o` |
+
+The transitions route binds a different query type server-side (`OrganisationQuery`
+rather than `JobListParams`), so the abbreviations do not work there. The SDK
+mirrors each endpoint rather than normalising them — this inconsistency is the wire
+contract, and "fixing" it would produce a request the server cannot bind.
+
+`list_job_transitions` also **has a silent ceiling**: the server clamps `size` to
+500 — the only clamp on this service, and it says nothing when it applies. Ask for
+9999 and 500 comes back looking like a deliberate answer. Beyond the missing rows,
+a walk that ends on "fewer than I asked for" reads that clamp as the last page,
+which is the `len(items)` trap again arriving from the server instead of from the
+parse. Keep `size` at or below 500, or refuse rather than clamp, so a caller who
+typed a larger number finds out they were wrong.
+
+### The edit columns are opaque
+
+`annotation_data`, `checklist_state` and `delta` come back as whatever was stored,
+unvalidated and unreshaped. The control plane never parses them — a save is a
+whole-value column replacement — and their structure belongs to whichever front-end
+wrote them. Two different apps write **different shapes into the same columns**, so
+a consumer that cares must check which shape it got rather than assume.
+
+`vertex_data` is the *original* vertex and is never overwritten by an annotator;
+edits live in `annotation_data`. Nothing merges the two server-side, so a consumer
+that wants the final content merges them itself.
+
+### `revision` is a fence, not a version label
+
+Approved content is not immutable server-side: a save arriving after approval still
+lands. If you are assembling several jobs into one output, snapshot each job's
+`revision` when you read it and re-read before you commit — a change means the job
+moved underneath you and the assembled result is stale.
+
+### The ledger carries PHI
+
+> **Never log, trace, or export `JobTransitionEntry.note`.** It is clinician-written
+> free text that may contain patient information, and the control plane deliberately
+> keeps it out of its own access log. Re-exporting it from the SDK would defeat that.
+
+The rest of the entry is the approval evidence: `transition_code`, `from_state` →
+`to_state`, `actor_user_id`, `acting_as_role`, and `prior_actor_conflict` — which
+marks a transition fired by someone who had already acted on that job. Treat the
+conflict flag as a stop signal rather than a warning.
+
+Note that an entry's `workflow_version_id` is the version **in force when it fired**,
+not the job's current one. Bindings move; only the stamped copy makes a past
+transition attributable to the policy that permitted it.
+
+### The stored graph is returned unmodelled
+
+`get_graph` hands back a plain `dict` — your own `{run_id, vertices, edges}` upload,
+echoed back. It is deliberately not wrapped in a DTO: the SDK did not define that
+payload and has no business constraining it. Use it as the pristine copy to
+cross-check against per-job `vertex_data`.
+
+One rough edge worth knowing: if the batch row points at an object that is not in
+the store, this answers **500**, not 404 — the control plane does not translate the
+object store's "no such key" into a not-found. So a batch whose graph was never
+uploaded, or whose object was lost behind a surviving database row, looks the same
+as a server fault. Treat a 500 here as "the graph is not retrievable" rather than
+something to retry.
+
+### Who held which role, and when
+
+`list_batch_members` is the server's record of review authority over a batch. Read
+it rather than reconstructing role windows from the ledger: the ledger only knows
+about people who actually fired a transition, while this knows who was *entitled*
+to, and for how long.
+
+```python
+for m in annotations.list_batch_members(org, batch_id).items:
+    still_held = m.eff_to is None
+    ...  # m.user_id, m.role, m.eff_from
+```
+
+Three things that catch people:
+
+- **Rows are role-per-row, not member-per-row.** The key is `(batch_id, user_id,
+  role, eff_from)`, so one person holding three roles is three rows. A lookup keyed
+  on `user_id` alone finds several and will quietly take whichever came first. Seen
+  live: one user holding `admin`, `approver` and `reviewer` on the same batch.
+- **`role` is an open vocabulary.** `member` and `admin` are the two the server
+  names as constants; everything else is a role code the batch's *workflow* declares
+  — `annotator`, `reviewer`, `approver`, and whatever an author adds next. There is
+  no enum for the same reason there is none for `state_code`.
+- **The audit fields are flat here** (`created_on`, `created_by`, …), not nested in
+  `audit_data` the way the batch and job models nest theirs.
+
+`eff_to` is `None` while a membership is still in force.
+
+**This page is measured in people, not rows.** `size` caps distinct users and the
+server returns every role row belonging to them, so a page of 4 people can be 9
+rows — and the envelope is uneven about it: `page.total` counts *people* (the
+paging unit), while `page.size` comes back as the *rows* returned, which is neither
+what you asked for nor the people count.
+
+So `row_count` is the row count here rather than the paging unit. Ending a walk on
+it is still safe — `row_count` is never below the number of people, so
+`row_count < size` really is the last page — but it is not tight. For an exact
+test, count distinct `user_id`:
+
+```python
+if len({m.user_id for m in page.items}) < size:
+    break
+```
+
+
+> **PII.** `given_name`, `family_name`, `known_as` and `email` name a real person.
+> They appear only on the joined read, which is why they are optional. Not PHI, so
+> the rule is weaker than the one on transition notes — but still personal data, and
+> not for logs or exports.
+
+Worth knowing even if you never call this: the endpoint's published OpenAPI
+annotation says it returns `Vec<AnnotationBatchMember>`, but it is paged like the
+rest. A caller trusting the spec would unpack a bare array and find nothing.
+
+### A RESTRICTED batch you are not in is invisible, not rejected
+
+Confidentiality is enforced on the **list**. The server appends
+
+```sql
+AND (b.confidentiality_level NOT IN (...) OR EXISTS (active membership))
+```
+
+to `list_batches`, so a `RESTRICTED` batch the caller is not an active member of
+never appears — it is not a `rejected` row, and no amount of page tolerance will
+surface it. If a batch you expect is simply absent from a list, check membership
+before suspecting the parser. Observed by a consumer as eleven batches returned out
+of twelve.
+
 ## Failure modes worth knowing
 
 | Situation | What happens |
@@ -165,6 +416,10 @@ segment `{id}`, but it resolves it with a by-code lookup — a UUID there return
 | Graph over 50 MiB | Rejected by the server's body limit. `requests` also assembles the whole multipart body in memory. |
 | Neither / both of `graph` and `file_path` | `ValueError`, raised before any HTTP call. |
 | Caller lacks annotations write | `403` (or `400 "User not supplied."` when the principal has no local user id — see below). |
+| `get_graph` on a batch whose object is gone | `500`, not `404` — the object store's "no such key" is not translated. |
+| One unparseable row in a list read | The row lands in `rejected`; the rest of the page still returns. Check `rejected`. |
+| A RESTRICTED batch is missing from `list_batches` | Not an error — the caller is not an active member. Check `list_batch_members`. |
+| `list_job_transitions` returns 500 for a larger `size` | The server clamps to 500 silently. Not the last page — keep `size` <= 500. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,
@@ -180,19 +435,21 @@ something the SDK can work around.
 
 ## Scope
 
-The delegate covers the publish path, its specifications, and the read-back that
-proves the push landed. Deliberately **not** included: dataset batches
-(`upload-dataset`), job reads/updates (`/jobs`), the stored-graph read
-(`/{batch_id}/graph`), batch members, the access audit log, and the
-`archive` / `unarchive` / `set_confidentiality` commands. Add them when a consumer
-needs them.
+The delegate covers the publish path, its specifications, and the **read** side:
+the batch read-back that proves the push landed, plus the four job-level reads
+above and the batch-members read. Deliberately **not** included: any *write* to a job
+(the `_command` transitions, `/actions`, claims, checklist saves) — a consumer of
+annotation output never writes back — along with dataset batches
+(`upload-dataset`), the access audit log, and the `archive` / `unarchive` /
+`set_confidentiality` commands. Add them when a consumer needs them.
 
 ## End-to-end example
 
 [`examples/quick_annotations.py`](../examples/quick_annotations.py) runs the whole
 flow against a live control plane — seed-or-find the spec, push from a dict and
-from a file, read back, list, then the 400 and `ValueError` paths — and archives
-every batch it created on the way out.
+from a file, read the batch and its jobs back (all four reads above), list, then
+the 400 and `ValueError` paths — and archives every batch it created on the way
+out.
 
 ```bash
 python examples/quick_annotations.py

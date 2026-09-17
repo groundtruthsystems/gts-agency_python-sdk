@@ -11,7 +11,12 @@ from agency_sdk.delegates.annotations_dto import (
     DEFAULT_TARGET_CLASS,
     AnnotationBatch,
     AnnotationBatchesPagedResult,
+    AnnotationBatchMember,
+    AnnotationBatchMembersPagedResult,
     AnnotationBatchResponse,
+    AnnotationJob,
+    AnnotationJobsPagedResult,
+    AnnotationJobSummary,
     AnnotationSpec,
     AnnotationSpecsPagedResult,
     AnnotationWorkflow,
@@ -20,6 +25,8 @@ from agency_sdk.delegates.annotations_dto import (
     BindWorkflowResult,
     CreateBatchResult,
     CreateSpecResult,
+    JobTransitionEntry,
+    JobTransitionsPagedResult,
     PushGraphResult,
     SpecStatus,
 )
@@ -297,3 +304,325 @@ def test_bind_workflow_result_carries_the_bound_version_and_regoverned_count():
 
     assert result.workflow_version_id == "sys-wfv-graph-2"
     assert result.jobs_regoverned == 0
+
+
+# ---------------------------------------------------------------------------
+# Job reads (issue #16). JSON transcribed from the gts-comand structs at
+# `90f95ad8`: `AnnotationJob` / `AnnotationJobSummary`
+# (`crates/comand/src/model/annotation.rs`) and `JobTransitionEntry`
+# (`model/annotation_workflow.rs`).
+# ---------------------------------------------------------------------------
+
+#: A job as the LIST read returns it: identity and pipeline position only. The
+#: server excludes the heavy payloads from this shape on purpose.
+JOB_SUMMARY_JSON = {
+    "id": "job-4c1a0f88-2b31-4e77-9a56-3d0e1f2a7b90",
+    "batch_id": "7324f779-3e61-418e-be3b-2a3faf296a27",
+    "organisation_id": 2,
+    "job_type": "rule_validation",
+    "vertex_bid": "v-rule-1",
+    "vertex_name": "Knee MRI indications",
+    "display": "Knee MRI indications",
+    "state_code": "completed",
+    "workflow_version_id": "sys-wfv-graph-2",
+    "audit_data": {
+        "created_on": "2026-08-30 11:00:00Z",
+        "created_by": "901",
+        "modified_on": "2026-08-31 08:42:10Z",
+        "modified_by": "907",
+    },
+}
+
+#: The annotator's edits. Deliberately irregular: comand never parses this column
+#: (whole-value replacement) and its shape belongs to whichever front-end wrote it.
+ANNOTATION_DATA_BLOB = {
+    "display": "Knee MRI — indications",
+    "english_description": "Order MRI only after six weeks of conservative care.",
+    "page_references": "3, 5-7, 12",
+    "variables": [
+        {"key": "v0", "code": "GTS:12345", "codeDisplay": "Knee pain", "confirmed": True, "source": "search"},
+        {"key": "new-1", "added": True, "code": "", "confirmed": True, "note": "no suitable concept"},
+    ],
+    "notes": "Reviewed against the 2026 revision.",
+    "unexpected_future_field": {"nested": [1, 2, {"deep": None}]},
+}
+
+#: The same job as the SINGLE read returns it: everything above plus the payloads.
+JOB_JSON = {
+    **JOB_SUMMARY_JSON,
+    "vertex_data": {"bid": "v-rule-1", "class": "rule", "metadata": {"display": "Knee MRI indications"}},
+    "connected_vertices": [{"bid": "v-doc-1", "class": "document"}],
+    "connected_edges": [{"from": "v-rule-1", "to": "v-doc-1", "label": "sourced_from"}],
+    "delta": None,
+    "data": None,
+    "checklist_state": {"text_matches_source": True, "page_reference_correct": False},
+    "annotation_data": ANNOTATION_DATA_BLOB,
+    "revision": 4,
+}
+
+#: The accepting transition. `note` is PHI-capable free text and is never logged.
+TRANSITION_JSON = {
+    "id": 8814,
+    "job_id": JOB_SUMMARY_JSON["id"],
+    "batch_id": JOB_SUMMARY_JSON["batch_id"],
+    "organisation_id": 2,
+    "workflow_version_id": "sys-wfv-graph-1",
+    "from_state": "in_review",
+    "to_state": "completed",
+    "transition_code": "approve",
+    "actor_type": "user",
+    "actor_user_id": 907,
+    "acting_as_role": "approver",
+    "note": None,
+    "prior_actor_conflict": False,
+    "occurred_on": "2026-08-31T08:42:10Z",
+}
+
+
+def test_annotation_job_summary_carries_identity_and_pipeline_position():
+    summary = AnnotationJobSummary(**JOB_SUMMARY_JSON)
+
+    assert summary.id == JOB_SUMMARY_JSON["id"]
+    assert summary.batch_id == JOB_SUMMARY_JSON["batch_id"]
+    assert summary.organisation_id == 2
+    assert summary.job_type == "rule_validation"
+    assert summary.vertex_bid == "v-rule-1"
+    assert summary.vertex_name == "Knee MRI indications"
+    assert summary.display == "Knee MRI indications"
+    assert summary.state_code == "completed"
+    assert summary.workflow_version_id == "sys-wfv-graph-2"
+    # The Publisher's drift fence reads modified_on off this, so it must survive.
+    assert summary.audit_data["modified_on"] == "2026-08-31 08:42:10Z"
+
+
+def test_annotation_job_summary_tolerates_a_dataset_job_with_no_vertex():
+    summary = AnnotationJobSummary(
+        id="j",
+        batch_id="b",
+        organisation_id=2,
+        job_type="categorization",
+        vertex_bid=None,
+        vertex_name=None,
+        display=None,
+        state_code="pending",
+        workflow_version_id="wfv",
+        audit_data=None,
+    )
+
+    assert (summary.vertex_bid, summary.vertex_name, summary.display) == (None, None, None)
+    assert summary.audit_data is None
+
+
+def test_annotation_job_parses_every_field_of_the_full_row():
+    job = AnnotationJob(**JOB_JSON)
+
+    assert job.id == JOB_JSON["id"]
+    assert job.job_type == "rule_validation"
+    assert job.vertex_bid == "v-rule-1"
+    assert job.vertex_data["metadata"]["display"] == "Knee MRI indications"
+    assert job.connected_vertices == JOB_JSON["connected_vertices"]
+    assert job.connected_edges == JOB_JSON["connected_edges"]
+    assert job.delta is None
+    assert job.data is None
+    assert job.checklist_state == {"text_matches_source": True, "page_reference_correct": False}
+    assert job.state_code == "completed"
+    assert job.workflow_version_id == "sys-wfv-graph-2"
+    assert job.revision == 4
+    assert job.audit_data == JOB_SUMMARY_JSON["audit_data"]
+
+
+def test_annotation_job_is_not_a_subclass_of_the_summary():
+    # Two distinct server structs that happen to overlap. Modelling the full row as
+    # an extension of the list row would claim a substitutability the API does not
+    # promise — and would let a summary flow into code that needs the payloads.
+    assert not issubclass(AnnotationJob, AnnotationJobSummary)
+
+
+def test_annotation_job_keeps_annotation_data_opaque():
+    job = AnnotationJob(**JOB_JSON)
+
+    # Byte-for-byte the blob the front-end wrote: not validated, not reshaped, not
+    # key-filtered. Its structure belongs to whichever app saved it.
+    assert job.annotation_data == ANNOTATION_DATA_BLOB
+    assert job.annotation_data["unexpected_future_field"] == {"nested": [1, 2, {"deep": None}]}
+    assert job.annotation_data["variables"][1]["key"] == "new-1"
+
+
+def test_annotation_job_accepts_a_foreign_annotation_data_shape():
+    # comand-web's JobVerificationPage writes a completely different structure into
+    # the same column. The SDK must carry it through untouched so the caller can
+    # detect the contamination itself.
+    foreign = {"rule_text": "…", "confirmed_entities": [], "no_variables_key": True}
+    job = AnnotationJob(**{**JOB_JSON, "annotation_data": foreign, "checklist_state": ["not", "a", "dict"]})
+
+    assert job.annotation_data == foreign
+    assert job.checklist_state == ["not", "a", "dict"]
+
+
+def test_annotation_job_state_code_is_a_plain_string():
+    # Declared String server-side, and its values are declared by the governing
+    # workflow VERSION — workflow data, not an SDK-side constant. No enum.
+    job = AnnotationJob(**{**JOB_JSON, "state_code": "some_future_state"})
+
+    assert job.state_code == "some_future_state"
+    assert isinstance(job.state_code, str)
+
+
+def test_annotation_jobs_paged_result_wraps_page_and_items():
+    result = AnnotationJobsPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
+
+    assert result.page.total == 1
+    assert [j.state_code for j in result.items] == ["completed"]
+
+
+def test_job_transition_entry_parses_the_ledger_row():
+    entry = JobTransitionEntry(**TRANSITION_JSON)
+
+    assert entry.id == 8814
+    assert entry.job_id == JOB_SUMMARY_JSON["id"]
+    assert entry.batch_id == JOB_SUMMARY_JSON["batch_id"]
+    assert entry.organisation_id == 2
+    assert entry.from_state == "in_review"
+    assert entry.to_state == "completed"
+    assert entry.transition_code == "approve"
+    assert entry.actor_type == "user"
+    assert entry.actor_user_id == 907
+    assert entry.acting_as_role == "approver"
+    assert entry.prior_actor_conflict is False
+    assert entry.occurred_on == "2026-08-31T08:42:10Z"
+
+
+def test_job_transition_entry_stamps_the_version_in_force_not_the_job_s_current_one():
+    # Bindings move. Only the stamped copy makes a past transition attributable to
+    # the policy that permitted it, so it must not be conflated with the job's.
+    entry = JobTransitionEntry(**TRANSITION_JSON)
+    job = AnnotationJob(**JOB_JSON)
+
+    assert entry.workflow_version_id == "sys-wfv-graph-1"
+    assert job.workflow_version_id == "sys-wfv-graph-2"
+
+
+def test_job_transition_entry_optional_fields_default_to_none():
+    entry = JobTransitionEntry(
+        id=1,
+        job_id="j",
+        batch_id="b",
+        organisation_id=2,
+        workflow_version_id="wfv",
+        to_state="pending",
+        transition_code="create",
+        actor_type="system",
+        acting_as_role="system",
+        prior_actor_conflict=False,
+        occurred_on="2026-08-30T11:00:00Z",
+    )
+
+    assert entry.from_state is None
+    assert entry.actor_user_id is None
+    assert entry.note is None
+
+
+def test_job_transition_entry_carries_the_conflict_flag_and_its_note():
+    entry = JobTransitionEntry(
+        **{**TRANSITION_JSON, "prior_actor_conflict": True, "note": "same reviewer as the annotator"}
+    )
+
+    assert entry.prior_actor_conflict is True
+    assert entry.note == "same reviewer as the annotator"
+
+
+def test_job_transition_entry_note_docstring_warns_it_is_phi_capable():
+    # The warning is the point of the field: comand excludes it from its own access
+    # log, and a caller reading the DTO must be told before they log it.
+    description = JobTransitionEntry.model_fields["note"].description or ""
+
+    assert "PHI" in description
+    assert "log" in description.lower()
+
+
+def test_job_transitions_paged_result_wraps_page_and_items():
+    result = JobTransitionsPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
+
+    assert result.page.total == 1
+    assert [e.transition_code for e in result.items] == ["approve"]
+
+
+#: A member row as the server sends it. Note the audit fields are FLAT here, unlike
+#: the batch and job models which nest them in ``audit_data`` — mirroring the server
+#: rather than imposing consistency it does not have.
+MEMBER_JSON = {
+    "batch_id": "7324f779-3e61-418e-be3b-2a3faf296a27",
+    "user_id": 907,
+    "role": "admin",
+    "eff_from": "2026-08-27T09:00:00Z",
+    "eff_to": None,
+    "created_on": "2026-08-27T09:00:00Z",
+    "created_by": "901",
+    "modified_on": None,
+    "modified_by": None,
+    "given_name": "Dana",
+    "family_name": "Okonkwo",
+    "known_as": "Dr Okonkwo",
+    "email": "dana.okonkwo@example.org",
+}
+
+
+def test_annotation_batch_member_parses_the_row_with_the_servers_field_names():
+    member = AnnotationBatchMember(**MEMBER_JSON)
+
+    assert member.batch_id == MEMBER_JSON["batch_id"]
+    assert member.user_id == 907
+    assert member.role == "admin"
+    # eff_from / eff_to, NOT effective_from / effective_to. The SDK mirrors the wire.
+    assert member.eff_from == "2026-08-27T09:00:00Z"
+    assert member.eff_to is None
+    assert member.created_by == "901"
+
+
+def test_an_open_membership_has_no_eff_to():
+    member = AnnotationBatchMember(**MEMBER_JSON)
+
+    assert member.eff_to is None  # still a member
+    closed = AnnotationBatchMember(**{**MEMBER_JSON, "eff_to": "2026-09-01T00:00:00Z"})
+    assert closed.eff_to == "2026-09-01T00:00:00Z"
+
+
+def test_eff_from_is_required_but_the_display_fields_are_not():
+    # The display fields are only populated on the joined read, so a row without
+    # them is normal rather than malformed.
+    bare = AnnotationBatchMember(
+        batch_id="b",
+        user_id=1,
+        role="member",
+        eff_from="2026-08-27T09:00:00Z",
+        created_on="2026-08-27T09:00:00Z",
+        created_by="901",
+    )
+
+    assert (bare.given_name, bare.family_name, bare.known_as, bare.email) == (None, None, None, None)
+    assert bare.eff_to is None and bare.modified_on is None
+
+
+def test_member_role_is_an_open_vocabulary_not_just_member_and_admin():
+    # The column takes 'member' | 'admin' | any role code the workflow declares
+    # (VARCHAR(50), widened because "role codes are author-defined"). Observed
+    # live on one batch: admin, approver, reviewer, annotator, member. So no enum.
+    for role in ("member", "admin", "approver", "reviewer", "annotator", "a_future_role"):
+        assert AnnotationBatchMember(**{**MEMBER_JSON, "role": role}).role == role
+
+
+def test_one_person_can_hold_several_roles_on_a_batch():
+    # Key is (batch_id, user_id, role, eff_from) — role-per-row. A caller keying
+    # on user_id alone and expecting one hit will silently take whichever came first.
+    rows = [AnnotationBatchMember(**{**MEMBER_JSON, "role": r}) for r in ("admin", "approver", "reviewer")]
+
+    assert {r.user_id for r in rows} == {907}
+    assert sorted(r.role for r in rows) == ["admin", "approver", "reviewer"]
+
+
+def test_batch_members_paged_result_wraps_page_and_items():
+    result = AnnotationBatchMembersPagedResult(**{"page": {"page": 0, "size": 50, "total": 1}, "items": [MEMBER_JSON]})
+
+    assert result.page.total == 1
+    assert [m.user_id for m in result.items] == [907]
+    assert result.rejected == []

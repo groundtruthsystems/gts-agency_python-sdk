@@ -10,10 +10,19 @@ import json
 
 import pytest
 import requests
+from pydantic import ValidationError
 
 from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.annotations_dto import BatchStatus, SpecStatus
-from agency_sdk.test.test_annotations_dto import ACTIVE_BATCH_JSON, DRAFT_BATCH_JSON, SPEC_JSON
+from agency_sdk.test.test_annotations_dto import (
+    ACTIVE_BATCH_JSON,
+    DRAFT_BATCH_JSON,
+    JOB_JSON,
+    JOB_SUMMARY_JSON,
+    MEMBER_JSON,
+    SPEC_JSON,
+    TRANSITION_JSON,
+)
 
 GRAPH = {
     "run_id": "run-2026-08-03-a",
@@ -597,3 +606,411 @@ class TestPushGraphBindsAWorkflow:
             client.push_graph(organisation_id=2, name="n")
 
         assert stub_requests.calls == []
+
+
+class TestJobReads:
+    """The list read and the single read: different shapes, different params.
+
+    Both hang off the batch, but only the list is paginated — ``get_job`` takes
+    ``o`` and nothing else. The list deliberately returns summaries; a caller who
+    needs a payload has to follow up.
+    """
+
+    def test_list_jobs_pages_with_defaults(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
+
+        result = client.list_jobs(organisation_id=2, batch_id=JOB_SUMMARY_JSON["batch_id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{JOB_SUMMARY_JSON['batch_id']}/jobs"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert result.page.total == 1
+        assert [j.state_code for j in result.items] == ["completed"]
+
+    def test_list_jobs_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 3, "size": 5, "total": 0}, "items": []})
+
+        client.list_jobs(organisation_id=9, batch_id="b-1", page=3, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "3", "s": "5"}
+
+    def test_list_jobs_returns_summaries_without_the_heavy_payloads(self, client, stub_requests):
+        # The server excludes them from this shape on purpose; the SDK must not
+        # invent them or let a caller mistake a summary for a full row.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [JOB_SUMMARY_JSON]})
+
+        summary = client.list_jobs(organisation_id=2, batch_id="b-1").items[0]
+
+        for payload in ("vertex_data", "connected_vertices", "connected_edges", "delta", "annotation_data"):
+            assert not hasattr(summary, payload)
+        assert summary.vertex_bid == "v-rule-1"
+
+    def test_get_job_reads_the_full_row(self, client, stub_requests):
+        stub_requests.queue(json_data=JOB_JSON)
+
+        job = client.get_job(organisation_id=2, batch_id=JOB_JSON["batch_id"], job_id=JOB_JSON["id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{JOB_JSON['batch_id']}/jobs/{JOB_JSON['id']}"
+        assert job.revision == 4
+        assert job.state_code == "completed"
+        assert job.annotation_data == JOB_JSON["annotation_data"]
+        assert job.checklist_state == JOB_JSON["checklist_state"]
+
+    def test_get_job_sends_o_only_and_no_pagination(self, client, stub_requests):
+        # JobQueryParams is `o` alone — this endpoint has no p/s to forward.
+        stub_requests.queue(json_data=JOB_JSON)
+
+        client.get_job(organisation_id=2, batch_id="b-1", job_id="j-1")
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "2"}
+
+    def test_get_job_propagates_a_404(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Not Found"}}, status_code=404)
+
+        with pytest.raises(requests.HTTPError):
+            client.get_job(organisation_id=2, batch_id="b-1", job_id="nope")
+
+
+class TestJobTransitions:
+    """The ledger read, whose query params are spelled out.
+
+    Every other read on this client abbreviates (``o``/``p``/``s``); this endpoint
+    binds ``OrganisationQuery``, which is ``organisation``/``page``/``size``. That
+    inconsistency is the server's wire contract, so the SDK mirrors it per endpoint
+    rather than normalising it — abbreviating here would simply 400.
+    """
+
+    def test_sends_the_SPELLED_OUT_param_names_not_the_abbreviations(self, client, stub_requests):
+        # Regression guard: a "consistency" refactor that renames these to o/p/s
+        # breaks the endpoint. The server's OrganisationQuery is the contract.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
+
+        client.list_job_transitions(organisation_id=2, batch_id="b-1", job_id="j-1")
+
+        params = stub_requests.calls[0].kwargs["params"]
+        assert params == {"organisation": "2", "page": "0", "size": "50"}
+        assert "o" not in params and "p" not in params and "s" not in params
+
+    def test_hits_the_transitions_path_under_the_job(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [TRANSITION_JSON]})
+
+        result = client.list_job_transitions(organisation_id=2, batch_id=JOB_JSON["batch_id"], job_id=JOB_JSON["id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == (f"http://cp.test/api/annotations/{JOB_JSON['batch_id']}/jobs/{JOB_JSON['id']}/transitions")
+        assert [e.transition_code for e in result.items] == ["approve"]
+        assert result.items[0].acting_as_role == "approver"
+
+    def test_forwards_pagination_under_the_spelled_out_names(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 10, "total": 0}, "items": []})
+
+        client.list_job_transitions(organisation_id=9, batch_id="b-1", job_id="j-1", page=2, size=10)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"organisation": "9", "page": "2", "size": "10"}
+
+    def test_surfaces_the_prior_actor_conflict_flag(self, client, stub_requests):
+        # The distinct-actor guard was not satisfied. A consumer building on
+        # approval evidence needs to see this, so it must survive transport intact.
+        conflicted = {**TRANSITION_JSON, "prior_actor_conflict": True}
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [conflicted]})
+
+        entry = client.list_job_transitions(organisation_id=2, batch_id="b-1", job_id="j-1").items[0]
+
+        assert entry.prior_actor_conflict is True
+        assert entry.workflow_version_id == "sys-wfv-graph-1"
+
+
+class TestGetGraph:
+    def test_returns_the_uploaded_graph_unchanged(self, client, stub_requests):
+        # Deliberately unmodelled: this is the caller's own upload echoed back, and
+        # the SDK has no business constraining a payload it did not define.
+        stub_requests.queue(json_data=GRAPH)
+
+        graph = client.get_graph(organisation_id=2, batch_id="b-1")
+
+        assert graph == GRAPH
+        assert isinstance(graph, dict)
+        assert graph["vertices"][0]["bid"] == "v-rule-1"
+
+    def test_hits_the_graph_path_with_o_only(self, client, stub_requests):
+        stub_requests.queue(json_data=GRAPH)
+
+        client.get_graph(organisation_id=2, batch_id="b-1")
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == "http://cp.test/api/annotations/b-1/graph"
+        assert call.kwargs["params"] == {"o": "2"}
+
+    def test_propagates_a_400_when_the_stored_file_is_not_json(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Invalid graph JSON"}}, status_code=400)
+
+        with pytest.raises(requests.HTTPError):
+            client.get_graph(organisation_id=2, batch_id="b-1")
+
+
+class TestPageTolerance:
+    """FR11: one malformed row must not cost the whole page.
+
+    Every list read here used to build its page in a single construction, so pydantic
+    validated the list as a unit and a single bad row raised — the well-formed rows
+    alongside it were unreachable, not merely unreported. The blast radius was the
+    problem, not the strictness: a consumer filters scope AFTER parsing, so a row it
+    would have discarded wedged it anyway, and kept wedging it because the row does
+    not heal.
+    """
+
+    def _page(self, *items, total=None):
+        return {
+            "page": {"page": 0, "size": 50, "total": total if total is not None else len(items)},
+            "items": list(items),
+        }
+
+    def _batch(self, i, **over):
+        row = {
+            "id": f"batch-{i}",
+            "organisation_id": 2,
+            "name": f"DBQ: Batch {i}",
+            "batch_type": "graph",
+            "total_jobs": 10,
+            "status": 2,
+            "confidentiality_level": "INTERNAL",
+        }
+        row.update(over)
+        return row
+
+    def test_list_batches_keeps_the_good_rows_when_one_is_unparseable(self, client, stub_requests):
+        bad = {k: v for k, v in self._batch(3, name="MTUS: unrelated").items() if k != "confidentiality_level"}
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), bad, self._batch(4)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2", "batch-4"]
+        assert len(result.rejected) == 1
+
+    def test_a_rejected_row_reports_its_index_raw_body_and_error(self, client, stub_requests):
+        bad = {k: v for k, v in self._batch(3).items() if k != "confidentiality_level"}
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), bad, self._batch(4)))
+
+        rejected = client.list_batches(organisation_id=2).rejected[0]
+
+        # The index is the row's position in the page AS THE SERVER SENT IT, not its
+        # position among the survivors — otherwise it cannot be correlated with a log
+        # or a re-fetch.
+        assert rejected.index == 2
+        assert rejected.raw == bad
+        assert "confidentiality_level" in rejected.error
+
+    def test_a_clean_page_reports_no_rejects(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2"]
+        assert result.rejected == []
+
+    def test_a_row_that_is_not_even_a_mapping_is_rejected_rather_than_raising(self, client, stub_requests):
+        # A string or null where an object belongs would blow up `Model(**row)` with a
+        # TypeError, which is not a ValidationError and would escape a naive guard.
+        stub_requests.queue(json_data=self._page(self._batch(1), "not-an-object", None, self._batch(2)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert [b.id for b in result.items] == ["batch-1", "batch-2"]
+        assert [r.index for r in result.rejected] == [1, 2]
+
+    def test_a_malformed_page_envelope_still_raises(self, client, stub_requests):
+        # A broken response is not a bad row. Tolerating this would hand the caller a
+        # page whose paging is a lie, which is worse than failing.
+        stub_requests.queue(json_data={"page": {"page": "not-an-int"}, "items": []})
+
+        with pytest.raises(ValidationError):
+            client.list_batches(organisation_id=2)
+
+    def test_every_list_read_on_this_delegate_tolerates(self, client, stub_requests):
+        # The policy is the delegate's, not one method's — five reads, one behaviour.
+        cases = [
+            (lambda: client.list_batches(organisation_id=2), self._batch(1), {"id": "x"}),
+            (lambda: client.list_jobs(organisation_id=2, batch_id="b"), JOB_SUMMARY_JSON, {"id": "x"}),
+            (lambda: client.list_specs(organisation_id=2), SPEC_JSON, {"id": "x"}),
+            (lambda: client.list_workflows(organisation_id=2), WORKFLOWS_PAGE["items"][0], {"id": "x"}),
+            (
+                lambda: client.list_job_transitions(organisation_id=2, batch_id="b", job_id="j"),
+                TRANSITION_JSON,
+                {"id": 1},
+            ),
+        ]
+        for call, good, bad in cases:
+            stub_requests.queue(json_data=self._page(good, bad))
+            result = call()
+            assert len(result.items) == 1, result
+            assert len(result.rejected) == 1, result
+            assert result.rejected[0].index == 1
+
+    def test_single_item_reads_still_fail_hard(self, client, stub_requests):
+        # Deliberate boundary: a read that cannot return the one thing you named has
+        # nothing useful to hand back, so tolerance would only hide the problem.
+        broken = {k: v for k, v in self._batch(1).items() if k != "confidentiality_level"}
+        for queue_body, call in (
+            (broken, lambda: client.get_batch(organisation_id=2, batch_id="b")),
+            ({"id": "j"}, lambda: client.get_job(organisation_id=2, batch_id="b", job_id="j")),
+            ({"id": "s"}, lambda: client.get_spec(organisation_id=2, code="c")),
+        ):
+            stub_requests.queue(json_data=queue_body)
+            with pytest.raises(ValidationError):
+                call()
+
+
+class TestRowCount:
+    """FR12: ``row_count`` is the page's real size — items plus rejects.
+
+    Tolerating a bad row broke an invariant nobody had written down. Before it,
+    either every row parsed and ``len(items)`` WAS the number of rows the server
+    sent, or the construction raised and there was no result; there was no third
+    case. There is now, and the near-universal "a short page is the last page"
+    idiom silently encodes the old invariant — a full page carrying two rejects
+    reads as a short page and the loop stops early.
+
+    The consumer measured that against a transition ledger, where a loop stopping
+    early means a later ``prior_actor_conflict`` row is never read: a
+    separation-of-duties gate that had been failing closed starts failing open.
+    """
+
+    def _page(self, *items):
+        return {"page": {"page": 0, "size": 50, "total": len(items)}, "items": list(items)}
+
+    def _batch(self, i, **over):
+        row = {
+            "id": f"batch-{i}",
+            "organisation_id": 2,
+            "name": f"DBQ: Batch {i}",
+            "batch_type": "graph",
+            "total_jobs": 10,
+            "status": 2,
+            "confidentiality_level": "INTERNAL",
+        }
+        row.update(over)
+        return row
+
+    def test_row_count_equals_items_on_a_clean_page(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), self._batch(2), self._batch(3)))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert result.row_count == 3 == len(result.items)
+
+    def test_row_count_counts_the_rejects_too(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page(self._batch(1), {"bad": True}, self._batch(3), "nope"))
+
+        result = client.list_batches(organisation_id=2)
+
+        assert len(result.items) == 2
+        assert len(result.rejected) == 2
+        assert result.row_count == 4  # what the server actually sent
+
+    def test_row_count_on_an_all_rejected_page_is_not_zero(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page({"bad": 1}, {"bad": 2}))
+
+        result = client.list_batches(organisation_id=2)
+
+        # The page was full. Reading zero here is what stops a loop dead.
+        assert result.items == []
+        assert result.row_count == 2
+
+    def test_row_count_is_zero_on_a_genuinely_empty_page(self, client, stub_requests):
+        stub_requests.queue(json_data=self._page())
+
+        assert client.list_batches(organisation_id=2).row_count == 0
+
+    def test_the_short_page_idiom_is_right_on_row_count_and_wrong_on_items(self, client, stub_requests):
+        # This is the trap itself, stated as a test rather than only guarded against.
+        size = 4
+        stub_requests.queue(
+            json_data={
+                "page": {"page": 0, "size": size, "total": 8},
+                "items": [self._batch(1), {"bad": True}, {"bad": True}, self._batch(4)],
+            }
+        )
+
+        result = client.list_batches(organisation_id=2, size=size)
+
+        assert len(result.items) < size  # the old idiom concludes "last page" —
+        assert result.row_count == size  # — while the server sent a full one, and page 1 exists.
+
+    def test_every_list_read_exposes_row_count(self, client, stub_requests):
+        cases = [
+            (lambda: client.list_batches(organisation_id=2), self._batch(1)),
+            (lambda: client.list_jobs(organisation_id=2, batch_id="b"), JOB_SUMMARY_JSON),
+            (lambda: client.list_specs(organisation_id=2), SPEC_JSON),
+            (lambda: client.list_workflows(organisation_id=2), WORKFLOWS_PAGE["items"][0]),
+            (lambda: client.list_job_transitions(organisation_id=2, batch_id="b", job_id="j"), TRANSITION_JSON),
+        ]
+        for call, good in cases:
+            stub_requests.queue(json_data=self._page(good, {"bad": True}))
+            assert call().row_count == 2
+
+
+class TestBatchMembers:
+    """FR13: the members read.
+
+    Wraps ``GET /api/annotations/{batch_id}/members``. Its OpenAPI annotation
+    advertises ``Vec<AnnotationBatchMember>``, but the handler binds
+    ``BatchQueryParams`` and returns a paged result — the spec is wrong about the
+    shape, so a caller who trusted it would unpack the wrong thing.
+    """
+
+    def test_hits_the_members_path_with_the_abbreviated_params(self, client, stub_requests):
+        # BatchQueryParams is o/p/s — the abbreviated form, NOT the transitions
+        # endpoint's spelled-out organisation/page/size.
+        stub_requests.queue(json_data={"page": {"page": 0, "size": 50, "total": 1}, "items": [MEMBER_JSON]})
+
+        result = client.list_batch_members(organisation_id=2, batch_id=MEMBER_JSON["batch_id"])
+
+        call = stub_requests.calls[0]
+        assert call.method == "GET"
+        assert call.url == f"http://cp.test/api/annotations/{MEMBER_JSON['batch_id']}/members"
+        assert call.kwargs["params"] == {"o": "2", "p": "0", "s": "50"}
+        assert [m.user_id for m in result.items] == [907]
+        assert result.items[0].eff_to is None
+
+    def test_forwards_pagination(self, client, stub_requests):
+        stub_requests.queue(json_data={"page": {"page": 2, "size": 5, "total": 0}, "items": []})
+
+        client.list_batch_members(organisation_id=9, batch_id="b-1", page=2, size=5)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "9", "p": "2", "s": "5"}
+
+    def test_rides_the_shared_page_parser(self, client, stub_requests):
+        stub_requests.queue(
+            json_data={"page": {"page": 0, "size": 50, "total": 2}, "items": [MEMBER_JSON, {"user_id": 1}]}
+        )
+
+        result = client.list_batch_members(organisation_id=2, batch_id="b-1")
+
+        assert len(result.items) == 1
+        assert [r.index for r in result.rejected] == [1]
+        assert result.row_count == 2
+
+    def test_the_members_page_is_measured_in_people_not_rows(self, client, stub_requests):
+        # The server pages a derived table of DISTINCT users and then joins every
+        # role row back, so rows > people and the envelope mixes units: total counts
+        # people, size comes back as rows. row_count is therefore the ROW count, not
+        # the paging unit — safe to end a walk on (it is never below the people
+        # count) but not tight.
+        rows = [
+            {**MEMBER_JSON, "user_id": u, "role": r}
+            for u, roles in ((1, ("admin", "approver")), (7, ("member",)))
+            for r in roles
+        ]
+        stub_requests.queue(json_data={"page": {"page": 0, "size": len(rows), "total": 2}, "items": rows})
+
+        result = client.list_batch_members(organisation_id=2, batch_id="b-1")
+
+        assert result.row_count == 3  # rows
+        assert result.page.total == 2  # people
+        assert len({m.user_id for m in result.items}) == 2  # the exact test
+        assert result.row_count >= len({m.user_id for m in result.items})  # safe direction

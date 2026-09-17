@@ -27,15 +27,24 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import requests
+from pydantic import ValidationError
+
+from pydantic import BaseModel
 
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.annotations_dto import (
     BATCH_TYPE_GRAPH,
+    AnnotationBatch,
     AnnotationBatchesPagedResult,
+    AnnotationBatchMember,
+    AnnotationBatchMembersPagedResult,
     AnnotationBatchResponse,
+    AnnotationJob,
+    AnnotationJobsPagedResult,
+    AnnotationJobSummary,
     AnnotationSpec,
     AnnotationSpecsPagedResult,
     AnnotationWorkflow,
@@ -43,7 +52,11 @@ from agency_sdk.delegates.annotations_dto import (
     BindWorkflowResult,
     CreateBatchResult,
     CreateSpecResult,
+    JobTransitionEntry,
+    JobTransitionsPagedResult,
     PushGraphResult,
+    RejectedRow,
+    TolerantPage,
 )
 from agency_sdk.delegates.base_client import BaseDelegateClient
 
@@ -75,6 +88,42 @@ def _command_id(body: Mapping[str, Any], subject: str) -> str:
     if not isinstance(identifier, str) or not identifier:
         raise ValueError(f"server returned no {subject} id: {body!r}")
     return identifier
+
+
+_PageT = TypeVar("_PageT", bound=TolerantPage)
+_ItemT = TypeVar("_ItemT", bound=BaseModel)
+
+
+def _parse_page(page_type: type[_PageT], item_type: type[_ItemT], body: Mapping[str, Any]) -> _PageT:
+    """Build a paged result, validating each row on its own.
+
+    The obvious construction — ``PagedResult(**body)`` over ``items: list[Item]`` —
+    validates the list as a unit, so **one bad row loses the whole page**: the
+    well-formed rows beside it become unreachable, not merely unreported. That blast
+    radius is what this avoids. A consumer typically filters scope *after* parsing, so
+    without this a row it was going to discard can stop it reading the rows it wanted
+    — every time, since a malformed row does not heal on its own.
+
+    Rows that fail land in ``rejected`` with their original index, so nothing is lost
+    silently. A row that is not a mapping at all is rejected too rather than escaping
+    as a ``TypeError``: ``Item(**row)`` on a string or ``None`` does not raise
+    ``ValidationError``, and a guard that only expects one would still lose the page.
+
+    The ``page`` envelope is deliberately NOT tolerated. A page whose paging does not
+    parse is a broken response, and handing back rows under paging that cannot be
+    trusted is worse than failing.
+    """
+    items: list[_ItemT] = []
+    rejected: list[RejectedRow] = []
+    for index, row in enumerate(body.get("items") or []):
+        if not isinstance(row, Mapping):
+            rejected.append(RejectedRow(index=index, raw=row, error=f"expected an object, got {type(row).__name__}"))
+            continue
+        try:
+            items.append(item_type(**row))
+        except ValidationError as error:
+            rejected.append(RejectedRow(index=index, raw=row, error=str(error)))
+    return page_type(page=body.get("page") or {}, items=items, rejected=rejected)
 
 
 class _AnnotationWorkflowsEndpoint(BaseDelegateClient):
@@ -237,7 +286,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         nobody else's.
         """
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
-        return AnnotationWorkflowsPagedResult(**self._workflows._make_request("GET", "", params=params))
+        body = self._workflows._make_request("GET", "", params=params)
+        return _parse_page(AnnotationWorkflowsPagedResult, AnnotationWorkflow, body)
 
     def bind_workflow(
         self,
@@ -437,7 +487,8 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             params["batch_type"] = batch_type
         if view is not None:
             params["view"] = view
-        return AnnotationBatchesPagedResult(**self._make_request("GET", "", params=params))
+        body = self._make_request("GET", "", params=params)
+        return _parse_page(AnnotationBatchesPagedResult, AnnotationBatch, body)
 
     def create_spec(
         self,
@@ -492,4 +543,185 @@ class AgencyAnnotationsClient(BaseDelegateClient):
     def list_specs(self, organisation_id: int, *, page: int = 0, size: int = 50) -> AnnotationSpecsPagedResult:
         """List the org's job specifications (paged; the server's own default size is 10)."""
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
-        return AnnotationSpecsPagedResult(**self._specs._make_request("GET", "", params=params))
+        body = self._specs._make_request("GET", "", params=params)
+        return _parse_page(AnnotationSpecsPagedResult, AnnotationSpec, body)
+
+    def list_jobs(
+        self, organisation_id: int, batch_id: str, *, page: int = 0, size: int = 50
+    ) -> AnnotationJobsPagedResult:
+        """List a batch's jobs (paged) — **summaries only**.
+
+        Each item carries identity and pipeline position: ``id``, ``state_code``,
+        ``workflow_version_id``, the vertex labels and ``audit_data``. The heavy
+        payloads — ``vertex_data``, ``connected_vertices``, ``connected_edges``,
+        ``delta``, ``data``, ``checklist_state``, ``annotation_data`` — are
+        **deliberately absent**: a list page never renders them, and the server's
+        deferred join exists precisely to keep those wide rows off the page. Follow
+        up with :meth:`get_job` for any of them.
+
+        There is no server-side "completed" filter and this method does not fake
+        one; filter on ``state_code`` (or on the batch's ``status`` against
+        :class:`~agency_sdk.delegates.annotations_dto.BatchStatus`) client-side.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch whose jobs to list.
+            page: Zero-indexed page number.
+            size: Page size (the server's own default is 20).
+        """
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        body = self._make_request("GET", f"/{batch_id}/jobs", params=params)
+        return _parse_page(AnnotationJobsPagedResult, AnnotationJobSummary, body)
+
+    def get_job(self, organisation_id: int, batch_id: str, job_id: str) -> AnnotationJob:
+        """Read one job in full: the graph context, the human edits, and ``revision``.
+
+        This is the only read that returns ``annotation_data`` (the annotator's
+        edits), ``checklist_state``, and the ``vertex_data`` / ``connected_*``
+        context the upload attached — see :meth:`list_jobs` for why the list omits
+        them. Those columns are opaque blobs whose shape belongs to whichever
+        front-end wrote them, so they arrive unvalidated and unreshaped.
+
+        ``revision`` is worth capturing even when you only want the content:
+        approved work is not immutable server-side, so a caller assembling several
+        jobs should snapshot each one's revision and re-read afterwards to detect an
+        edit that landed underneath it.
+
+        Note this endpoint takes ``o`` alone — no pagination params.
+
+        Raises:
+            requests.HTTPError: 404 when the job does not exist in that batch.
+        """
+        params = {"o": str(organisation_id)}
+        return AnnotationJob(**self._make_request("GET", f"/{batch_id}/jobs/{job_id}", params=params))
+
+    def list_job_transitions(
+        self, organisation_id: int, batch_id: str, job_id: str, *, page: int = 0, size: int = 50
+    ) -> JobTransitionsPagedResult:
+        """Read a job's transition ledger (paged) — the approval evidence.
+
+        Who fired which transition, acting as what role, and under which workflow
+        version. It is a separate read from :meth:`get_job` because the ledger is
+        append-only and unbounded, and because it carries PHI-capable notes.
+
+        Two fields matter more than they look:
+
+        - ``prior_actor_conflict`` marks a transition fired by someone who had
+          already acted on this job — the distinct-actor guard was not satisfied.
+          Treat it as a stop signal, not a warning.
+        - ``workflow_version_id`` is the version **in force when the transition
+          fired**, not the job's current one. Bindings move, so only this stamped
+          copy makes a past transition attributable to the policy that permitted it.
+
+        **PHI:** ``note`` is clinician-written free text and may contain patient
+        information. Never log, trace, or export it — comand deliberately keeps it
+        out of its own access log.
+
+        Note the query params here are ``organisation`` / ``page`` / ``size``,
+        spelled out, unlike every other read on this client. The server binds a
+        different query type on this route (``OrganisationQuery``, not
+        ``JobListParams``), so the SDK mirrors each endpoint rather than
+        normalising: abbreviating here would simply fail to bind.
+
+        **The server silently clamps ``size`` to 500.** It is the only clamp on the
+        annotation service and it reports nothing: ask for 9999 and you get 500 back
+        with no signal that your number was ignored. That matters beyond the missing
+        rows, because a walk that ends on "I got back fewer than I asked for" reads
+        the clamp as the last page — the same failure shape as counting
+        ``len(items)`` instead of
+        :attr:`~agency_sdk.delegates.annotations_dto.TolerantPage.row_count`, but
+        arriving from the server rather than from the parse. Keep ``size`` at or
+        below 500 so the number you pass is the number that applies.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch the job belongs to.
+            job_id: The job whose history to read.
+            page: Zero-indexed page number.
+            size: Page size. The server's own default is 100 and it **caps this at
+                500 without saying so** — see above.
+        """
+        params = {"organisation": str(organisation_id), "page": str(page), "size": str(size)}
+        body = self._make_request("GET", f"/{batch_id}/jobs/{job_id}/transitions", params=params)
+        return _parse_page(JobTransitionsPagedResult, JobTransitionEntry, body)
+
+    def get_graph(self, organisation_id: int, batch_id: str) -> dict[str, Any]:
+        """Read back the graph that was uploaded to this batch, as a raw ``dict``.
+
+        Deliberately unmodelled: this is the caller's own ``{run_id, vertices,
+        edges}`` upload echoed back, and the SDK has no business constraining a
+        payload it did not define. Use it as the pristine copy to cross-check
+        against each job's ``vertex_data``, which annotators may have edited around.
+
+        Raises:
+            requests.HTTPError: 400 if the stored file does not parse as JSON.
+                **500** if the batch row points at an object that is not in the
+                store — the control plane does not translate the object store's
+                "no such key" into a 404, so a batch whose graph was never
+                uploaded, or whose object was lost, is indistinguishable from a
+                server fault at this level. (Observed against a live control
+                plane: a seeded batch whose ``graph_uri`` had no object behind it
+                answered 500 ``SERVICE_ERROR``.) Treat a 500 here as "the graph is
+                not retrievable", not as a transient error worth retrying.
+        """
+        return self._make_request("GET", f"/{batch_id}/graph", params={"o": str(organisation_id)})
+
+    def list_batch_members(
+        self, organisation_id: int, batch_id: str, *, page: int = 0, size: int = 50
+    ) -> AnnotationBatchMembersPagedResult:
+        """List a batch's members (paged): who may see it, as what, and for how long.
+
+        Two things this read is good for, and one it is not:
+
+        - **Membership windows.** Each row carries ``eff_from`` and an ``eff_to``
+          that is ``None`` while the membership is still in force.
+        - **Seeing a RESTRICTED batch's roster at all.** Confidentiality is enforced
+          on the *list*: the server appends ``AND (confidentiality_level NOT IN (...)
+          OR EXISTS (active membership))`` to :meth:`list_batches`, so a RESTRICTED
+          batch the caller is not an active member of is **invisible** there rather
+          than rejected. If a batch you expect is simply missing from a list, check
+          membership before suspecting the page parser.
+        - **Who held which role, and when** — including the workflow roles. ``role``
+          is an open vocabulary: ``"member"`` and ``"admin"`` plus whatever codes
+          the batch's workflow declares (``"annotator"``, ``"reviewer"``,
+          ``"approver"``, …). This table is the server's record of review
+          authority — its foreign key is ``RESTRICT`` so a batch delete cannot
+          erase it, and the distinct-actor check resolves against it — so read role
+          windows from here rather than inferring them from the first ledger row in
+          that role, which only sees people who actually acted.
+
+        Rows are **role-per-row**: the key is ``(batch_id, user_id, role,
+        eff_from)``, so one person appears once per role they hold. A lookup keyed
+        on ``user_id`` alone will find several.
+
+        **PII:** the display fields (``given_name``, ``family_name``, ``known_as``,
+        ``email``) name a real person. Do not log or export them casually.
+
+        Note the wire shape: the endpoint's published OpenAPI annotation says it
+        returns ``Vec<AnnotationBatchMember>``, but the handler binds pagination and
+        returns a paged result — a caller trusting the spec would unpack a bare
+        array and get nothing. Params are the abbreviated ``o`` / ``p`` / ``s``.
+
+        **This page is measured in people, not rows.** ``size`` caps distinct users;
+        the server then returns *every* role row for the users on that page, so a
+        page of 4 people can be 9 rows. The envelope reflects that unevenly:
+        ``page.total`` counts distinct **people** (matching the paging unit), while
+        ``page.size`` comes back as the number of **rows** returned — neither the
+        size you asked for nor the people count.
+
+        Consequently :attr:`~agency_sdk.delegates.annotations_dto.TolerantPage.row_count`
+        is the row count here, not the paging unit. It is still safe to end a walk
+        on it — ``row_count`` is never less than the number of people, so
+        ``row_count < size`` really does mean the last page — but it is not tight,
+        and a page that ends exactly on the cap costs one extra empty request. To be
+        exact, compare ``len({m.user_id for m in result.items})`` against ``size``.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch whose members to list.
+            page: Zero-indexed page number — of **people**.
+            size: Maximum distinct users per page (the server's own default is 50).
+        """
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        body = self._make_request("GET", f"/{batch_id}/members", params=params)
+        return _parse_page(AnnotationBatchMembersPagedResult, AnnotationBatchMember, body)
