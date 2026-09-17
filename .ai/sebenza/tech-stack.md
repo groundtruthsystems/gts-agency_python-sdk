@@ -101,6 +101,24 @@ SDK core never requires them:
   about is not the SDK's call. Batch job counters are **generation-dependent**: comand replaced
   `completed_jobs` with `resolved_jobs` / `accepted_jobs` / `rejected_jobs`, so all four are
   optional on the model and one SDK parses both server generations.
+- **Annotation reads (2026-09-17, 0.0.2rc1):** the read half of the same delegate —
+  `list_jobs`, `get_job`, `list_job_transitions`, `get_graph`, `list_batch_members` — verified
+  against gts-comand `90f95ad8`. **Read-only is a design constraint, not an omission:** a consumer
+  of annotation output that could write back could manufacture the approval it is checking. Four
+  contract facts, each mirrored rather than normalised: (1) **query-param names differ per
+  endpoint** — jobs and members bind `o`/`p`/`s`, transitions binds `organisation`/`page`/`size` —
+  so the SDK follows the wire and a test asserts the abbreviations are *absent* on that route;
+  (2) the **edit columns are opaque `Any`**, because comand replaces them wholesale and two
+  front-ends write different structures into the same column, so a model that parsed one would
+  reject the other and blind the consumer's contamination check; (3) the **list and single reads
+  are different server structs**, so `AnnotationJob` does not subclass `AnnotationJobSummary`;
+  (4) `list_batch_members` is **role-per-row** with an open, workflow-declared `role` vocabulary,
+  and is the server's record of who held review authority when. Paged reads on this delegate —
+  and **only** this delegate — validate rows individually (`_parse_page` / `TolerantPage`),
+  reporting failures as `rejected` rather than losing the page; `row_count` (items + rejected) is
+  the paging unit everywhere except `list_batch_members`, which the server pages by distinct user.
+  Two fields carry regulated data: `JobTransitionEntry.note` is **PHI-capable** and the member
+  display fields are **PII**.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer

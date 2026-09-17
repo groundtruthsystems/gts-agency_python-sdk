@@ -98,6 +98,19 @@ current server. It now resolves a workflow, binds it, and only then uploads; `bi
 `completed_jobs` into `resolved_jobs` / `accepted_jobs` / `rejected_jobs`, which had been turning a
 fully successful publish into a validation error on the read-back.
 
+`0.0.2rc1` (2026-09-17) completed the annotations surface with its **read** half, so an agent can
+recover what human annotators did to the work it published (issue #16): `list_jobs`, `get_job`,
+`list_job_transitions`, `get_graph` and `list_batch_members`. Read-only by design rather than by
+omission — a consumer of annotation output that could write back to the control plane could
+manufacture the approval it exists to check. Two robustness corrections came out of the consuming
+agent's integration and matter beyond this delegate: a list read now validates rows individually,
+because one malformed row used to lose the whole page and callers filter scope *after* parsing, so a
+row they would have discarded wedged them indefinitely; and `row_count` exists because that
+tolerance quietly broke the rule that `len(items)` was the server's row count, which on a transition
+ledger turned a separation-of-duties gate from fail-closed to fail-open. Verified by the consuming
+agent across five days of publishing against a live stack, and numbered `0.0.2` because `0.0.1`
+final had shipped in the meantime and PEP 440 sorts any `0.0.1rcN` below it.
+
 ## Non-Goals
 
 - **No CLI / TUI.** This is a pure library. Command-line tooling, if ever needed,
