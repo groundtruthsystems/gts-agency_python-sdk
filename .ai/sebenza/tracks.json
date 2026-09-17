@@ -209,10 +209,10 @@
       "track_id": "annotation_job_reads_20260831",
       "type": "chore",
       "description": "Add the four read-only job delegates the annotation→KG Publisher needs (issue #16, Track B1): list_jobs, get_job, list_job_transitions and get_graph on AgencyAnnotationsClient, plus AnnotationJobSummary/AnnotationJob/JobTransitionEntry and their paged wrappers. Mirrors each endpoint's own query-param names rather than normalising them (jobs use o/p/s, transitions use organisation/page/size), keeps annotation_data/checklist_state/delta opaque because their shape is owned by whichever front-end wrote them, and carries the PHI never-log warning on transition notes. Read-only by design: the Publisher never writes to comand. Zero comand changes; rc16 is cut separately once the consuming track's Gate A signs off.",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "created_at": "2026-09-01T03:28:23Z",
-      "updated_at": "2026-09-16T23:49:58Z",
+      "updated_at": "2026-09-17T01:25:52Z",
       "spec_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/spec.md",
       "plan_path": ".ai/sebenza/tracks/annotation_job_reads_20260831/plan.json",
       "phases_summary": [
@@ -261,14 +261,14 @@
         {
           "id": "phase-8",
           "name": "Verification follow-ups & PR",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         }
       ],
       "progress": {
         "total_tasks": 29,
-        "completed_tasks": 28,
-        "percentage": 96.6
+        "completed_tasks": 29,
+        "percentage": 100.0
       }
     }
   ]

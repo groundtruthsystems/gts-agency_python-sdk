@@ -242,7 +242,7 @@
     {
       "id": "phase-8",
       "name": "Verification follow-ups & PR",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -271,10 +271,12 @@
           "id": "phase-8-task-2",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md: final gate run, checkpoint commit and git note.",
-          "status": "doing",
-          "blocked_reason": null
+          "status": "done",
+          "blocked_reason": null,
+          "commit_sha": "55b6477"
         }
-      ]
+      ],
+      "checkpoint_sha": "55b6477"
     }
   ]
 }
