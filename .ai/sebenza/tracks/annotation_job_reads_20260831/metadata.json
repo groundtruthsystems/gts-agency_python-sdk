@@ -1,8 +1,0 @@
-{
-  "track_id": "annotation_job_reads_20260831",
-  "type": "chore",
-  "status": "backlog",
-  "created_at": "2026-09-01T03:28:23Z",
-  "updated_at": "2026-09-01T03:28:23Z",
-  "description": "Add the four read-only job delegates the annotation→KG Publisher needs (issue #16, Track B1): list_jobs, get_job, list_job_transitions and get_graph on AgencyAnnotationsClient, plus AnnotationJobSummary/AnnotationJob/JobTransitionEntry and their paged wrappers. Mirrors each endpoint's own query-param names rather than normalising them (jobs use o/p/s, transitions use organisation/page/size), keeps annotation_data/checklist_state/delta opaque because their shape is owned by whichever front-end wrote them, and carries the PHI never-log warning on transition notes. Read-only by design: the Publisher never writes to comand. Zero comand changes; rc16 is cut separately once the consuming track's Gate A signs off."
-}
