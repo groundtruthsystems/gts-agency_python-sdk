@@ -47,7 +47,7 @@ client = AgencyClient(token_supplier=credentials, base_url="https://api.example.
 
 Access each API domain through the facade:
 
-- `client.dataset()` — datasets CRUD, filesystem traversal, clone
+- `client.dataset()` — datasets CRUD, filesystem traversal, clone, and the write lifecycle `draft` → `push` → `publish` (`.agency/` workspace shared with `gts-cli`; [docs/datasets.md](docs/datasets.md))
 - `client.datasource()` — datasource and table introspection
 - `client.files()` — tenant file storage: list, upload, folder management, delete, signed URLs, `gtsf://` URI resolution, streamed download
 - `client.ontology()` — list ontologies (name → id, optional `kind` filter), export (JSON snapshot, Turtle/OWL, SHACL, package, package-zip), and entity-datasource mappings
@@ -59,6 +59,28 @@ Access each API domain through the facade:
 - `client.session_templates()` — list session templates to resolve a template name → id (read-only)
 - `client.annotations()` — publish a knowledge graph as annotator work: `push_graph()` does resolve-workflow → create-batch → bind-workflow → multipart upload → read-back in one call (one job per `class: "rule"` vertex), plus the individual legs, `bind_workflow`/`list_workflows` (a batch cannot hold jobs until a workflow is bound to it), batch reads, and the job specifications that seed each job's checklist. Reading the work back is read-only and four calls: `list_jobs` (paged summaries — the payloads live on the single read), `get_job`, `list_job_transitions` (approval evidence; its `note` is PHI-capable and must never be logged), `get_graph`, and `list_batch_members` (who held which role on a batch and when — role-per-row, and the display fields are PII) ([docs/annotations.md](docs/annotations.md))
 - `client.gateway(org_id=..., gateway_base_url=...)` — OpenAI-compatible LLM calls routed through the org's agentgateway (shared credentials + `x-org` routing header)
+
+### Dataset Write Example
+
+`clone_dataset` writes an `.agency/` workspace. `push` uploads the tree's diff against it into the
+current draft. A new dataset starts as a draft, so you only need `draft` after a publish.
+
+```python
+datasets = client.dataset()
+
+datasets.clone_dataset(dataset_id="ds-id", organisation_id=2, target_path="./samples")
+datasets.draft(dataset_id="ds-id", organisation_id=2, root="./samples")  # next mutable version
+
+# ... edit files under ./samples (never inside .agency/) ...
+
+result = datasets.push(organisation_id=2, root="./samples")  # upload changed, delete removed
+print(f"uploaded={result.uploaded} deleted={result.deleted}")
+
+datasets.publish(dataset_id="ds-id", organisation_id=2, comment="Added Q1", root="./samples")
+```
+
+A self-checking end-to-end run is in [`examples/quick_dataset_draft_push_publish.py`](examples/quick_dataset_draft_push_publish.py)
+(set `AGENCY_DATASET_ID`; each run publishes one new version).
 
 ### Rules Example
 

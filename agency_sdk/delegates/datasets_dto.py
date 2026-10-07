@@ -79,3 +79,53 @@ class SignedUrlResponse(BaseModel):
 class DatasetsPagedResult(BaseModel):
     page: Page
     items: list[DatasetSummary]
+
+
+class DatasetDraftData(BaseModel):
+    dataset_id: str
+    version: int
+    status: str
+    copied_from_version: int | None = None
+
+
+class DatasetDraftResult(BaseModel):
+    """``POST /{id}/_command`` ``draft`` envelope. ``data.status`` is the string ``"draft"`` (stored as ``0``)."""
+
+    success: bool
+    message: str
+    data: DatasetDraftData
+
+
+class DatasetPublishData(BaseModel):
+    dataset_id: str
+    version: int
+    status: str
+
+
+class DatasetPublishResult(BaseModel):
+    """``POST /{id}/_command`` ``publish`` envelope. ``data.version`` is the draft just frozen, not a new number."""
+
+    success: bool
+    message: str
+    data: DatasetPublishData
+
+
+class DatasetManifestEntry(BaseModel):
+    """One ``.agency/files.json`` entry. Only ``hash`` drives change detection; ``last_modified`` is recorded."""
+
+    hash: str
+    last_modified: str
+
+
+class DatasetPushResult(BaseModel):
+    """What a push did. Paths are tree-relative, forward-slashed."""
+
+    dataset_id: str
+    version: int
+    uploaded: list[str] = Field(default_factory=list)
+    deleted: list[str] = Field(default_factory=list)
+    unchanged: list[str] = Field(default_factory=list)
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.uploaded and not self.deleted
