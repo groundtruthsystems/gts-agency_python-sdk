@@ -3,8 +3,10 @@
   "version": "1.0",
   "project": {
     "name": "gts-agency_python-sdk",
-    "path": "/Users/xuqiluo/PycharmProjects/gts-agency_python-sdk",
-    "registered_at": "2026-08-03T00:00:00Z"
+    "path": "/home/kevinbayes/git/gts/worktrees/comand-python-sdk-google-adk-vault-session",
+    "registered_at": "2026-08-03T00:00:00Z",
+    "worktree": "comand-python-sdk-google-adk-vault-session",
+    "repo_path": "/home/kevinbayes/git/gts/gts-agency_python-sdk"
   },
   "tracks": [
     {
@@ -203,6 +205,23 @@
         "total_tasks": 12,
         "completed_tasks": 12,
         "percentage": 100.0
+      }
+    },
+    {
+      "track_id": "agent_vault_adk_sessions_20261012",
+      "type": "feature",
+      "description": "Agent Vault (SDK half): GtsSessionService \u2014 a Google ADK 2 session service backed by the GTS session vault, with durable correlation-id resume and identified-human HITL (answers recorded by comand), coded against a written comand contract.",
+      "status": "backlog",
+      "blocked_reason": null,
+      "created_at": "2026-10-12T18:50:10Z",
+      "updated_at": "2026-10-12T21:24:55Z",
+      "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
+      "test_plan_path": "./tracks/agent_vault_adk_sessions_20261012/test-plan.md",
+      "phases_summary": [],
+      "progress": {
+        "total_tasks": 0,
+        "completed_tasks": 0,
+        "percentage": 0.0
       }
     }
   ]
