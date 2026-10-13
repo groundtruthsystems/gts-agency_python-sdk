@@ -30,5 +30,14 @@ except ImportError as exc:  # pragma: no cover - exercised in a subprocess witho
 from agency_sdk.adk import errors  # noqa: E402
 from agency_sdk.adk._store import VaultLimits  # noqa: E402
 from agency_sdk.adk.session_service import GtsSessionService, register_gts_session_service  # noqa: E402
+from agency_sdk.adk.durable import DurableRunner, RunOutcome  # noqa: E402
 
-__all__ = ["AdkNotInstalled", "GtsSessionService", "VaultLimits", "errors", "register_gts_session_service"]
+__all__ = [
+    "AdkNotInstalled",
+    "DurableRunner",
+    "RunOutcome",
+    "GtsSessionService",
+    "VaultLimits",
+    "errors",
+    "register_gts_session_service",
+]

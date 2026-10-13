@@ -94,6 +94,16 @@ class GtsSessionService(BaseSessionService):
         )
         self._heads: dict[str, HeadSnapshot] = {}
 
+    @property
+    def sessions(self) -> Any:
+        """The session delegate (status updates, correlation lookup) this service writes through."""
+        return self._sessions
+
+    @property
+    def store(self) -> VaultStore:
+        """The vault seam (for ``DurableRunner``'s failure record)."""
+        return self._store
+
     @classmethod
     def from_client(
         cls, client: Any, *, organisation_id: int, template_name: str | None = None, **kwargs: Any
@@ -191,7 +201,7 @@ class GtsSessionService(BaseSessionService):
                 self._sessions.update,
                 self.organisation_id,
                 status=SessionStatus.IN_PROGRESS,
-                labels={"adk_app": app_name},
+                labels={"adk_app": app_name, **({"correlation_id": correlation_id} if correlation_id else {})},
                 session_id=sid,
             )
         await self._scoped_state(sid)  # fail closed before writing anything if a scope is refused

@@ -37,7 +37,22 @@ class VaultUnavailable(AgentVaultError):
         self.status_code = status_code
 
 
+class SessionNotFound(AgentVaultError):
+    """The correlation id's session does not exist, or was deleted (tombstoned)."""
+
+
+class RequestNotFound(AgentVaultError):
+    """A human-input request id does not exist on the session, or does not match the paused call."""
+
+
+class HitlExpired(AgentVaultError):
+    """The pending human-input request expired (comand's background job failed the session)."""
+
+
 __all__ = [
+    "SessionNotFound",
+    "RequestNotFound",
+    "HitlExpired",
     "AgentVaultError",
     "CorruptRecord",
     "UnsupportedSchema",
