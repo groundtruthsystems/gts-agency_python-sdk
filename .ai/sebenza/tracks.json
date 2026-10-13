@@ -16,15 +16,15 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-10-12T18:50:10Z",
-      "updated_at": "2026-10-13T02:16:35Z",
+      "updated_at": "2026-10-13T02:21:01Z",
       "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
       "test_plan_path": "./tracks/agent_vault_adk_sessions_20261012/test-plan.md",
       "phases_summary": [
         {
           "id": "phase-1",
           "name": "Packaging, spike & core client extensions",
-          "status": "blocked",
-          "blocked_reason": "Awaiting user confirmation of the Phase 1 manual verification."
+          "status": "doing",
+          "blocked_reason": null
         },
         {
           "id": "phase-2",

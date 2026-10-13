@@ -5,8 +5,8 @@
     {
       "id": "phase-1",
       "name": "Packaging, spike & core client extensions",
-      "status": "blocked",
-      "blocked_reason": "Awaiting user confirmation of the Phase 1 manual verification.",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-1-task-1",
@@ -70,8 +70,7 @@
           "id": "phase-1-task-8",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "blocked",
-          "blocked_reason": "Awaiting user confirmation of the Phase 1 manual verification (workflow checkpoint step 5)."
+          "status": "doing"
         }
       ]
     },
