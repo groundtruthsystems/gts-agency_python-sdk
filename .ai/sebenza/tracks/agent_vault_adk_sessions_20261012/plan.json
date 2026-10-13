@@ -26,7 +26,8 @@
           "id": "phase-1-task-3",
           "name": "Write tests for vault client, base client and credentials extensions",
           "description": "Write failing tests for version, if_version/if_absent, prefix paging, scope, additive timeout=, and the locked token refresh.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "ef60bec"
         },
         {
           "id": "phase-1-task-4",
