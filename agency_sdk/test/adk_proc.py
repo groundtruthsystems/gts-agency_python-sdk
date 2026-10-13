@@ -29,7 +29,25 @@ from agency_sdk.test.adk_fakes import FakeControlPlane
 from agency_sdk.test.adk_llm_fakes import CountingTools, call, make_app, steps_script, text
 
 
+def _real_client():
+    from agency_sdk.client import AgencyClient, CredentialsSupplier
+
+    credentials = CredentialsSupplier(
+        auth_base_url=os.environ["AGENCY_AUTH_URL"],
+        client_id=os.environ["AGENCY_CLIENT_ID"],
+        client_secret=os.environ["AGENCY_CLIENT_SECRET"],
+    )
+    return AgencyClient(token_supplier=credentials, base_url=os.environ["AGENCY_API_URL"])
+
+
 def _service(path: str) -> GtsSessionService:
+    """``path == "comand"`` targets the real control plane from ``AGENCY_*``; otherwise a file-backed fake."""
+    if path == "comand":
+        return GtsSessionService.from_client(
+            _real_client(),
+            organisation_id=int(os.environ.get("AGENCY_ORG_ID", "2")),
+            template_name=os.environ.get("SESSION_TEMPLATE_NAME", "adk-agent"),
+        )
     cp = FakeControlPlane(path)
     return GtsSessionService(
         vault=cp.vault, sessions=cp.sessions, templates=cp.templates, organisation_id=2, template_name="adk-agent"
@@ -113,11 +131,9 @@ async def _hitl(path: str, counts: str, correlation_id: str, mode: str, out: str
         lambda responses: text(f"approved={responses[-1].response}"),
     ]
     app = make_app(script, [tools.step_tool(), tools.ask_human()])
-    cp = FakeControlPlane(path)
-    service = GtsSessionService(
-        vault=cp.vault, sessions=cp.sessions, templates=cp.templates, organisation_id=2, template_name="adk-agent"
-    )
-    runner = DurableRunner(app=app, session_service=service, hitl=cp.hitl)
+    service = _service(path)
+    hitl = _real_client().session_hitl() if path == "comand" else FakeControlPlane(path).hitl
+    runner = DurableRunner(app=app, session_service=service, hitl=hitl)
     if mode == "run":
         outcome = await runner.run(correlation_id, user_id="user-1", message="go")
     else:

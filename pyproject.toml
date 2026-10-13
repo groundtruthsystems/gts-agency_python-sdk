@@ -43,6 +43,11 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["agency_sdk/test"]
+# The integration suite talks to a local comand (docs/local_e2e.md); opt in with `pytest -m integration`.
+addopts = "-m 'not integration'"
+markers = [
+    "integration: runs against a local comand with the Agent Vault endpoints (opt-in; skips when the contract probe fails)",
+]
 
 [tool.coverage.run]
 source = ["agency_sdk"]
