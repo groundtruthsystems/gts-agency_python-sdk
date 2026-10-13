@@ -33,7 +33,8 @@
           "id": "phase-1-task-4",
           "name": "Implement vault client, base client and credentials extensions",
           "description": "Add the additive vault-client parameters, ConditionalWriteFailed, the timeout= keyword and the locked CredentialsSupplier refresh.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "142c6a0"
         },
         {
           "id": "phase-1-task-5",
