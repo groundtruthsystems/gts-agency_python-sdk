@@ -53,6 +53,15 @@ and raise `StaleSessionError` on mismatch. We do the same, with `str(head.versio
 
 Tools with side effects must be idempotent, because ADK re-runs a tool that was in flight at a crash.
 
+**Spike result (2026-10-12, ADK 2.11.0, scripted `BaseLlm`):**
+- A `LongRunningFunctionTool` pauses the invocation **only when its function returns `None`**. If the
+  function returns a value, even `{"status": "pending"}`, ADK feeds that value back as the function
+  response and the run carries on.
+- A `FunctionResponse` `new_message` resumes the same `invocation_id`, and completed steps are not
+  re-run.
+- A run abandoned after a step's response was committed resumes with
+  `run_async(invocation_id=…, new_message=None)` and does not repeat that step.
+
 ## 2. Mapping onto the vault
 
 **One ADK session is one GTS session.** The ADK `session_id` *is* the GTS session id. A dispatched
