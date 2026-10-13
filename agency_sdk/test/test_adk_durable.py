@@ -76,14 +76,19 @@ class TestRun:
     def test_awaiting_and_failed_sessions_do_not_run(self, cp, tmp_path):
         """TS-16 (awaiting / failed): no LLM call, no vault write."""
         runner, app, _ = _runner(cp, tmp_path)
-        cp.add_session("s-wait", owner="user-1", labels={"correlation_id": "c-wait", "adk_app": "app"}, status=3)
-        cp.add_session("s-fail", owner="user-1", labels={"correlation_id": "c-fail", "adk_app": "app"}, status=-1)
+        waiting = run(runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="c-wait"))
+        failed = run(runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="c-fail"))
+        with cp.shared.io():
+            cp.shared.sessions[waiting.id]["status"] = 3
+            cp.shared.sessions[failed.id]["status"] = -1
         cp.vault.log.clear()
 
-        waiting = run(runner.run("c-wait", user_id="user-1", message="go"))
-        failed = run(runner.run("c-fail", user_id="user-1", message="go"))
+        outcomes = (
+            run(runner.run("c-wait", user_id="user-1", message="go")),
+            run(runner.run("c-fail", user_id="user-1", message="go")),
+        )
 
-        assert (waiting.status, failed.status) == ("awaiting_input", "failed")
+        assert [o.status for o in outcomes] == ["awaiting_input", "failed"]
         assert llm_calls(app) == [] and cp.vault.writes() == []
 
     def test_in_progress_session_is_hydrated_and_resumed(self, cp, tmp_path):
