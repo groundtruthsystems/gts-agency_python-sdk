@@ -16,7 +16,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-10-12T18:50:10Z",
-      "updated_at": "2026-10-13T02:26:26Z",
+      "updated_at": "2026-10-13T02:27:11Z",
       "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
       "test_plan_path": "./tracks/agent_vault_adk_sessions_20261012/test-plan.md",
       "phases_summary": [
@@ -29,8 +29,8 @@
         {
           "id": "phase-2",
           "name": "VaultStore and record codec",
-          "status": "doing",
-          "blocked_reason": null
+          "status": "blocked",
+          "blocked_reason": "Awaiting user confirmation of the Phase 2 manual verification."
         },
         {
           "id": "phase-3",
@@ -65,8 +65,8 @@
       ],
       "progress": {
         "total_tasks": 35,
-        "completed_tasks": 10,
-        "percentage": 28.6
+        "completed_tasks": 11,
+        "percentage": 31.4
       },
       "spec_path": "./tracks/agent_vault_adk_sessions_20261012/spec.md",
       "plan_path": "./tracks/agent_vault_adk_sessions_20261012/plan.json"

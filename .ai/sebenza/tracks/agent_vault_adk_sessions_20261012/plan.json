@@ -79,8 +79,8 @@
     {
       "id": "phase-2",
       "name": "VaultStore and record codec",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Awaiting user confirmation of the Phase 2 manual verification.",
       "tasks": [
         {
           "id": "phase-2-task-1",
@@ -100,7 +100,7 @@
           "id": "phase-2-task-3",
           "name": "Execute test scenarios for VaultStore and codec",
           "description": "Run the phase's scenarios against the in-process fake vault.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-07",
             "TS-13",
@@ -111,13 +111,15 @@
             "TS-58",
             "TS-59",
             "TS-61"
-          ]
+          ],
+          "commit_sha": "70197c2"
         },
         {
           "id": "phase-2-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "backlog"
+          "status": "blocked",
+          "blocked_reason": "Awaiting user confirmation of the Phase 2 manual verification (workflow checkpoint step 5)."
         }
       ]
     },
