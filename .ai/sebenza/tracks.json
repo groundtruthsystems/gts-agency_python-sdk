@@ -14,7 +14,7 @@
       "type": "feature",
       "description": "Agent Vault (SDK half): GtsSessionService \u2014 a Google ADK 2 session service backed by the GTS session vault, with durable correlation-id resume and identified-human HITL (answers recorded by comand), coded against a written comand contract.",
       "status": "blocked",
-      "blocked_reason": null,
+      "blocked_reason": "Final verification waits on the backend track agent_vault_backend_20261012 (integration scenarios TS-10/20/25/40/54/56/64/65 + latency benchmark). All offline work is done: phases 1-6 checkpointed.",
       "created_at": "2026-10-12T18:50:10Z",
       "updated_at": "2026-10-13T02:59:43Z",
       "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
