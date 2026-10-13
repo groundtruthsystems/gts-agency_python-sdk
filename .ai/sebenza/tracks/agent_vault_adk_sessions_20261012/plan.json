@@ -127,14 +127,15 @@
     {
       "id": "phase-3",
       "name": "GtsSessionService (session storage)",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-3-task-1",
           "name": "Build the contract fake vault and scripted fake LLM",
           "description": "Create the in-process and file-backed contract fakes (write log, barrier, expiry hook, in-flight counter) and the scripted BaseLlm.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "e7d9a63"
         },
         {
           "id": "phase-3-task-2",
