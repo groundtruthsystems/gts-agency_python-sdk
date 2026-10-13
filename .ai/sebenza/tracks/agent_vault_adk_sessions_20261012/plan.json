@@ -257,7 +257,8 @@
           "id": "phase-5-task-2",
           "name": "Implement AgencySessionHitlClient and DTOs",
           "description": "Add the HITL delegate (create/get/list, respond with a human token supplier) and its DTOs.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "3dfb7d7"
         },
         {
           "id": "phase-5-task-3",
