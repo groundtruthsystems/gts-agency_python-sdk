@@ -264,7 +264,8 @@
           "id": "phase-5-task-3",
           "name": "Implement DurableRunner pause and resume",
           "description": "Wire pause detection to hitl.create with expires_at and resume(correlation_id) to inject comand-stored answers once.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "d624536"
         },
         {
           "id": "phase-5-task-4",
