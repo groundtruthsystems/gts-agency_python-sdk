@@ -79,8 +79,8 @@
     {
       "id": "phase-2",
       "name": "VaultStore and record codec",
-      "status": "blocked",
-      "blocked_reason": "Awaiting user confirmation of the Phase 2 manual verification.",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-2-task-1",
@@ -118,8 +118,7 @@
           "id": "phase-2-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "blocked",
-          "blocked_reason": "Awaiting user confirmation of the Phase 2 manual verification (workflow checkpoint step 5)."
+          "status": "doing"
         }
       ]
     },
