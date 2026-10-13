@@ -19,7 +19,8 @@
           "id": "phase-1-task-2",
           "name": "Spike: ADK resumability invocation_id with a fake LLM",
           "description": "Add the [adk] extra and confirm with a scripted BaseLlm that resumability yields a stable, resumable invocation_id (test-plan entry criterion).",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "e800eae"
         },
         {
           "id": "phase-1-task-3",
