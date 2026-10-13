@@ -1,0 +1,359 @@
+{
+  "$schema": "sebenza-plan-v1",
+  "track_id": "agent_vault_adk_sessions_20261012",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Packaging, spike & core client extensions",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-1-task-1",
+          "name": "Record the [adk] extra in tech-stack.md",
+          "description": "Document google-adk>=2.11,<3 as an optional lazy-imported extra in tech-stack.md before any code, per the workflow.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-2",
+          "name": "Spike: ADK resumability invocation_id with a fake LLM",
+          "description": "Add the [adk] extra and confirm with a scripted BaseLlm that resumability yields a stable, resumable invocation_id (test-plan entry criterion).",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-3",
+          "name": "Write tests for vault client, base client and credentials extensions",
+          "description": "Write failing tests for version, if_version/if_absent, prefix paging, scope, additive timeout=, and the locked token refresh.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-4",
+          "name": "Implement vault client, base client and credentials extensions",
+          "description": "Add the additive vault-client parameters, ConditionalWriteFailed, the timeout= keyword and the locked CredentialsSupplier refresh.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-5",
+          "name": "Write tests for session and templates client extensions",
+          "description": "Write failing tests for register-by-name, find_by_correlation_id via POST, search, update(labels=), AWAITING_INPUT and URL-free errors.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-6",
+          "name": "Implement session and templates client extensions",
+          "description": "Add register to the templates client and the lookup, search, labels and status additions to the session client.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-7",
+          "name": "Execute test scenarios for core client extensions",
+          "description": "Run the phase's scenarios and confirm the existing suite's wire bytes are unchanged.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-33",
+            "TS-37",
+            "TS-44",
+            "TS-45",
+            "TS-47",
+            "TS-60",
+            "TS-62"
+          ]
+        },
+        {
+          "id": "phase-1-task-8",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "VaultStore and record codec",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-2-task-1",
+          "name": "Write tests for VaultStore and the record codec",
+          "description": "Write failing tests for error mapping, retry re-read, classification table, size caps, JSON-mode codec, bounded walk, parallel GETs and shielding.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-2",
+          "name": "Implement VaultStore and the record codec",
+          "description": "Build the async VaultStore seam and the head/event/failure record codec with fixed classifications and caps.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-3",
+          "name": "Execute test scenarios for VaultStore and codec",
+          "description": "Run the phase's scenarios against the in-process fake vault.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-07",
+            "TS-13",
+            "TS-32",
+            "TS-35",
+            "TS-36",
+            "TS-55",
+            "TS-58",
+            "TS-59",
+            "TS-61"
+          ]
+        },
+        {
+          "id": "phase-2-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "GtsSessionService (session storage)",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-3-task-1",
+          "name": "Build the contract fake vault and scripted fake LLM",
+          "description": "Create the in-process and file-backed contract fakes (write log, barrier, expiry hook, in-flight counter) and the scripted BaseLlm.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-2",
+          "name": "Write tests for GtsSessionService",
+          "description": "Write failing tests for create/adopt, append order, temp trimming, filters, list/search, tombstone delete, scoped state, owner fail-closed and the ADK contract.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-3",
+          "name": "Implement GtsSessionService and the gts:// factory",
+          "description": "Implement every BaseSessionService method over VaultStore and register the gts:// URI factory.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-4",
+          "name": "Execute test scenarios for session storage",
+          "description": "Run the phase's scenarios, including the two-process exact read-back.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-01",
+            "TS-02",
+            "TS-03",
+            "TS-04",
+            "TS-05",
+            "TS-06",
+            "TS-08",
+            "TS-09",
+            "TS-11",
+            "TS-12",
+            "TS-14",
+            "TS-15",
+            "TS-34",
+            "TS-39",
+            "TS-41",
+            "TS-42",
+            "TS-43",
+            "TS-57",
+            "TS-68"
+          ]
+        },
+        {
+          "id": "phase-3-task-5",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Durable execution",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-4-task-1",
+          "name": "Write tests for DurableRunner run and resume selection",
+          "description": "Write failing tests for correlation lookup, resume input selection, terminal-status handling, conflicts, failure records and the SIGKILL resume.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-2",
+          "name": "Implement DurableRunner run path",
+          "description": "Implement run() with lookup, create or hydrate, resume input selection, IN_PROGRESS posting, adk.failure and terminal handling.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-3",
+          "name": "Execute test scenarios for durable execution",
+          "description": "Run the phase's scenarios, including the multi-process SIGKILL resume.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-16",
+            "TS-17",
+            "TS-18",
+            "TS-19",
+            "TS-21",
+            "TS-48",
+            "TS-49",
+            "TS-50",
+            "TS-51",
+            "TS-52",
+            "TS-69",
+            "TS-71"
+          ]
+        },
+        {
+          "id": "phase-4-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "HITL with continued execution",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-5-task-1",
+          "name": "Write tests for the HITL client and pause/resume flow",
+          "description": "Write failing tests for request creation, all-answered resume, dedup, replay, expiry, missing ids, crash-window repair and service-principal rejection.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-5-task-2",
+          "name": "Implement AgencySessionHitlClient and DTOs",
+          "description": "Add the HITL delegate (create/get/list, respond with a human token supplier) and its DTOs.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-5-task-3",
+          "name": "Implement DurableRunner pause and resume",
+          "description": "Wire pause detection to hitl.create with expires_at and resume(correlation_id) to inject comand-stored answers once.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-5-task-4",
+          "name": "Execute test scenarios for HITL",
+          "description": "Run the phase's scenarios, including the pause, exit and resume across processes.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-22",
+            "TS-23",
+            "TS-24",
+            "TS-26",
+            "TS-27",
+            "TS-28",
+            "TS-29",
+            "TS-30",
+            "TS-38",
+            "TS-53",
+            "TS-63",
+            "TS-66",
+            "TS-67",
+            "TS-70"
+          ]
+        },
+        {
+          "id": "phase-5-task-5",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Docs and examples",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-6-task-1",
+          "name": "Write docs/adk_sessions.md and the README quick-start",
+          "description": "Document configuration-only adoption, durable runs, HITL and the backend contract dependency.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-6-task-2",
+          "name": "Write the two examples",
+          "description": "Add examples/quick_gts_session_service.py and examples/quick_durable_hitl.py with their own assertions.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-6-task-3",
+          "name": "Update CLAUDE.md delegate notes",
+          "description": "Describe the adk package, the new client methods and the HITL delegate in CLAUDE.md.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-6-task-4",
+          "name": "Execute test scenarios for docs and examples",
+          "description": "Run the README quick-start and both examples against the fake vault.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-46"
+          ]
+        },
+        {
+          "id": "phase-6-task-5",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "Final verification",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-7-task-1",
+          "name": "Re-run the full offline test plan",
+          "description": "Re-run every offline scenario, the PHI sentinel sweep, mypy, black, bandit and coverage against the finished feature.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-31"
+          ]
+        },
+        {
+          "id": "phase-7-task-2",
+          "name": "Execute integration scenarios against local comand",
+          "description": "Run the integration marker suite against local comand, recording each scenario as passed or blocked on the backend track.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-10",
+            "TS-20",
+            "TS-25",
+            "TS-40",
+            "TS-54",
+            "TS-56",
+            "TS-64",
+            "TS-65"
+          ]
+        },
+        {
+          "id": "phase-7-task-3",
+          "name": "Close traceability gaps and record the benchmark",
+          "description": "Confirm every UC and AC has a passing scenario and record the manual checkpoint and hydrate latency benchmark.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-7-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md",
+          "status": "backlog"
+        }
+      ]
+    }
+  ]
+}
