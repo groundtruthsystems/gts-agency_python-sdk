@@ -93,7 +93,8 @@
           "id": "phase-2-task-2",
           "name": "Implement VaultStore and the record codec",
           "description": "Build the async VaultStore seam and the head/event/failure record codec with fixed classifications and caps.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "d50c173"
         },
         {
           "id": "phase-2-task-3",
