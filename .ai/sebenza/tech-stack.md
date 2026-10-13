@@ -30,6 +30,14 @@ SDK core never requires them:
 | `opentelemetry-instrumentation-logging` | ≥ 0.48b0 | Inject trace/span ids into stdlib log records |
 | `langfuse` | ≥ 3.8.1 | Langfuse client (prompt mgmt/scoring); brings `httpx` |
 
+Installed via the `[adk]` extra (`pip install gts-agency-python-sdk[adk]`, *added 2026-10-12,
+agent_vault_adk_sessions track*); imported lazily from `agency_sdk.adk`, so `import agency_sdk`
+never loads it:
+
+| Dependency | Version | Role |
+|---|---|---|
+| `google-adk` | ≥ 2.11, < 3 | Google ADK 2 — `GtsSessionService` implements its `BaseSessionService`; `DurableRunner` builds on its `ResumabilityConfig` and long-running tools. Heavy (fastapi, google-genai) and pins `opentelemetry-api/sdk` ≤ 1.42.1, which overlaps the `[observability]` floor; CI installs `[dev,adk,observability]` plus `pip check` to prove the pins coexist |
+
 ## Development Tooling
 
 | Tool | Version | Role |
@@ -119,6 +127,11 @@ SDK core never requires them:
   the paging unit everywhere except `list_batch_members`, which the server pages by distinct user.
   Two fields carry regulated data: `JobTransitionEntry.note` is **PHI-capable** and the member
   display fields are **PII**.
+- **ADK sessions (optional `[adk]`, 2026-10-12):** `agency_sdk/adk/` provides `GtsSessionService`
+  (an ADK 2 session service persisted in the GTS session vault) and `DurableRunner` (correlation-id
+  resume, HITL answered by an authenticated human in comand). The ADK API is async while the SDK's
+  delegates are sync, so a single `VaultStore` seam bridges them with `asyncio.to_thread` rather than
+  adding a second HTTP stack. Design and backend contract: `docs/agent_vault_gap_analysis.md`.
 - **Authentication:** shared `CredentialsSupplier` (`credentials.py`) implementing
   OAuth2 client-credentials with in-memory token caching and expiry-based refresh.
   - *Implemented (2026-06-17, observability track):* an early-refresh buffer
