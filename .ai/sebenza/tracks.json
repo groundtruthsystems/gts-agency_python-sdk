@@ -29,7 +29,7 @@
         {
           "id": "phase-2",
           "name": "VaultStore and record codec",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         },
         {
@@ -65,8 +65,8 @@
       ],
       "progress": {
         "total_tasks": 35,
-        "completed_tasks": 11,
-        "percentage": 31.4
+        "completed_tasks": 12,
+        "percentage": 34.3
       },
       "spec_path": "./tracks/agent_vault_adk_sessions_20261012/spec.md",
       "plan_path": "./tracks/agent_vault_adk_sessions_20261012/plan.json"

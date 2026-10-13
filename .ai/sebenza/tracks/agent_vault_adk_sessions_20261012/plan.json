@@ -79,7 +79,7 @@
     {
       "id": "phase-2",
       "name": "VaultStore and record codec",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -118,9 +118,11 @@
           "id": "phase-2-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "780711e"
         }
-      ]
+      ],
+      "checkpoint_sha": "780711e"
     },
     {
       "id": "phase-3",
