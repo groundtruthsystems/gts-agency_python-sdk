@@ -61,8 +61,10 @@ The rules that apply across these records:
 - **Scoped state.** comand resolves `scope=user` from the session's bound owner and `scope=app` from its
   app, so the SDK never names a user. A session with no bound owner is refused (fail closed).
 - **`get_user_state`** (with no session) raises `NotImplementedError`.
-- **Printing records.** Record `repr`s never show state, `user_id` or event content. Do not log whole ADK
-  sessions or events yourself; they carry PHI.
+- **Printing records.** Record and `RunOutcome` `repr`s never show state, `user_id`, event content or the
+  final text. Do not log whole ADK sessions or events yourself; they carry PHI.
+- **ADK's own logging.** ADK's loggers (`google_adk.*`) log a failing tool's exception at ERROR, message
+  included, and exception messages can carry PHI. Route or filter those loggers in clinical deployments.
 - **Retention.** The vault is kept after a session ends, for forensics. Retention and erasure are
   comand's policy.
 

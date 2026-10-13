@@ -70,7 +70,7 @@ OutcomeStatus = Literal["completed", "already_completed", "awaiting_input", "fai
 
 
 class RunOutcome(BaseModel):
-    """What a durable run ended with. Carries identifiers and the final text only."""
+    """What a durable run ended with. Carries identifiers and the final text only; ``repr`` hides the text."""
 
     status: OutcomeStatus
     session_id: str | None = None
@@ -79,6 +79,16 @@ class RunOutcome(BaseModel):
     pending_requests: list[str] = Field(default_factory=list)
     #: The verified responders of the answers this run injected (recorded by comand).
     answered_by: list[str] = Field(default_factory=list)
+
+    def __repr__(self) -> str:
+        # final_text is the agent's answer and can carry PHI: never part of the repr.
+        return (
+            f"RunOutcome(status={self.status!r}, session_id={self.session_id!r}, error_type={self.error_type!r}, "
+            f"pending_requests={len(self.pending_requests)})"
+        )
+
+    def __str__(self) -> str:
+        return repr(self)
 
 
 @dataclass(frozen=True)
