@@ -324,7 +324,8 @@
           "id": "phase-6-task-3",
           "name": "Update CLAUDE.md delegate notes",
           "description": "Describe the adk package, the new client methods and the HITL delegate in CLAUDE.md.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "539d31e"
         },
         {
           "id": "phase-6-task-4",
