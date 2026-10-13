@@ -65,3 +65,38 @@ def test_bearer_token_fetches_then_caches(stub_requests):
     assert first == token
     assert second == token
     assert len(stub_requests.calls) == 1
+
+
+def test_concurrent_callers_with_expired_token_fetch_once(monkeypatch):
+    """TS-60: threads racing an expired token must share one fetch (double-checked lock)."""
+    import threading
+
+    import requests as _requests
+
+    fetches = []
+    gate = threading.Event()
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"access_token": _jwt_expiring_in(3600)}
+
+    def slow_post(url, data=None, timeout=None):
+        fetches.append(1)
+        gate.wait(1.0)  # hold the first fetch so the others pile up behind the lock
+        return _Resp()
+
+    monkeypatch.setattr(_requests, "post", slow_post)
+    cs = CredentialsSupplier("http://auth", "id", "secret")
+    tokens = []
+    threads = [threading.Thread(target=lambda: tokens.append(cs.bearer_token())) for _ in range(8)]
+    for t in threads:
+        t.start()
+    gate.set()
+    for t in threads:
+        t.join()
+
+    assert len(fetches) == 1
+    assert len(set(tokens)) == 1 and len(tokens) == 8
