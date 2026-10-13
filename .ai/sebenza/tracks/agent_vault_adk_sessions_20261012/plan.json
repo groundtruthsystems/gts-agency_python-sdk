@@ -243,14 +243,15 @@
     {
       "id": "phase-5",
       "name": "HITL with continued execution",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-5-task-1",
           "name": "Write tests for the HITL client and pause/resume flow",
           "description": "Write failing tests for request creation, all-answered resume, dedup, replay, expiry, missing ids, crash-window repair and service-principal rejection.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "47d1062"
         },
         {
           "id": "phase-5-task-2",
