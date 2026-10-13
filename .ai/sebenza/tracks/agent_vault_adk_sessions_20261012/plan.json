@@ -206,7 +206,8 @@
           "id": "phase-4-task-2",
           "name": "Implement DurableRunner run path",
           "description": "Implement run() with lookup, create or hydrate, resume input selection, IN_PROGRESS posting, adk.failure and terminal handling.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "27bd874"
         },
         {
           "id": "phase-4-task-3",
