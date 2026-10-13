@@ -192,7 +192,7 @@
     {
       "id": "phase-4",
       "name": "Durable execution",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -213,7 +213,7 @@
           "id": "phase-4-task-3",
           "name": "Execute test scenarios for durable execution",
           "description": "Run the phase's scenarios, including the multi-process SIGKILL resume.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-16",
             "TS-17",
@@ -227,15 +227,18 @@
             "TS-52",
             "TS-69",
             "TS-71"
-          ]
+          ],
+          "commit_sha": "8d7ad3b"
         },
         {
           "id": "phase-4-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "e12a5b6"
         }
-      ]
+      ],
+      "checkpoint_sha": "e12a5b6"
     },
     {
       "id": "phase-5",

@@ -16,7 +16,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-10-12T18:50:10Z",
-      "updated_at": "2026-10-13T02:43:05Z",
+      "updated_at": "2026-10-13T02:44:06Z",
       "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
       "test_plan_path": "./tracks/agent_vault_adk_sessions_20261012/test-plan.md",
       "phases_summary": [
@@ -41,7 +41,7 @@
         {
           "id": "phase-4",
           "name": "Durable execution",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         },
         {
@@ -65,8 +65,8 @@
       ],
       "progress": {
         "total_tasks": 35,
-        "completed_tasks": 19,
-        "percentage": 54.3
+        "completed_tasks": 21,
+        "percentage": 60.0
       },
       "spec_path": "./tracks/agent_vault_adk_sessions_20261012/spec.md",
       "plan_path": "./tracks/agent_vault_adk_sessions_20261012/plan.json"
