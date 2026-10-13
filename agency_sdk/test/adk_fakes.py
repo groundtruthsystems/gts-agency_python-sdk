@@ -35,6 +35,8 @@ import requests
 
 from agency_sdk.delegates.datasets_dto import Page
 from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionRef, SessionSearchResult
+from agency_sdk.delegates.session_hitl_client import HitlAlreadyAnswered, HitlNotAuthorised, HitlRequestExpired
+from agency_sdk.delegates.session_hitl_dto import HitlRequest
 from agency_sdk.delegates.session_templates_client import CorrelationIdConflict, SessionTemplateNotFound
 from agency_sdk.delegates.session_vault_client import ConditionalWriteFailed
 from agency_sdk.delegates.session_vault_dto import (
@@ -320,6 +322,7 @@ class FakeControlPlane:
         self.vault = FakeVault(shared=self.shared, scope_space=self._scope_space)
         self.sessions = _FakeSessions(self)
         self.templates = _FakeTemplates(self)
+        self.hitl = _FakeHitl(self)
         self.log: list[tuple[str, dict[str, Any]]] = []
 
     def _scope_space(self, session_id: str, scope: str) -> str | None:
@@ -338,6 +341,12 @@ class FakeControlPlane:
         """Seed a dispatched session (as the ① worker would have created it)."""
         with self.shared.io():
             self.shared.sessions[session_id] = {"status": status, "labels": dict(labels or {}), "owner": owner}
+
+    def expire(self, session_id: str, request_id: str) -> None:
+        """Model comand's background job: expire a pending request and fail its session (server time)."""
+        with self.shared.io():
+            self.shared.hitl[session_id][request_id]["status"] = "expired"
+            self.shared.sessions[session_id]["status"] = -1
 
     def session(self, session_id: str) -> dict[str, Any]:
         with self.shared.io():
@@ -427,3 +436,82 @@ class _FakeTemplates:
                 "owner": owner,
             }
             return sid
+
+
+class _FakeHitl:
+    """comand's HITL resource: agent creates/reads; a human principal answers once, before expiry."""
+
+    def __init__(self, cp: FakeControlPlane) -> None:
+        self._cp = cp
+
+    def _get(self, session_id: str, request_id: str) -> dict[str, Any]:
+        record = self._cp.shared.hitl.get(session_id, {}).get(request_id)
+        if record is None:
+            raise http_error(404)
+        return record
+
+    def create(
+        self,
+        organisation_id: int,
+        session_id: str,
+        *,
+        request_id: str,
+        invocation_id: str,
+        prompt: dict[str, Any],
+        expires_at: str,
+    ) -> HitlRequest:
+        self._cp.log.append(("hitl.create", {"session_id": session_id, "request_id": request_id}))
+        with self._cp.shared.io():
+            if session_id not in self._cp.shared.sessions:
+                raise http_error(404)
+            bucket = self._cp.shared.hitl.setdefault(session_id, {})
+            if request_id not in bucket:  # idempotent on request_id
+                bucket[request_id] = {
+                    "request_id": request_id,
+                    "invocation_id": invocation_id,
+                    "status": "pending",
+                    "prompt": prompt,
+                    "expires_at": expires_at,
+                    "created_at": "2026-10-12T00:00:00Z",
+                }
+            self._cp.shared.sessions[session_id]["status"] = 3  # atomically AWAITING_INPUT
+            return HitlRequest(**bucket[request_id])
+
+    def get(self, organisation_id: int, session_id: str, request_id: str) -> HitlRequest:
+        with self._cp.shared.io():
+            return HitlRequest(**self._get(session_id, request_id))
+
+    def list(self, organisation_id: int, session_id: str, *, status: str | None = None) -> list[HitlRequest]:
+        self._cp.log.append(("hitl.list", {"session_id": session_id}))
+        with self._cp.shared.io():
+            return [
+                HitlRequest(**r)
+                for r in self._cp.shared.hitl.get(session_id, {}).values()
+                if status is None or r["status"] == status
+            ]
+
+    def respond(
+        self,
+        organisation_id: int,
+        session_id: str,
+        request_id: str,
+        response: Any,
+        *,
+        principal: str = "human:reviewer-1",
+    ) -> HitlRequest:
+        self._cp.log.append(("hitl.respond", {"session_id": session_id, "request_id": request_id}))
+        with self._cp.shared.io():
+            record = self._get(session_id, request_id)
+            if principal.startswith("service:"):
+                raise HitlNotAuthorised("service principals cannot answer", response=StubResponse(status_code=403))
+            if record["status"] == "expired":
+                raise HitlRequestExpired("expired", response=StubResponse(status_code=410))
+            if record["status"] == "answered":
+                raise HitlAlreadyAnswered("already answered", response=StubResponse(status_code=409))
+            record.update(
+                status="answered",
+                response=response,
+                responder=principal.split(":", 1)[1],
+                answered_at="2026-10-12T01:00:00Z",
+            )
+            return HitlRequest(**record)

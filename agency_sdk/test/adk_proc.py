@@ -8,6 +8,8 @@ Each command talks to a file-backed ``FakeControlPlane`` so separate processes s
 - ``durable <backend.json> <counts.json> <correlation_id> <kill_at> <out.json>``: run a 5-step agent
   through ``DurableRunner``; when ``kill_at`` > 0 the process SIGKILLs itself as step ``kill_at`` starts
   (once — a marker file stops it happening again on the resumed run).
+- ``hitl <backend.json> <counts.json> <correlation_id> run|resume <out.json>``: a step then a
+  long-running ``ask_human``; ``run`` pauses and exits, ``resume`` continues with comand's recorded answer.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from google.genai import types
 
 from agency_sdk.adk import DurableRunner, GtsSessionService
 from agency_sdk.test.adk_fakes import FakeControlPlane
-from agency_sdk.test.adk_llm_fakes import CountingTools, make_app, steps_script
+from agency_sdk.test.adk_llm_fakes import CountingTools, call, make_app, steps_script, text
 
 
 def _service(path: str) -> GtsSessionService:
@@ -103,6 +105,27 @@ async def _durable(path: str, counts: str, correlation_id: str, kill_at: str, ou
         fh.write(outcome.model_dump_json())
 
 
+async def _hitl(path: str, counts: str, correlation_id: str, mode: str, out: str) -> None:
+    tools = CountingTools(counts)
+    script = [
+        call("step", "c1", n=1),
+        call("ask_human", "c2", question="approve?"),
+        lambda responses: text(f"approved={responses[-1].response}"),
+    ]
+    app = make_app(script, [tools.step_tool(), tools.ask_human()])
+    cp = FakeControlPlane(path)
+    service = GtsSessionService(
+        vault=cp.vault, sessions=cp.sessions, templates=cp.templates, organisation_id=2, template_name="adk-agent"
+    )
+    runner = DurableRunner(app=app, session_service=service, hitl=cp.hitl)
+    if mode == "run":
+        outcome = await runner.run(correlation_id, user_id="user-1", message="go")
+    else:
+        outcome = await runner.resume(correlation_id, user_id="user-1")
+    with open(out, "w") as fh:
+        fh.write(outcome.model_dump_json())
+
+
 def main(argv: list[str]) -> None:
     command, *args = argv
     if command == "write":
@@ -111,6 +134,8 @@ def main(argv: list[str]) -> None:
         asyncio.run(_read(*args))
     elif command == "durable":
         asyncio.run(_durable(*args))
+    elif command == "hitl":
+        asyncio.run(_hitl(*args))
     else:
         raise SystemExit(f"unknown command {command!r}")
 
