@@ -5,19 +5,26 @@ Each command talks to a file-backed ``FakeControlPlane`` so separate processes s
 - ``write <backend.json> <out.json>``: create a session, append a varied history (bytes, sets, floats,
   ``None`` fields, state deltas), and dump the in-memory session as written.
 - ``read <backend.json> <session_id> <out.json>``: read the session back and dump it.
+- ``durable <backend.json> <counts.json> <correlation_id> <kill_at> <out.json>``: run a 5-step agent
+  through ``DurableRunner``; when ``kill_at`` > 0 the process SIGKILLs itself as step ``kill_at`` starts
+  (once — a marker file stops it happening again on the resumed run).
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
+import signal
 import sys
+from pathlib import Path
 
 from google.adk.events import Event, EventActions
 from google.genai import types
 
-from agency_sdk.adk import GtsSessionService
+from agency_sdk.adk import DurableRunner, GtsSessionService
 from agency_sdk.test.adk_fakes import FakeControlPlane
+from agency_sdk.test.adk_llm_fakes import CountingTools, make_app, steps_script
 
 
 def _service(path: str) -> GtsSessionService:
@@ -80,12 +87,30 @@ async def _read(path: str, session_id: str, out: str) -> None:
         fh.write(_dump(session))
 
 
+async def _durable(path: str, counts: str, correlation_id: str, kill_at: str, out: str) -> None:
+    marker = Path(counts).with_suffix(".killed")
+
+    def maybe_die(n: int) -> None:
+        if n == int(kill_at) and not marker.exists():
+            marker.write_text("1")
+            os.kill(os.getpid(), signal.SIGKILL)
+
+    tools = CountingTools(counts)
+    app = make_app(steps_script(5), [tools.step_tool(before=maybe_die)])
+    runner = DurableRunner(app=app, session_service=_service(path))
+    outcome = await runner.run(correlation_id, user_id="user-1", message="go")
+    with open(out, "w") as fh:
+        fh.write(outcome.model_dump_json())
+
+
 def main(argv: list[str]) -> None:
     command, *args = argv
     if command == "write":
         asyncio.run(_write(*args))
     elif command == "read":
         asyncio.run(_read(*args))
+    elif command == "durable":
+        asyncio.run(_durable(*args))
     else:
         raise SystemExit(f"unknown command {command!r}")
 

@@ -35,11 +35,14 @@ def text(value: str) -> types.Part:
 class ScriptedLlm(BaseLlm):
     model: str = "scripted"
     script: list[Any] = []
+    #: One entry per model call, so a test can assert the LLM was (not) called.
+    calls: list[int] = []
 
     async def generate_content_async(
         self, llm_request: LlmRequest, stream: bool = False
     ) -> AsyncGenerator[LlmResponse, None]:
         responses = [p.function_response for c in llm_request.contents for p in (c.parts or []) if p.function_response]
+        self.calls.append(len(responses))
         step = self.script[min(len(responses), len(self.script) - 1)]
         parts = step(responses) if callable(step) else step
         parts = parts if isinstance(parts, list) else [parts]
@@ -60,9 +63,15 @@ class CountingTools:
     def counts(self) -> dict[str, int]:
         return json.loads(self.path.read_text()) if self.path.exists() else {}
 
-    def step_tool(self, on_step: Callable[[int], None] | None = None) -> Callable[..., dict[str, Any]]:
+    def step_tool(
+        self, on_step: Callable[[int], None] | None = None, *, before: Callable[[int], None] | None = None
+    ) -> Callable[..., dict[str, Any]]:
+        """``before(n)`` runs before the step counts itself (e.g. to kill the process mid-run)."""
+
         def step(n: int) -> dict[str, Any]:
             """Perform step n."""
+            if before is not None:
+                before(n)
             self._bump(f"step-{n}")
             if on_step is not None:
                 on_step(n)
@@ -80,10 +89,22 @@ class CountingTools:
 
 
 def make_app(
-    script: list[Any], tools: list[Any] | None = None, *, name: str = "app", state_output: str | None = None
+    script: list[Any],
+    tools: list[Any] | None = None,
+    *,
+    name: str = "app",
+    state_output: str | None = None,
+    resumable: bool = True,
 ) -> App:
-    agent = LlmAgent(name="agent", model=ScriptedLlm(script=script), tools=tools or [], output_key=state_output)
-    return App(name=name, root_agent=agent, resumability_config=ResumabilityConfig(is_resumable=True))
+    agent = LlmAgent(
+        name="agent", model=ScriptedLlm(script=script, calls=[]), tools=tools or [], output_key=state_output
+    )
+    config = ResumabilityConfig(is_resumable=True) if resumable else None
+    return App(name=name, root_agent=agent, resumability_config=config)
+
+
+def llm_calls(app: App) -> list[int]:
+    return app.root_agent.model.calls
 
 
 def steps_script(n_steps: int, final: str = "done") -> list[Any]:
