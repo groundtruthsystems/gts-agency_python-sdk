@@ -317,7 +317,8 @@
           "id": "phase-6-task-2",
           "name": "Write the two examples",
           "description": "Add examples/quick_gts_session_service.py and examples/quick_durable_hitl.py with their own assertions.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "8012570"
         },
         {
           "id": "phase-6-task-3",
