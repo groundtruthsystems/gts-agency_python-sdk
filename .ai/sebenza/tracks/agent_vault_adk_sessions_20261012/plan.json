@@ -40,7 +40,8 @@
           "id": "phase-1-task-5",
           "name": "Write tests for session and templates client extensions",
           "description": "Write failing tests for register-by-name, find_by_correlation_id via POST, search, update(labels=), AWAITING_INPUT and URL-free errors.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "707d265"
         },
         {
           "id": "phase-1-task-6",
