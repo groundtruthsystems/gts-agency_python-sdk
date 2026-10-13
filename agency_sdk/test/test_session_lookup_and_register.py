@@ -21,7 +21,7 @@ from agency_sdk.delegates.session_templates_client import (
 )
 
 CID = "corr-PHI-SENTINEL-0001"
-PAGE = {"page": {"page": 0, "size": 50, "total_elements": 2, "total_pages": 1}}
+PAGE = {"page": {"total": 2, "page": 0, "size": 50}}
 
 
 def _templates(*names):
@@ -149,13 +149,11 @@ class TestRegister:
 
     def test_register_pages_through_templates(self, templates, stub_requests):
         many = {
-            "page": {"page": 0, "size": 1, "total_elements": 2, "total_pages": 2},
+            "page": {"total": 2, "page": 0, "size": 1},
             "items": [{"id": "tpl-x", "name": "x", "organisation_id": 2}],
         }
         stub_requests.queue(json_data=many)
-        stub_requests.queue(
-            json_data={**_templates("adk-agent"), "page": {"page": 1, "size": 1, "total_elements": 2, "total_pages": 2}}
-        )
+        stub_requests.queue(json_data={**_templates("adk-agent"), "page": {"total": 2, "page": 1, "size": 1}})
         stub_requests.queue(json_data={"success": True, "register": {"session_id": "s-new"}})
 
         assert templates.register(2, "adk-agent", correlation_id=CID) == "s-new"

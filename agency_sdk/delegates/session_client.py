@@ -6,6 +6,12 @@ sets ``arguments.session_id``); the agent ``attach``es to that inherited session
 and reports progress via ``update``. Self-registration would mint a second
 session divorced from the work-item card (the "orphan leg ②"), so ``register``
 is intentionally not exposed here — see ``docs/session_reporting_delegate_design.md``.
+(A session the SDK itself must create — an ADK ``create_session`` with no id — is registered from a
+template via ``AgencySessionTemplatesClient.register``, never from here.)
+
+Two read paths support the Agent Vault (``docs/agent_vault_gap_analysis.md``): ``find_by_correlation_id``
+and ``search``. Both send their selectors in a POST body, so a correlation id never lands in a URL,
+access log or ``HTTPError`` message.
 
 The client only MARSHALS a caller-decided status; it never infers the run
 outcome. Deciding the status (and any terminal payload) stays with the agent.
@@ -13,9 +19,11 @@ outcome. Deciding the status (and any terminal payload) stays with the agent.
 
 from typing import Any
 
+import requests
+
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.base_client import BaseDelegateClient
-from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionStatus
+from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionRef, SessionSearchResult, SessionStatus
 
 
 class AgencySessionClient(BaseDelegateClient):
@@ -49,6 +57,7 @@ class AgencySessionClient(BaseDelegateClient):
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
         logs: str | None = None,
+        labels: dict[str, str] | None = None,
         session_id: str | None = None,
     ) -> SessionCommandResponse:
         """Report progress on the session via ``POST /{id}/_command {command:"update"}``.
@@ -64,6 +73,7 @@ class AgencySessionClient(BaseDelegateClient):
             metrics: Optional run metrics.
             error: Optional failure detail (surfaced in the CP UI's ERRORS tab).
             logs: Optional captured logs (surfaced in the CP UI's LOGS tab).
+            labels: Optional labels to set on the session (e.g. ``adk_app`` on an adopted session).
             session_id: Target session; defaults to the ``attach``ed session. An
                 explicit value overrides the attached session for THIS call only —
                 it does not rebind ``self._session_id``.
@@ -86,6 +96,8 @@ class AgencySessionClient(BaseDelegateClient):
             update["error"] = error
         if logs is not None:
             update["logs"] = logs
+        if labels is not None:
+            update["labels"] = labels
         payload = {"command": "update", "organisation": organisation_id, "update": update}
         # retry=True: re-sending the same update is safe (idempotent; ①'s session-status
         # monotonicity guard prevents terminal regression), unlike the work-queue POSTs.
@@ -93,3 +105,40 @@ class AgencySessionClient(BaseDelegateClient):
             "POST", f"/{target}/_command", data=payload, params={"o": str(organisation_id)}, retry=True
         )
         return SessionCommandResponse(**body)
+
+    def find_by_correlation_id(self, organisation_id: int, correlation_id: str) -> SessionRef | None:
+        """Locate the session that owns ``correlation_id`` (unique per organisation).
+
+        ``POST /api/sessions/_lookup`` with the id in the body. A miss and a session in another
+        organisation are deliberately indistinguishable: both are 404 and both return ``None``.
+
+        Raises:
+            requests.HTTPError: Any non-404 error.
+        """
+        body = {"organisation": organisation_id, "correlation_id": correlation_id}
+        try:
+            found = self._make_request("POST", "/_lookup", data=body, params={"o": str(organisation_id)}, retry=True)
+        except requests.HTTPError as err:
+            if err.response is not None and err.response.status_code == 404:
+                return None
+            raise
+        return SessionRef(**found)
+
+    def search(
+        self,
+        organisation_id: int,
+        *,
+        labels: dict[str, str],
+        user: str | None = None,
+        page: int = 0,
+        size: int = 50,
+    ) -> SessionSearchResult:
+        """Find sessions by labels (AND-ed), optionally for one user; the server filters by policy.
+
+        Backs ADK ``list_sessions(app_name, user_id)``. Selectors travel in the POST body.
+        """
+        body: dict[str, Any] = {"organisation": organisation_id, "labels": labels}
+        if user is not None:
+            body["user"] = user
+        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        return SessionSearchResult(**self._make_request("POST", "/_search", data=body, params=params, retry=True))
