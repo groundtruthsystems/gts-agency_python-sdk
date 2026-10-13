@@ -47,7 +47,8 @@
           "id": "phase-1-task-6",
           "name": "Implement session and templates client extensions",
           "description": "Add register to the templates client and the lookup, search, labels and status additions to the session client.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "e0b3bf5"
         },
         {
           "id": "phase-1-task-7",
