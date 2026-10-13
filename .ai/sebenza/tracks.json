@@ -23,7 +23,7 @@
         {
           "id": "phase-1",
           "name": "Packaging, spike & core client extensions",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         },
         {
@@ -65,8 +65,8 @@
       ],
       "progress": {
         "total_tasks": 35,
-        "completed_tasks": 7,
-        "percentage": 20.0
+        "completed_tasks": 8,
+        "percentage": 22.9
       },
       "spec_path": "./tracks/agent_vault_adk_sessions_20261012/spec.md",
       "plan_path": "./tracks/agent_vault_adk_sessions_20261012/plan.json"
