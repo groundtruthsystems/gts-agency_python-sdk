@@ -16,7 +16,7 @@
       "status": "doing",
       "blocked_reason": null,
       "created_at": "2026-10-12T18:50:10Z",
-      "updated_at": "2026-10-13T02:51:49Z",
+      "updated_at": "2026-10-13T02:52:48Z",
       "design_path": "./tracks/agent_vault_adk_sessions_20261012/design.md",
       "test_plan_path": "./tracks/agent_vault_adk_sessions_20261012/test-plan.md",
       "phases_summary": [
@@ -53,7 +53,7 @@
         {
           "id": "phase-6",
           "name": "Docs and examples",
-          "status": "backlog",
+          "status": "doing",
           "blocked_reason": null
         },
         {
@@ -65,8 +65,8 @@
       ],
       "progress": {
         "total_tasks": 35,
-        "completed_tasks": 26,
-        "percentage": 74.3
+        "completed_tasks": 27,
+        "percentage": 77.1
       },
       "spec_path": "./tracks/agent_vault_adk_sessions_20261012/spec.md",
       "plan_path": "./tracks/agent_vault_adk_sessions_20261012/plan.json"

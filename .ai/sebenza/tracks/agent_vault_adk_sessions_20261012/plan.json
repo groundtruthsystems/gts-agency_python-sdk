@@ -303,14 +303,15 @@
     {
       "id": "phase-6",
       "name": "Docs and examples",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-6-task-1",
           "name": "Write docs/adk_sessions.md and the README quick-start",
           "description": "Document configuration-only adoption, durable runs, HITL and the backend contract dependency.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "8279c2f"
         },
         {
           "id": "phase-6-task-2",
