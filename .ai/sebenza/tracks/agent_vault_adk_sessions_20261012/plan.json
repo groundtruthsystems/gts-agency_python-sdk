@@ -5,8 +5,8 @@
     {
       "id": "phase-1",
       "name": "Packaging, spike & core client extensions",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Awaiting user confirmation of the Phase 1 manual verification.",
       "tasks": [
         {
           "id": "phase-1-task-1",
@@ -54,7 +54,7 @@
           "id": "phase-1-task-7",
           "name": "Execute test scenarios for core client extensions",
           "description": "Run the phase's scenarios and confirm the existing suite's wire bytes are unchanged.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-33",
             "TS-37",
@@ -63,13 +63,15 @@
             "TS-47",
             "TS-60",
             "TS-62"
-          ]
+          ],
+          "commit_sha": "5661263"
         },
         {
           "id": "phase-1-task-8",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "backlog"
+          "status": "blocked",
+          "blocked_reason": "Awaiting user confirmation of the Phase 1 manual verification (workflow checkpoint step 5)."
         }
       ]
     },
