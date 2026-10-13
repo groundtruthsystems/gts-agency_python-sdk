@@ -5,14 +5,15 @@
     {
       "id": "phase-1",
       "name": "Packaging, spike & core client extensions",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-1-task-1",
           "name": "Record the [adk] extra in tech-stack.md",
           "description": "Document google-adk>=2.11,<3 as an optional lazy-imported extra in tech-stack.md before any code, per the workflow.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "79f71cf"
         },
         {
           "id": "phase-1-task-2",
