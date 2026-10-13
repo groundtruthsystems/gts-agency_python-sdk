@@ -243,7 +243,7 @@
     {
       "id": "phase-5",
       "name": "HITL with continued execution",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -271,7 +271,7 @@
           "id": "phase-5-task-4",
           "name": "Execute test scenarios for HITL",
           "description": "Run the phase's scenarios, including the pause, exit and resume across processes.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-22",
             "TS-23",
@@ -287,15 +287,18 @@
             "TS-66",
             "TS-67",
             "TS-70"
-          ]
+          ],
+          "commit_sha": "364bf6c"
         },
         {
           "id": "phase-5-task-5",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "fe0f240"
         }
-      ]
+      ],
+      "checkpoint_sha": "fe0f240"
     },
     {
       "id": "phase-6",
