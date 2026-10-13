@@ -79,14 +79,15 @@
     {
       "id": "phase-2",
       "name": "VaultStore and record codec",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-2-task-1",
           "name": "Write tests for VaultStore and the record codec",
           "description": "Write failing tests for error mapping, retry re-read, classification table, size caps, JSON-mode codec, bounded walk, parallel GETs and shielding.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "16f21f6"
         },
         {
           "id": "phase-2-task-2",
