@@ -345,9 +345,11 @@ class VaultStore:
             listing = await self._call(
                 "list", self._vault.list, session_id, prefix=EVENT_PREFIX, page=page, size=_LIST_PAGE_SIZE
             )
-            if not listing.entries:
-                break
             keys.extend(e.key for e in listing.entries)
+            # A short page ends the listing. If the server ever clamped the page size silently, the
+            # chain check below would come up short of the head's event_count and fail closed.
+            if len(listing.entries) < _LIST_PAGE_SIZE:
+                break
             page += 1
         records = dict(zip(keys, await asyncio.gather(*(self._record(session_id, k) for k in keys))))
         ordered: list[EventRecord] = []

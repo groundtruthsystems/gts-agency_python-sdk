@@ -322,19 +322,28 @@ class TestScopedState:
             assert "user" not in "".join(inspect.signature(fn).parameters)
 
     def test_unbound_owner_fails_closed(self, cp):
-        """TS-68: no bound owner -> the server refuses user scope -> typed error, no app-scope fallback."""
+        """TS-68: no bound owner -> the server refuses user scope -> typed error, nothing written, no app fallback."""
         cp.add_session("s-anon", owner=None)
         svc = _service(cp)
-        session = run(svc.create_session(app_name="app", user_id="user-1", session_id="s-anon"))
-        cp.vault.log.clear()
 
         with pytest.raises(errors.VaultUnavailable) as exc:
-            run(svc.append_event(session, _event(delta={"user:x": 1})))
+            run(svc.create_session(app_name="app", user_id="user-1", session_id="s-anon"))
 
         assert exc.value.status_code == 403
-        assert not [c for c in cp.vault.writes() if c.scope == "app"]
+        assert cp.vault.writes() == []
+
+    def test_owner_unbound_after_create_fails_closed_on_read_and_append(self, svc, cp):
+        cp.add_session("s-1", owner="user-1")
+        session = run(svc.create_session(app_name="app", user_id="user-1", session_id="s-1"))
+        with cp.shared.io():
+            cp.shared.sessions["s-1"]["owner"] = None
+        cp.vault.log.clear()
+
         with pytest.raises(errors.VaultUnavailable):
-            run(svc.get_session(app_name="app", user_id="user-1", session_id="s-anon"))
+            run(svc.get_session(app_name="app", user_id="user-1", session_id="s-1"))
+        with pytest.raises(errors.VaultUnavailable):
+            run(svc.append_event(session, _event(delta={"user:x": 1})))
+        assert not [c for c in cp.vault.writes() if c.scope == "app"]
 
     def test_register_sends_the_owner_claim(self, svc, cp):
         run(_new(svc, cp))

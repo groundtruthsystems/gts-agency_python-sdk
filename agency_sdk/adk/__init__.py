@@ -27,4 +27,8 @@ try:
 except ImportError as exc:  # pragma: no cover - exercised in a subprocess without the extra
     raise AdkNotInstalled(_INSTALL_HINT) from exc
 
-__all__ = ["AdkNotInstalled"]
+from agency_sdk.adk import errors  # noqa: E402
+from agency_sdk.adk._store import VaultLimits  # noqa: E402
+from agency_sdk.adk.session_service import GtsSessionService, register_gts_session_service  # noqa: E402
+
+__all__ = ["AdkNotInstalled", "GtsSessionService", "VaultLimits", "errors", "register_gts_session_service"]
