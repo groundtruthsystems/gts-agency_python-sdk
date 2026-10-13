@@ -95,6 +95,7 @@ class AgencySessionVaultClient(BaseDelegateClient):
         page: int | None = None,
         size: int | None = None,
         scope: VaultScope | str | None = None,
+        timeout: float | None = None,
     ) -> VaultListResponse:
         """List entries in a session vault (metadata only — no values).
 
@@ -120,7 +121,7 @@ class AgencySessionVaultClient(BaseDelegateClient):
         scope_value = _scope_param(scope)
         if scope_value is not None:
             params["scope"] = scope_value
-        return VaultListResponse(**self._make_request("GET", f"/{session_id}/vault", params=params))
+        return VaultListResponse(**self._make_request("GET", f"/{session_id}/vault", params=params, timeout=timeout))
 
     def get(
         self,
@@ -130,6 +131,7 @@ class AgencySessionVaultClient(BaseDelegateClient):
         reveal: bool = False,
         *,
         scope: VaultScope | str | None = None,
+        timeout: float | None = None,
     ) -> VaultEntryResponse:
         """Read a single vault entry's value.
 
@@ -158,7 +160,9 @@ class AgencySessionVaultClient(BaseDelegateClient):
         scope_value = _scope_param(scope)
         if scope_value is not None:
             params["scope"] = scope_value
-        return VaultEntryResponse(**self._make_request("GET", f"/{session_id}/vault/{key}", params=params))
+        return VaultEntryResponse(
+            **self._make_request("GET", f"/{session_id}/vault/{key}", params=params, timeout=timeout)
+        )
 
     def set(
         self,
@@ -171,6 +175,7 @@ class AgencySessionVaultClient(BaseDelegateClient):
         if_version: int | None = None,
         if_absent: bool = False,
         scope: VaultScope | str | None = None,
+        timeout: float | None = None,
     ) -> VaultSetResponse:
         """Create or overwrite a vault entry. The body is the raw JSON value.
 
@@ -212,7 +217,12 @@ class AgencySessionVaultClient(BaseDelegateClient):
             params["scope"] = scope_value
         try:
             result = self._make_request(
-                "PUT", f"/{session_id}/vault/{key}", data=value, params=params, retry=True if conditional else None
+                "PUT",
+                f"/{session_id}/vault/{key}",
+                data=value,
+                params=params,
+                retry=True if conditional else None,
+                timeout=timeout,
             )
         except requests.HTTPError as err:
             status = err.response.status_code if err.response is not None else None
@@ -221,7 +231,15 @@ class AgencySessionVaultClient(BaseDelegateClient):
             raise
         return VaultSetResponse(**result)
 
-    def delete(self, organisation_id: int, session_id: str, key: str, *, scope: VaultScope | str | None = None) -> None:
+    def delete(
+        self,
+        organisation_id: int,
+        session_id: str,
+        key: str,
+        *,
+        scope: VaultScope | str | None = None,
+        timeout: float | None = None,
+    ) -> None:
         """Delete a vault entry. Succeeds even if the entry does not exist.
 
         Args:
@@ -238,4 +256,4 @@ class AgencySessionVaultClient(BaseDelegateClient):
         scope_value = _scope_param(scope)
         if scope_value is not None:
             params["scope"] = scope_value
-        self._make_request("DELETE", f"/{session_id}/vault/{key}", params=params)
+        self._make_request("DELETE", f"/{session_id}/vault/{key}", params=params, timeout=timeout)
