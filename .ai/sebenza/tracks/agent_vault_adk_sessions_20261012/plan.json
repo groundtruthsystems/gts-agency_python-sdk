@@ -192,14 +192,15 @@
     {
       "id": "phase-4",
       "name": "Durable execution",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
           "name": "Write tests for DurableRunner run and resume selection",
           "description": "Write failing tests for correlation lookup, resume input selection, terminal-status handling, conflicts, failure records and the SIGKILL resume.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "f82202d"
         },
         {
           "id": "phase-4-task-2",
