@@ -8,9 +8,10 @@
 | `DurableRunner` | Runs an agent by **correlation id**. A run that is killed part-way resumes from its last checkpoint, and completed steps are not repeated. |
 | HITL | A run can pause for a human. The human answers in comand as an authenticated user, and the run continues from where it stopped. |
 
-Design and backend contract: [`agent_vault_gap_analysis.md`](agent_vault_gap_analysis.md). The comand
-endpoints this relies on are being built in the backend track. Until they ship, the SDK is proven against
-offline fakes of that contract (`agency_sdk/test/adk_fakes.py`).
+Design and backend contract: [`agent_vault_gap_analysis.md`](agent_vault_gap_analysis.md). The offline
+tests run against fakes of that contract (`agency_sdk/test/adk_fakes.py`); `pytest -m integration` runs the
+same scenarios against a local comand (see the module docstring of `agency_sdk/test/test_adk_integration.py`
+for the environment it needs).
 
 ## Install
 
