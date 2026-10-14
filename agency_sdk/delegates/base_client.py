@@ -1,7 +1,7 @@
 """Shared base for the per-domain delegate clients.
 
 Centralizes credential / base-URL storage and the common authenticated-request
-plumbing (bearer header, optional JSON content type, 30s timeout,
+plumbing (bearer header, optional JSON content type, 30s default timeout,
 ``raise_for_status``) so each delegate only sets its ``api_path`` and declares its
 typed methods.
 
@@ -29,6 +29,9 @@ _TRANSPORT_RETRY_WAITS: tuple[float, ...] = (1.0, 2.0)
 #: (``retry=True``) — never by default.
 _AUTO_RETRY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
+#: Default per-request timeout in seconds; a call may override it with ``timeout=``.
+DEFAULT_TIMEOUT: float = 30
+
 
 class BaseDelegateClient:
     #: API path prefix appended to ``base_url`` (e.g. ``"/api/datasets"``). Set by subclasses.
@@ -47,6 +50,7 @@ class BaseDelegateClient:
         params: dict[str, Any] | None = None,
         json_content_type: bool = True,
         retry: bool | None = None,
+        timeout: float | None = None,
     ) -> requests.Response:
         """Issue an authenticated request, raise on HTTP error, and return the raw response.
 
@@ -55,6 +59,8 @@ class BaseDelegateClient:
                 only pure reads (:data:`_AUTO_RETRY_METHODS`). Pass ``True`` to retry a
                 write that is genuinely safe to repeat (e.g. an idempotent update),
                 ``False`` to force a single attempt.
+            timeout: Per-request timeout in seconds; ``None`` uses :data:`DEFAULT_TIMEOUT`. Applies to
+                every retried attempt.
         """
         headers = {"Authorization": f"Bearer {self.token_supplier.bearer_token()}"}
         if json_content_type:
@@ -67,6 +73,7 @@ class BaseDelegateClient:
             data=data,
             params=params,
             retry=should_retry,
+            timeout=DEFAULT_TIMEOUT if timeout is None else timeout,
         )
         response.raise_for_status()
         return response
@@ -80,6 +87,7 @@ class BaseDelegateClient:
         data: Any,
         params: dict[str, Any] | None,
         retry: bool,
+        timeout: float = DEFAULT_TIMEOUT,
     ) -> requests.Response:
         """Issue the transport call, optionally retrying CONNECTION failures with backoff.
 
@@ -102,11 +110,11 @@ class BaseDelegateClient:
             for wait in _TRANSPORT_RETRY_WAITS:
                 try:
                     return requests.request(
-                        method=method, url=url, headers=headers, json=data, params=params, timeout=30
+                        method=method, url=url, headers=headers, json=data, params=params, timeout=timeout
                     )
                 except requests.ConnectionError:
                     time.sleep(wait)
-        return requests.request(method=method, url=url, headers=headers, json=data, params=params, timeout=30)
+        return requests.request(method=method, url=url, headers=headers, json=data, params=params, timeout=timeout)
 
     def _make_request(
         self,
@@ -115,12 +123,13 @@ class BaseDelegateClient:
         data: Any = None,
         params: dict[str, Any] | None = None,
         retry: bool | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Issue a JSON request and return the parsed dict body (``{}`` when empty).
 
         ``retry`` follows :meth:`_request`: ``None`` auto-retries reads only; ``True``
-        opts a safe-to-repeat write into connection-retry.
+        opts a safe-to-repeat write into connection-retry; ``timeout`` overrides the default.
         """
-        response = self._request(method, endpoint, data=data, params=params, retry=retry)
+        response = self._request(method, endpoint, data=data, params=params, retry=retry, timeout=timeout)
         result: dict[str, Any] = response.json() if response.content else {}
         return result

@@ -1,3 +1,4 @@
+import threading
 import time
 
 import jwt
@@ -22,12 +23,26 @@ class CredentialsSupplier:
         # process.
         self.refresh_buffer = refresh_buffer
         self._cached_token: str | None = None
+        # Serialises refreshes: the ADK session service calls this from several
+        # asyncio.to_thread workers at once, and without the lock every one of them
+        # would miss the cache together and fetch its own token.
+        self._refresh_lock = threading.Lock()
 
     def bearer_token(self) -> str:
-        """Get OAuth2 bearer token using client credentials flow."""
+        """Get OAuth2 bearer token using client credentials flow.
+
+        Thread-safe: concurrent callers that find the token expired share a single fetch
+        (double-checked under a lock), so the fast path stays lock-free.
+        """
         if self._cached_token and not self._is_token_expired():
             return self._cached_token
+        with self._refresh_lock:
+            if self._cached_token and not self._is_token_expired():
+                return self._cached_token
+            return self._fetch_token()
 
+    def _fetch_token(self) -> str:
+        """Fetch a fresh token from the auth server and cache it. Caller holds the refresh lock."""
         form_data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,

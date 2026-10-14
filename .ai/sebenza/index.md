@@ -27,8 +27,5 @@ The single Context-Driven-Development workspace for this repo. It absorbed the f
 `tracks.json` (`sebenza-tracks-v1`) is the only registry. New tracks carry a schema-validated
 `plan.json` (`sebenza-plan-v1`), and their `plan_path` points at it.
 
-The four tracks migrated from the former `conductor/` workspace are all **complete**; their
-narrative `plan.md` files were left as they are — converting a finished plan would only churn the
-task and checkpoint SHAs it records — so their `plan_path` still points at `plan.md`. The former
-`conductor/tracks.md` registry is superseded by `tracks.json`; every track it listed carries its
-full description and per-phase status there.
+The four tracks migrated from the former `conductor/` workspace were closed out on 2026-10-12: each is
+recorded in `CHANGE_LOG.md` and its threats are consolidated into `SECURITY.md`.

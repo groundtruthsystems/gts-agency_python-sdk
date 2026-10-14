@@ -21,6 +21,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_serializer
 
+from agency_sdk.delegates.datasets_dto import Page
+
 
 class SessionStatus(IntEnum):
     """The control-plane session status codes an agent reports via ``update``."""
@@ -28,6 +30,9 @@ class SessionStatus(IntEnum):
     FAILED = -1
     COMPLETED = 0
     IN_PROGRESS = 2
+    #: Non-terminal: the run paused for a human answer recorded in comand (Agent Vault). The code is
+    #: provisional until the backend track confirms it; comand sets it when a HITL request is created.
+    AWAITING_INPUT = 3
 
 
 class SessionCommandResponse(BaseModel):
@@ -40,6 +45,21 @@ class SessionCommandResponse(BaseModel):
     success: bool
     message: str
     update: dict[str, Any] | None = None
+
+
+class SessionRef(BaseModel):
+    """A session located by correlation-id lookup or label search: its id, status and labels."""
+
+    session_id: str
+    status: int
+    labels: dict[str, str] = Field(default_factory=dict)
+
+
+class SessionSearchResult(BaseModel):
+    """One page of ``POST /api/sessions/_search`` results (policy-filtered server-side)."""
+
+    page: Page
+    items: list[SessionRef]
 
 
 class AnalyticsEvent(BaseModel):

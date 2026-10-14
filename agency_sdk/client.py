@@ -12,6 +12,7 @@ from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
 from agency_sdk.delegates.session_client import AgencySessionClient
+from agency_sdk.delegates.session_hitl_client import AgencySessionHitlClient
 from agency_sdk.delegates.session_templates_client import AgencySessionTemplatesClient
 from agency_sdk.delegates.session_vault_client import AgencySessionVaultClient
 from agency_sdk.delegates.work_queue_client import AgencyWorkQueueClient
@@ -42,6 +43,7 @@ class AgencyClient:
             token_supplier=token_supplier, base_url=self.base_url
         )
         self.annotations_client = AgencyAnnotationsClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.session_hitl_client = AgencySessionHitlClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
         self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
@@ -76,6 +78,10 @@ class AgencyClient:
 
     def session_templates(self) -> AgencySessionTemplatesClient:
         return self.session_templates_client
+
+    def session_hitl(self) -> AgencySessionHitlClient:
+        """Human-input requests on a session (agent: create/get/list; a human's client: respond)."""
+        return self.session_hitl_client
 
     def annotations(self) -> AgencyAnnotationsClient:
         return self.annotations_client

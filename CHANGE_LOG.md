@@ -25,3 +25,19 @@ The platform moved work-queue 409 conflict bodies to the standard `{error:{…}}
 ### 2026-07-18 — Work-queue ingestion delegate (files_inbox_ingestion_20260713)
 
 Added `AgencyClient.work_queues()` over `/api/work_queues` — create-item-with-external-refs, publish, `add_ref`, owner lookup by ref, the unblock/retry/reprocess commands and item delete — mirroring the control plane's files-inbox ingestion contract. A 409 there is normal control flow rather than an error: an external ref can be claimed only once, so `create_item` and `add_ref` catch it and return a typed claim-lost result carrying the owning card's summary, which is what lets a consumer build an exactly-once ingestion gate on top. Verified end to end against the local stack with the control plane's own branch built in, and shipped as 0.0.1rc12.
+
+### 2026-07-07 — Gateway: openai-SDK-only (gateway_openai_only_20260707)
+
+The gateway capability went from three usage tiers to one. `AgencyGatewayClient` is now a thin factory that returns official `openai.OpenAI`/`AsyncOpenAI` clients, pre-wired with the gateway's `/v1` URL, the `x-org` routing header and a per-request rotating-bearer auth hook, and the hand-rolled chat and streaming client was removed along with its DTOs. `openai` moved from an optional extra to a core dependency, a deliberate departure from the lean core that buys one correct code path: the SDK's own SSE parsing, mojibake fix and stream guard were deleted because openai handles them natively. `gateway_dto.py` now holds only the URL-discovery DTOs.
+
+### 2026-07-07 — Gateway streaming + openai SDK integration (gateway_streaming_openai_20260707)
+
+A live `stream=True` call showed the zero-dependency gateway client buffering the whole SSE body for about 8 s and then failing with an unrelated `JSONDecodeError`, so this track added native SSE streaming, a fail-fast guard, and `openai_client()`/`async_openai_client()` helpers, with the bearer hook moved into a shared `agency_sdk/auth_hooks.py` so the gateway no longer depends on observability. It also fixed two facade bugs: passing both `gateway_base_url` and `environment` now raises instead of silently dropping the environment, and `gateway()` now caches per `(org_id, url/environment)` identity, because the first caller's singleton was silently routing later orgs to the wrong host. Its three-tier model was superseded the same day by `gateway_openai_only_20260707`.
+
+### 2026-07-06 — Agent gateway client (agent_gateway_client_20260706)
+
+Added `AgencyClient.gateway(org_id=...)`, an OpenAI-compatible client for the org's agentgateway Cloud Run service that reuses the SDK's rotating m2m bearer token and stamps the gateway's `x-org` routing header (not `x-org-id`, which is the observability header). It targets the gateway's own host rather than `base_url`, taken either from an explicit `gateway_base_url` or discovered through `GET /api/agentgateways?o={org}`. LLM calls get a 120 s timeout instead of the base 30 s, because completions are slow.
+
+### 2026-06-17 — Observability tracing (observability_tracing_20260617)
+
+The OpenTelemetry setup each GTS agent hand-copied from `gts-demo-agent` is now in the SDK as `AgencyClient.observability()`, so an agent can export OTLP traces and correlated logs to Langfuse in a few lines. The heavy OpenTelemetry/Langfuse dependencies sit behind a lazily imported `[observability]` extra, and the exporters authenticate with the same `CredentialsSupplier` token as the API client, stamped fresh on every export so a long-running process never sends an expired token. The demo's six load-bearing mechanisms were preserved, among them a real recording TracerProvider, per-request auth hooks and root-span propagation, and `obs.agent_run()` encodes the root span so callers cannot get trace correlation wrong.

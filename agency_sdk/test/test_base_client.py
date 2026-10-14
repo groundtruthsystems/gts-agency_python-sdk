@@ -151,3 +151,30 @@ def test_write_can_opt_into_retry(client, monkeypatch):
 
     assert result == {"ok": True}
     assert transport.calls == 3
+
+
+def test_timeout_defaults_to_30_and_can_be_overridden_per_call(stub_requests, client):
+    stub_requests.queue(json_data={"ok": True})
+    stub_requests.queue(json_data={"ok": True})
+
+    client._make_request("GET", "/1")
+    client._make_request("GET", "/2", timeout=10)
+
+    assert [c.kwargs["timeout"] for c in stub_requests.calls] == [30, 10]
+
+
+def test_timeout_override_applies_to_retried_attempts(client, monkeypatch):
+    seen = []
+
+    def flaky(method, url, **kwargs):
+        seen.append(kwargs["timeout"])
+        if len(seen) < 2:
+            raise requests.ConnectionError("blip")
+        return StubResponse(json_data={"ok": True})
+
+    monkeypatch.setattr(requests, "request", flaky)
+    monkeypatch.setattr("agency_sdk.delegates.base_client.time.sleep", lambda s: None)
+
+    client._make_request("GET", "/x", timeout=10)
+
+    assert seen == [10, 10]

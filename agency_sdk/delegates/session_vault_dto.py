@@ -41,6 +41,18 @@ class Classification(StrEnum):
     DEFAULT = RESTRICTED
 
 
+class VaultScope(StrEnum):
+    """Cross-session scopes on the session vault (``?scope=``), for ADK ``app:``/``user:`` state.
+
+    The server resolves the app (from the session's template or agent) and the user (the session's bound
+    owner) itself and applies backend policy, so a caller can never name another app or user. A ``user``
+    read or write fails closed (4xx) when the session has no bound owner.
+    """
+
+    APP = "app"
+    USER = "user"
+
+
 class VaultEntryMeta(BaseModel):
     """Metadata for one vault entry as returned by the list endpoint.
 
@@ -52,6 +64,8 @@ class VaultEntryMeta(BaseModel):
     size: int
     updated_at: str
     classification: str
+    #: Monotonic per-key version (``None`` from servers that predate versioning).
+    version: int | None = None
 
 
 class VaultListResponse(BaseModel):
@@ -66,10 +80,13 @@ class VaultEntryResponse(BaseModel):
     key: str
     value: Any
     classification: str
+    #: Monotonic per-key version, the precondition for ``set(if_version=...)``.
+    version: int | None = None
 
 
 class VaultSetResponse(BaseModel):
-    """The stored entry's key and classification, returned by a write (PUT)."""
+    """The stored entry's key, classification and new version, returned by a write (PUT)."""
 
     key: str
     classification: str
+    version: int | None = None
