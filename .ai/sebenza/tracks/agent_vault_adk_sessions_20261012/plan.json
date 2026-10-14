@@ -393,9 +393,11 @@
           "id": "phase-7-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "done"
+          "status": "done",
+          "commit_sha": "b66f9de"
         }
-      ]
+      ],
+      "checkpoint_sha": "b66f9de"
     }
   ]
 }
