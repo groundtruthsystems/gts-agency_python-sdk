@@ -350,7 +350,7 @@
     {
       "id": "phase-7",
       "name": "Final verification",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -378,20 +378,22 @@
             "TS-64",
             "TS-65"
           ],
-          "verified_by": "user, against local comand with the backend track shipped (2026-10-14)"
+          "verified_by": "user, against local comand with the backend track shipped (2026-10-14)",
+          "commit_sha": "8b8f262"
         },
         {
           "id": "phase-7-task-3",
           "name": "Close traceability gaps and record the benchmark",
           "description": "Confirm every UC and AC has a passing scenario and record the manual checkpoint and hydrate latency benchmark.",
           "status": "done",
-          "verified_by": "user, against local comand with the backend track shipped (2026-10-14)"
+          "verified_by": "user, against local comand with the backend track shipped (2026-10-14)",
+          "commit_sha": "8b8f262"
         },
         {
           "id": "phase-7-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     }
