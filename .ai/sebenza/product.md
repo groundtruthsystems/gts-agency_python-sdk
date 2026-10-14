@@ -111,6 +111,15 @@ ledger turned a separation-of-duties gate from fail-closed to fail-open. Verifie
 agent across five days of publishing against a live stack, and numbered `0.0.2` because `0.0.1`
 final had shipped in the meantime and PEP 440 sorts any `0.0.1rcN` below it.
 
+Unreleased (track closed 2026-10-14; still `0.0.2rc2` until the next rc is cut): the optional `[adk]`
+extra makes Google ADK 2 agents durable on the GTS session vault — the SDK half of Agent Vault.
+`GtsSessionService` replaces `InMemorySessionService` by configuration alone, storing each ADK session in
+its GTS session's vault, and `DurableRunner` runs an agent by correlation id so a killed worker resumes from
+its last checkpoint without repeating steps, and can pause for a human who answers in comand as themselves.
+Authority stays with comand: it records the verified responder, keeps the first answer, expires abandoned
+requests, and resolves `app:`/`user:` state from the session's bound owner. Built against a written
+contract and offline fakes, then verified against a local comand once the backend track shipped.
+
 ## Non-Goals
 
 - **No CLI / TUI.** This is a pure library. Command-line tooling, if ever needed,
