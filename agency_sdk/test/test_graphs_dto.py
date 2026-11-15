@@ -1,23 +1,13 @@
-"""DTO and exception tests for the graphs delegate.
+"""DTO tests for the graphs delegate.
 
-Shapes mirror comand's ``ListKnowledgeGraphsResponse`` (knowledge_graph_service.rs) and the
-medical ontology service's ``/api/models`` entity and ``_graph`` responses. Synthetic data only.
+Shapes mirror comand's ``ListKnowledgeGraphsResponse`` (knowledge_graph_service.rs). Synthetic data only.
 """
 
 import pytest
-import requests
 from pydantic import ValidationError
 
-from agency_sdk.delegates.graphs_dto import (
-    ConditionClassMismatch,
-    ConditionNotFound,
-    ConditionSubgraph,
-    KnowledgeGraphEntry,
-    KnowledgeGraphList,
-    ResolvedEntity,
-)
+from agency_sdk.delegates.graphs_dto import KnowledgeGraphEntry, KnowledgeGraphList
 
-BID = "0f8fad5b-d9cb-469f-a165-70867728950e"
 CANARY = "CANARY-TOKEN-NOT-REAL"
 
 
@@ -66,66 +56,3 @@ def test_repr_hides_config():
     assert CANARY not in repr(KnowledgeGraphList(items=[entry]))
     assert entry.credential_variable_id == f"var-{CANARY}"
     assert entry.config == {"base_url": f"https://{CANARY}.example.invalid"}
-
-
-def test_resolved_entity_accepts_uuid_bid_and_class():
-    entity = ResolvedEntity.model_validate({"bid": BID, "class": "condition", "code": "C0000001", "name": "X"})
-
-    assert entity.bid == BID
-    assert entity.entity_class == "condition"
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        {"class": "condition"},
-        {"bid": BID},
-        {"bid": "x/../y", "class": "condition"},
-        {"bid": "B0000001", "class": "condition"},
-        {"bid": BID + "\n", "class": "condition"},
-        {"bid": 42, "class": "condition"},
-        [],
-        None,
-    ],
-)
-def test_resolved_entity_rejects_malformed_or_unsafe(body):
-    with pytest.raises(ValidationError):
-        ResolvedEntity.model_validate(body)
-
-
-def test_condition_subgraph_keeps_raw_documents():
-    root = {"bid": BID, "class": "condition", "code": "C0000001"}
-    sg = ConditionSubgraph(root=root, vertices=[root], edges=[{"label": "treats"}])
-
-    assert sg.root == root
-    assert sg.vertices == [root]
-    assert sg.edges == [{"label": "treats"}]
-
-
-def test_condition_subgraph_empty_lists_are_valid():
-    sg = ConditionSubgraph(root={"bid": BID, "class": "condition"}, vertices=[], edges=[])
-    assert sg.vertices == [] and sg.edges == []
-
-
-@pytest.mark.parametrize("walk", [{"edges": []}, {"vertices": []}, {"vertices": [], "edges": {}}])
-def test_condition_subgraph_rejects_malformed_walk(walk):
-    with pytest.raises(ValidationError):
-        ConditionSubgraph(root={"bid": BID, "class": "condition"}, **walk)
-
-
-def test_condition_not_found_is_http_error_keeping_response():
-    response = requests.Response()
-    response.status_code = 404
-    exc = ConditionNotFound(response=response)
-
-    assert isinstance(exc, requests.HTTPError)
-    assert exc.response is response
-    assert "not found" in str(exc).lower()
-
-
-def test_condition_class_mismatch_is_lookup_error_not_http_error():
-    exc = ConditionClassMismatch("medication")
-
-    assert isinstance(exc, LookupError)
-    assert not isinstance(exc, requests.HTTPError)
-    assert exc.entity_class == "medication"

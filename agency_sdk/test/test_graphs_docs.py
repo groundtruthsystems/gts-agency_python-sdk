@@ -1,4 +1,4 @@
-"""TS-30: the graphs doc carries its security warnings and known limits, and its example runs on the fakes."""
+"""TS-30: the graphs doc carries its security warnings, and its example runs on the fakes."""
 
 import pathlib
 import re
@@ -27,13 +27,6 @@ def test_doc_warns_never_to_send_the_token_to_config_base_url():
     assert re.search(r"never send[^\n]*token[^\n]*`config\.base_url`", _doc(), re.I)
 
 
-def test_doc_states_not_found_contract_and_known_limits():
-    text = _doc()
-    assert '{"detail": "not found"}' in text
-    assert re.search(r"secondary code", text, re.I)
-    assert "ConditionClassMismatch" in text
-
-
 def test_claude_md_lists_graphs_delegate():
     text = (ROOT / "CLAUDE.md").read_text()
     assert "graphs_client.py" in text
@@ -45,17 +38,12 @@ def test_doc_example_runs_against_fakes():
     assert match, "graphs example block not found"
     graphs = FakeGraphs()
     graphs.add_graph("medical-ontology", name="Medical Ontology")
-    root = {"bid": "0f8fad5b-d9cb-469f-a165-70867728950e", "class": "condition", "code": "C0000001"}
-    graphs.add_condition("C0000001", root, vertices=[root], edges=[])
+    graphs.add_graph("other", enabled=False)
 
     class _Client:
         def graphs(self):
             return graphs
 
-    namespace = {"client": _Client(), "org_id": 2, "code": "C0000001"}
+    namespace = {"client": _Client(), "org_id": 2}
     exec(match.group(1), namespace)  # nosec B102 - our own doc
-    assert namespace["mode"] == "enrich"
-
-    namespace = {"client": _Client(), "org_id": 2, "code": "C9999999"}
-    exec(match.group(1), namespace)  # nosec B102 - our own doc
-    assert namespace["mode"] == "create"
+    assert namespace["enabled"] == ["medical-ontology"]

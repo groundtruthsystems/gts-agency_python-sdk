@@ -106,7 +106,7 @@ def test_facade_returns_same_annotations_instance(fake_credentials):
 
 
 def test_graphs_accessor_and_root_exports(fake_credentials):
-    """TS-21: AgencyClient.graphs() shares the supplier; DTOs and exceptions are exported from the package root."""
+    """TS-21: AgencyClient.graphs() shares the supplier; DTOs are exported from the package root."""
     import agency_sdk
     from agency_sdk.delegates import graphs_dto
     from agency_sdk.delegates.graphs_client import AgencyGraphsClient
@@ -119,12 +119,6 @@ def test_graphs_accessor_and_root_exports(fake_credentials):
     assert graphs.token_supplier is fake_credentials
     assert graphs.base_url == "http://cp.test"
     assert client.graphs() is graphs
-    for name in (
-        "ConditionClassMismatch",
-        "ConditionNotFound",
-        "ConditionSubgraph",
-        "KnowledgeGraphEntry",
-        "KnowledgeGraphList",
-    ):
+    for name in ("KnowledgeGraphEntry", "KnowledgeGraphList"):
         assert getattr(agency_sdk, name) is getattr(graphs_dto, name)
         assert name in agency_sdk.__all__
