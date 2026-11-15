@@ -20,7 +20,7 @@
         "branch": "factory/gts-agency-python-sdk"
       },
       "created_at": "2026-11-14T00:00:00Z",
-      "updated_at": "2026-11-15T04:22:24Z",
+      "updated_at": "2026-11-15T04:57:49Z",
       "design_path": "./tracks/sangoma_sdk_graph_discovery_20261114/design.md",
       "test_plan_path": "./tracks/sangoma_sdk_graph_discovery_20261114/test-plan.md",
       "phases_summary": [
@@ -52,8 +52,8 @@
       ],
       "progress": {
         "total_tasks": 26,
-        "completed_tasks": 3,
-        "percentage": 12
+        "completed_tasks": 4,
+        "percentage": 15
       },
       "request": {
         "request_id": "01M7EGFFC83RH5H1P7PTJ2SSYP",
