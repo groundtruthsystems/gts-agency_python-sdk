@@ -32,7 +32,7 @@
         {
           "id": "phase-2",
           "name": "AgencyGraphsClient list and condition_subgraph",
-          "status": "doing"
+          "status": "done"
         },
         {
           "id": "phase-3",
@@ -62,7 +62,7 @@
       },
       "spec_path": "./tracks/sangoma_sdk_graph_discovery_20261114/spec.md",
       "plan_path": "./tracks/sangoma_sdk_graph_discovery_20261114/plan.json",
-      "current_phase_id": "phase-2"
+      "current_phase_id": "phase-3"
     }
   ]
 }

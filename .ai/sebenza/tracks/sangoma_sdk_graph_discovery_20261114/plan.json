@@ -47,7 +47,7 @@
     {
       "id": "phase-2",
       "name": "AgencyGraphsClient list and condition_subgraph",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -137,7 +137,8 @@
           "description": "Per workflow.md.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "2419697"
     },
     {
       "id": "phase-3",
