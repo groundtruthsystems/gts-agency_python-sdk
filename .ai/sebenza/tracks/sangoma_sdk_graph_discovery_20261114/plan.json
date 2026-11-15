@@ -1,0 +1,301 @@
+{
+  "$schema": "sebenza-plan-v1",
+  "track_id": "sangoma_sdk_graph_discovery_20261114",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Graph DTOs and exceptions",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-1-task-1",
+          "name": "Write tests for graph DTOs and exceptions",
+          "description": "Write failing tests in test_graphs_dto.py for KnowledgeGraphList/Entry, ConditionSubgraph, the root/bid validators, repr hiding and both exception types.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-1-task-2",
+          "name": "Implement graphs_dto.py and exceptions",
+          "description": "Add the pydantic DTOs (extra=allow, repr=False on config/credential_variable_id), ConditionNotFound(HTTPError) and ConditionClassMismatch(LookupError).",
+          "status": "backlog",
+          "depends_on": [
+            "phase-1-task-1"
+          ]
+        },
+        {
+          "id": "phase-1-task-3",
+          "name": "Execute test scenario TS-20",
+          "description": "Run the DTO repr-secrecy scenario.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-20"
+          ]
+        },
+        {
+          "id": "phase-1-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "AgencyGraphsClient list and condition_subgraph",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-2-task-1",
+          "name": "Write tests for graphs().list",
+          "description": "Write failing tests in test_graphs_client.py for list's parsing, wire request, error propagation and malformed bodies.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-2",
+          "name": "Implement AgencyGraphsClient.list",
+          "description": "Add delegates/graphs_client.py with api_path /api/knowledge-graphs and list(org) via _make_request.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-2-task-1"
+          ]
+        },
+        {
+          "id": "phase-2-task-3",
+          "name": "Write tests for graphs().condition_subgraph",
+          "description": "Write failing tests for resolve/walk wire requests, input validation, MOS-body not-found mapping, misroute 404s, transport errors, class mismatch, malformed bodies and empty graphs.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-4",
+          "name": "Implement AgencyGraphsClient.condition_subgraph",
+          "description": "Implement fullmatch validation, resolve via source=code, MOS-body-only ConditionNotFound mapping, class and UUID-bid checks, then the _graph walk.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-2-task-3"
+          ]
+        },
+        {
+          "id": "phase-2-task-5",
+          "name": "Write canary-token and facade tests",
+          "description": "Write failing tests for canary-token absence on real requests.Response objects and for AgencyClient.graphs() plus root exports.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-2-task-6",
+          "name": "Wire AgencyClient.graphs() and root exports",
+          "description": "Add graphs_client and graphs() to AgencyClient and re-export the DTOs and exceptions from agency_sdk/__init__.py.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-2-task-5"
+          ]
+        },
+        {
+          "id": "phase-2-task-7",
+          "name": "Execute test scenarios TS-01..TS-19, TS-21, TS-32",
+          "description": "Run the offline client, canary and facade scenarios.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-01",
+            "TS-02",
+            "TS-03",
+            "TS-04",
+            "TS-05",
+            "TS-06",
+            "TS-07",
+            "TS-08",
+            "TS-09",
+            "TS-10",
+            "TS-11",
+            "TS-12",
+            "TS-13",
+            "TS-14",
+            "TS-15",
+            "TS-16",
+            "TS-17",
+            "TS-18",
+            "TS-19",
+            "TS-21",
+            "TS-32"
+          ]
+        },
+        {
+          "id": "phase-2-task-8",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Offline fakes",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-3-task-1",
+          "name": "Write fake-parity tests",
+          "description": "Write failing tests in test_adk_fakes_graphs.py for signature parity, seeded found/not-found/mismatch/ValueError and http_error injection.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-3-task-2",
+          "name": "Implement FakeGraphs",
+          "description": "Add FakeGraphs to adk_fakes.py with add_graph/add_condition seeding, hung off FakeControlPlane as graphs.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-3-task-1"
+          ]
+        },
+        {
+          "id": "phase-3-task-3",
+          "name": "Execute test scenarios TS-22..TS-24",
+          "description": "Run the fake-parity scenarios.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-22",
+            "TS-23",
+            "TS-24"
+          ]
+        },
+        {
+          "id": "phase-3-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Docs and quality gates",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-4-task-1",
+          "name": "Write docs grep test",
+          "description": "Write a failing grep test asserting the graphs doc carries the header/config logging, http:// and config.base_url token warnings and the secondary-code limit.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-4-task-2",
+          "name": "Write docs/graphs.md and update CLAUDE.md",
+          "description": "Document both reads, the not-found contract, known limits and security warnings, and update the CLAUDE.md delegate list to twelve.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-4-task-1"
+          ]
+        },
+        {
+          "id": "phase-4-task-3",
+          "name": "Execute test scenarios TS-29, TS-30",
+          "description": "Run mypy strict, black --check, pytest --cov (>80% on new code) and the docs grep test.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-29",
+            "TS-30"
+          ]
+        },
+        {
+          "id": "phase-4-task-4",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Final verification and contract smoke",
+      "status": "backlog",
+      "blocked_reason": null,
+      "tasks": [
+        {
+          "id": "phase-5-task-1",
+          "name": "Write contract smoke tests",
+          "description": "Add test_contract_graphs.py (integration marker, own comand probe, env service account and env C/B codes; missing codes fail rather than skip) and widen the marker description.",
+          "status": "backlog"
+        },
+        {
+          "id": "phase-5-task-2",
+          "name": "Re-run the full offline test plan",
+          "description": "Re-run every offline scenario and the existing suite against the finished feature and close any traceability gap.",
+          "status": "backlog",
+          "test_scenarios": [
+            "TS-01",
+            "TS-02",
+            "TS-03",
+            "TS-04",
+            "TS-05",
+            "TS-06",
+            "TS-07",
+            "TS-08",
+            "TS-09",
+            "TS-10",
+            "TS-11",
+            "TS-12",
+            "TS-13",
+            "TS-14",
+            "TS-15",
+            "TS-16",
+            "TS-17",
+            "TS-18",
+            "TS-19",
+            "TS-20",
+            "TS-21",
+            "TS-22",
+            "TS-23",
+            "TS-24",
+            "TS-29",
+            "TS-30",
+            "TS-32"
+          ]
+        },
+        {
+          "id": "phase-5-task-3",
+          "name": "Cut pre-release for the agent to pin",
+          "description": "Bump to a pre-release version so gts-sangoma-agent can pin it before the smoke run.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-5-task-2"
+          ]
+        },
+        {
+          "id": "phase-5-task-4",
+          "name": "Execute contract smoke TS-25..TS-28, TS-31",
+          "description": "Needs operator-supplied known C\u2026 and authored B\u2026 codes and a non-prod service account; must pass, not skip, and a TS-31 MOS 404 means amend the design.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-5-task-1",
+            "phase-5-task-3"
+          ],
+          "test_scenarios": [
+            "TS-25",
+            "TS-26",
+            "TS-27",
+            "TS-28",
+            "TS-31"
+          ]
+        },
+        {
+          "id": "phase-5-task-5",
+          "name": "Release and changelog",
+          "description": "Add the CHANGE_LOG.md entry with the smoke report and cut the release.",
+          "status": "backlog",
+          "depends_on": [
+            "phase-5-task-4"
+          ]
+        },
+        {
+          "id": "phase-5-task-6",
+          "name": "Phase verification & checkpoint",
+          "description": "Per workflow.md.",
+          "status": "backlog"
+        }
+      ]
+    }
+  ]
+}
