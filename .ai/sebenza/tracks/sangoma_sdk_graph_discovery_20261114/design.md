@@ -147,7 +147,7 @@ Not produced. This is one delegate inside one existing library, and the applicat
 - New exceptions: `ConditionNotFound(HTTPError)` and `ConditionClassMismatch(LookupError)`.
 - Root exports: these exceptions plus the graph DTOs, re-exported from `agency_sdk/__init__.py` (handover §5.3).
 - Fakes: `adk_fakes.py` gains `FakeGraphs` (list plus seeded condition subgraphs).
-- Docs: the `CLAUDE.md` delegate list (eleven → twelve delegates), a graphs doc, and `CHANGE_LOG.md` at release.
+- Docs: the `CLAUDE.md` delegate list (→ thirteen delegates; it said eleven, but the facade already composed twelve), a graphs doc, and `CHANGE_LOG.md` at release.
 - No change to `files_client.py`, `CredentialsSupplier`, the base client or the other delegates.
 - No new server dependency: both endpoints exist in comand today.
 - Removed versus the handover: `find`/`GraphLookup` (G1/C5) and `upload(create_only)`/`FileExistsConflict` (G2/C6).
