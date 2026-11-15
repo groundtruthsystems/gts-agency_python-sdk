@@ -187,7 +187,7 @@
     {
       "id": "phase-4",
       "name": "Docs and quality gates",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -224,7 +224,8 @@
           "description": "Per workflow.md.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "086d0be"
     },
     {
       "id": "phase-5",
