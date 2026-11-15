@@ -187,33 +187,36 @@
     {
       "id": "phase-4",
       "name": "Docs and quality gates",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
           "name": "Write docs grep test",
           "description": "Write a failing grep test asserting the graphs doc carries the header/config logging, http:// and config.base_url token warnings and the secondary-code limit.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "e00694f"
         },
         {
           "id": "phase-4-task-2",
           "name": "Write docs/graphs.md and update CLAUDE.md",
           "description": "Document both reads, the not-found contract, known limits and security warnings, and update the CLAUDE.md delegate list to twelve.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-4-task-1"
-          ]
+          ],
+          "commit_sha": "e00694f"
         },
         {
           "id": "phase-4-task-3",
           "name": "Execute test scenarios TS-29, TS-30",
           "description": "Run mypy strict, black --check, pytest --cov (>80% on new code) and the docs grep test.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-29",
             "TS-30"
-          ]
+          ],
+          "commit_sha": "e00694f"
         },
         {
           "id": "phase-4-task-4",
