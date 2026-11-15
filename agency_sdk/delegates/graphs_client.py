@@ -91,11 +91,7 @@ class AgencyGraphsClient(BaseDelegateClient):
         Known limit: the ontology service matches only an entity's first code, so a condition stored
         under a secondary code reads as not found. Confirming before creating is the caller's job.
         """
-        _check_code(code)
-        if type(depth) is not int or not _MIN_DEPTH <= depth <= _MAX_DEPTH:
-            raise ValueError(f"depth must be an int from {_MIN_DEPTH} to {_MAX_DEPTH}")
-        if direction not in _DIRECTIONS:
-            raise ValueError("direction must be one of 'out', 'in', 'any'")
+        check_subgraph_args(code, depth, direction)
 
         org = str(organisation_id)
         root_body = self._resolve(org, code)
@@ -123,9 +119,17 @@ class AgencyGraphsClient(BaseDelegateClient):
         return response.json()
 
 
-def _check_code(code: object) -> None:
+def check_subgraph_args(code: object, depth: object, direction: object) -> None:
+    """Validate ``condition_subgraph`` arguments; raise ``ValueError`` without echoing the input.
+
+    Shared with the offline fakes so they refuse exactly what the real client refuses.
+    """
     if not isinstance(code, str) or not _CODE_RE.fullmatch(code):
         raise ValueError("code must be 'C' or 'B' followed by exactly 7 digits")
+    if type(depth) is not int or not _MIN_DEPTH <= depth <= _MAX_DEPTH:
+        raise ValueError(f"depth must be an int from {_MIN_DEPTH} to {_MAX_DEPTH}")
+    if direction not in _DIRECTIONS:
+        raise ValueError("direction must be one of 'out', 'in', 'any'")
 
 
 def _is_mos_not_found(response: requests.Response | None) -> bool:
