@@ -5,7 +5,7 @@
     {
       "id": "phase-1",
       "name": "Graph DTOs and exceptions",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -41,7 +41,8 @@
           "description": "Per workflow.md.",
           "status": "done"
         }
-      ]
+      ],
+      "checkpoint_sha": "e5fd37d"
     },
     {
       "id": "phase-2",
