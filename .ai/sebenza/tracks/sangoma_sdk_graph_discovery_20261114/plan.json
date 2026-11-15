@@ -280,10 +280,11 @@
           "id": "phase-5-task-3",
           "name": "Cut pre-release for the agent to pin",
           "description": "Bump to a pre-release version so gts-sangoma-agent can pin it before the smoke run.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-5-task-2"
-          ]
+          ],
+          "commit_sha": "dc836f2"
         },
         {
           "id": "phase-5-task-4",
