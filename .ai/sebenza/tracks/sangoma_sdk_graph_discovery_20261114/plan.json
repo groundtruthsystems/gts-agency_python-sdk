@@ -47,59 +47,65 @@
     {
       "id": "phase-2",
       "name": "AgencyGraphsClient list and condition_subgraph",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-2-task-1",
           "name": "Write tests for graphs().list",
           "description": "Write failing tests in test_graphs_client.py for list's parsing, wire request, error propagation and malformed bodies.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-2",
           "name": "Implement AgencyGraphsClient.list",
           "description": "Add delegates/graphs_client.py with api_path /api/knowledge-graphs and list(org) via _make_request.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-2-task-1"
-          ]
+          ],
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-3",
           "name": "Write tests for graphs().condition_subgraph",
           "description": "Write failing tests for resolve/walk wire requests, input validation, MOS-body not-found mapping, misroute 404s, transport errors, class mismatch, malformed bodies and empty graphs.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-4",
           "name": "Implement AgencyGraphsClient.condition_subgraph",
           "description": "Implement fullmatch validation, resolve via source=code, MOS-body-only ConditionNotFound mapping, class and UUID-bid checks, then the _graph walk.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-2-task-3"
-          ]
+          ],
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-5",
           "name": "Write canary-token and facade tests",
           "description": "Write failing tests for canary-token absence on real requests.Response objects and for AgencyClient.graphs() plus root exports.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-6",
           "name": "Wire AgencyClient.graphs() and root exports",
           "description": "Add graphs_client and graphs() to AgencyClient and re-export the DTOs and exceptions from agency_sdk/__init__.py.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-2-task-5"
-          ]
+          ],
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-7",
           "name": "Execute test scenarios TS-01..TS-19, TS-21, TS-32",
           "description": "Run the offline client, canary and facade scenarios.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-01",
             "TS-02",
@@ -122,7 +128,8 @@
             "TS-19",
             "TS-21",
             "TS-32"
-          ]
+          ],
+          "commit_sha": "61e3c78"
         },
         {
           "id": "phase-2-task-8",
