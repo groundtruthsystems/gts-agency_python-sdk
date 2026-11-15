@@ -230,20 +230,21 @@
     {
       "id": "phase-5",
       "name": "Final verification and contract smoke",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-5-task-1",
           "name": "Write contract smoke tests",
           "description": "Add test_contract_graphs.py (integration marker, own comand probe, env service account and env C/B codes; missing codes fail rather than skip) and widen the marker description.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "1050270"
         },
         {
           "id": "phase-5-task-2",
           "name": "Re-run the full offline test plan",
           "description": "Re-run every offline scenario and the existing suite against the finished feature and close any traceability gap.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-01",
             "TS-02",
@@ -272,7 +273,8 @@
             "TS-29",
             "TS-30",
             "TS-32"
-          ]
+          ],
+          "commit_sha": "1050270"
         },
         {
           "id": "phase-5-task-3",
