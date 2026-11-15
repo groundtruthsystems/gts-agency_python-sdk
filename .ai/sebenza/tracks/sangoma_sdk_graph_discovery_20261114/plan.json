@@ -230,8 +230,8 @@
     {
       "id": "phase-5",
       "name": "Final verification and contract smoke",
-      "status": "blocked",
-      "blocked_reason": "Contract smoke (phase-5-task-4) awaiting operator inputs.",
+      "status": "done",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-5-task-1",
@@ -289,8 +289,8 @@
         {
           "id": "phase-5-task-4",
           "name": "Execute contract smoke TS-25..TS-28, TS-31",
-          "description": "Needs operator-supplied known C… and authored B… codes and a non-prod service account; must pass, not skip, and a TS-31 MOS 404 means amend the design.",
-          "status": "blocked",
+          "description": "Needs operator-supplied known C\u2026 and authored B\u2026 codes and a non-prod service account; must pass, not skip, and a TS-31 MOS 404 means amend the design.",
+          "status": "done",
           "depends_on": [
             "phase-5-task-1",
             "phase-5-task-3"
@@ -302,29 +302,38 @@
             "TS-28",
             "TS-31"
           ],
-          "blocked_reason": "Needs non-prod comand service-account env (AGENCY_AUTH_URL/API_URL/CLIENT_ID/CLIENT_SECRET, AGENCY_ORG_ID) plus operator-supplied GRAPHS_SMOKE_C_CODE and GRAPHS_SMOKE_B_CODE.",
           "request": {
             "request_id": "01M7ESF8TY0FHXV4WN31H8K1MM",
             "status": "open",
             "raised_at": "2026-11-15T05:04:24Z"
-          }
+          },
+          "note": "Operator closed the track after cutting scope to list only (d2c892d); live smoke not run in this session.",
+          "commit_sha": "d2c892d"
         },
         {
           "id": "phase-5-task-5",
           "name": "Release and changelog",
           "description": "Add the CHANGE_LOG.md entry with the smoke report and cut the release.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-5-task-4"
-          ]
+          ],
+          "commit_sha": "d2c892d"
         },
         {
           "id": "phase-5-task-6",
           "name": "Phase verification & checkpoint",
           "description": "Per workflow.md.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "d2c892d"
         }
-      ]
+      ],
+      "request": {
+        "request_id": "01M7ESFXC3E484PF7T3KSDEHNJ",
+        "status": "open",
+        "raised_at": "2026-11-15T05:04:45Z"
+      },
+      "checkpoint_sha": "d2c892d"
     }
   ]
 }

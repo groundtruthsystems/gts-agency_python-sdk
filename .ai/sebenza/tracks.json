@@ -12,15 +12,15 @@
     {
       "track_id": "sangoma_sdk_graph_discovery_20261114",
       "type": "feature",
-      "status": "blocked",
-      "description": "Sangoma Condition Researcher (SDK portion), amended 2026-11-14: graphs().list over GET /api/knowledge-graphs?o= and graphs().condition_subgraph(org, code) via comand's medical-ontology proxy (resolve C\u2026/B\u2026 via /api/models/_/{code}?source=code, then condition/{bid}/_graph), raising ConditionNotFound only on a MOS not-found 404; plus offline fakes. G1 _find and G2 create-only upload dropped.",
+      "status": "done",
+      "description": "Sangoma Condition Researcher (SDK portion): graphs().list over GET /api/knowledge-graphs?o= plus offline fake; condition_subgraph cut by the operator before close-out.",
       "origin": {
         "inbox_item_id": "01M7AJ08FJ4KZFCCAS2SSKCVFV",
         "worktree": "gts-agency-python-sdk",
         "branch": "factory/gts-agency-python-sdk"
       },
       "created_at": "2026-11-14T00:00:00Z",
-      "updated_at": "2026-11-15T01:00:00Z",
+      "updated_at": "2026-11-15T06:00:00Z",
       "design_path": "./tracks/sangoma_sdk_graph_discovery_20261114/design.md",
       "test_plan_path": "./tracks/sangoma_sdk_graph_discovery_20261114/test-plan.md",
       "phases_summary": [
@@ -47,14 +47,13 @@
         {
           "id": "phase-5",
           "name": "Final verification and contract smoke",
-          "status": "blocked",
-          "blocked_reason": "Contract smoke (phase-5-task-4) awaiting operator inputs."
+          "status": "done"
         }
       ],
       "progress": {
         "total_tasks": 26,
-        "completed_tasks": 23,
-        "percentage": 88
+        "completed_tasks": 26,
+        "percentage": 100
       },
       "request": {
         "request_id": "01M7EGFFC83RH5H1P7PTJ2SSYP",
@@ -63,8 +62,7 @@
       },
       "spec_path": "./tracks/sangoma_sdk_graph_discovery_20261114/spec.md",
       "plan_path": "./tracks/sangoma_sdk_graph_discovery_20261114/plan.json",
-      "current_phase_id": "phase-5",
-      "blocked_reason": "Needs non-prod comand service-account env (AGENCY_AUTH_URL/API_URL/CLIENT_ID/CLIENT_SECRET, AGENCY_ORG_ID) plus operator-supplied GRAPHS_SMOKE_C_CODE and GRAPHS_SMOKE_B_CODE."
+      "current_phase_id": null
     }
   ]
 }
