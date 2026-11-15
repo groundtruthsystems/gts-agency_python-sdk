@@ -143,34 +143,37 @@
     {
       "id": "phase-3",
       "name": "Offline fakes",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-3-task-1",
           "name": "Write fake-parity tests",
           "description": "Write failing tests in test_adk_fakes_graphs.py for signature parity, seeded found/not-found/mismatch/ValueError and http_error injection.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "eeeac5f"
         },
         {
           "id": "phase-3-task-2",
           "name": "Implement FakeGraphs",
           "description": "Add FakeGraphs to adk_fakes.py with add_graph/add_condition seeding, hung off FakeControlPlane as graphs.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-3-task-1"
-          ]
+          ],
+          "commit_sha": "eeeac5f"
         },
         {
           "id": "phase-3-task-3",
           "name": "Execute test scenarios TS-22..TS-24",
           "description": "Run the fake-parity scenarios.",
-          "status": "backlog",
+          "status": "done",
           "test_scenarios": [
             "TS-22",
             "TS-23",
             "TS-24"
-          ]
+          ],
+          "commit_sha": "eeeac5f"
         },
         {
           "id": "phase-3-task-4",
