@@ -14,6 +14,9 @@ way comand does: ``user`` to the session's bound owner (403 when none is bound â
 Pass ``path=`` to persist everything to a JSON file under an exclusive ``flock``, so separate
 processes (the cross-process read-back and SIGKILL scenarios) share one fake backend.
 
+``FakeGraphs`` (``cp.graphs``) is a duck-typed ``AgencyGraphsClient``: seed it with ``add_graph``. Set
+``error`` to make every call raise it (e.g. ``http_error(500)``).
+
 Hooks for failure injection: ``FakeVault.on_set(key, apply)`` runs instead of a plain write (call
 ``apply()`` to commit); ``FakeVault.get_delay`` makes every ``get`` sleep.
 """
@@ -34,6 +37,7 @@ from typing import Any, Callable, Iterator
 import requests
 
 from agency_sdk.delegates.datasets_dto import Page
+from agency_sdk.delegates.graphs_dto import KnowledgeGraphEntry, KnowledgeGraphList
 from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionRef, SessionSearchResult
 from agency_sdk.delegates.session_hitl_client import HitlAlreadyAnswered, HitlNotAuthorised, HitlRequestExpired
 from agency_sdk.delegates.session_hitl_dto import HitlRequest
@@ -323,6 +327,7 @@ class FakeControlPlane:
         self.sessions = _FakeSessions(self)
         self.templates = _FakeTemplates(self)
         self.hitl = _FakeHitl(self)
+        self.graphs = FakeGraphs()
         self.log: list[tuple[str, dict[str, Any]]] = []
 
     def _scope_space(self, session_id: str, scope: str) -> str | None:
@@ -515,3 +520,22 @@ class _FakeHitl:
                 answered_at="2026-10-12T01:00:00Z",
             )
             return HitlRequest(**record)
+
+
+class FakeGraphs:
+    """In-memory ``AgencyGraphsClient``: the knowledge-graph catalogue."""
+
+    def __init__(self) -> None:
+        self._graphs: list[KnowledgeGraphEntry] = []
+        #: Raised by every call while set (failure injection).
+        self.error: Exception | None = None
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def add_graph(self, code: str, *, name: str = "", description: str = "", enabled: bool = True) -> None:
+        self._graphs.append(KnowledgeGraphEntry(code=code, name=name or code, description=description, enabled=enabled))
+
+    def list(self, organisation_id: int) -> KnowledgeGraphList:
+        self.calls.append(("list", {"organisation_id": organisation_id}))
+        if self.error is not None:
+            raise self.error
+        return KnowledgeGraphList(items=list(self._graphs))

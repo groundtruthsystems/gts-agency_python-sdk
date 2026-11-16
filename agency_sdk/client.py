@@ -8,6 +8,7 @@ from agency_sdk.delegates.annotations_client import AgencyAnnotationsClient
 from agency_sdk.delegates.datasets_client import AgencyDatasetsClient
 from agency_sdk.delegates.datasource_client import AgencyDatasourceClient
 from agency_sdk.delegates.files_client import AgencyFilesClient
+from agency_sdk.delegates.graphs_client import AgencyGraphsClient
 from agency_sdk.delegates.ontology_client import AgencyOntologyClient
 from agency_sdk.delegates.prompts_client import AgencyPromptsClient
 from agency_sdk.delegates.rules_client import AgencyRulesClient
@@ -44,6 +45,7 @@ class AgencyClient:
         )
         self.annotations_client = AgencyAnnotationsClient(token_supplier=token_supplier, base_url=self.base_url)
         self.session_hitl_client = AgencySessionHitlClient(token_supplier=token_supplier, base_url=self.base_url)
+        self.graphs_client = AgencyGraphsClient(token_supplier=token_supplier, base_url=self.base_url)
         self._observability: "Observability | None" = None
         self._observability_lock = threading.Lock()
         self._gateway_clients: "dict[tuple[str, str | None, str | None], AgencyGatewayClient]" = {}
@@ -85,6 +87,10 @@ class AgencyClient:
 
     def annotations(self) -> AgencyAnnotationsClient:
         return self.annotations_client
+
+    def graphs(self) -> AgencyGraphsClient:
+        """Knowledge-graph reads: the org's catalogue and a condition's known subgraph."""
+        return self.graphs_client
 
     def gateway(
         self,
