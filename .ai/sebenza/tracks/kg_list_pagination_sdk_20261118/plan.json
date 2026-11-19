@@ -208,7 +208,8 @@
           "status": "done",
           "test_scenarios": [
             "TS-31"
-          ]
+          ],
+          "commit_sha": "b2eb064"
         },
         {
           "id": "phase-4-task-2",
