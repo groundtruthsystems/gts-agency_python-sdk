@@ -161,16 +161,17 @@
           "id": "phase-3-task-2",
           "name": "Update docs/graphs.md and CLAUDE.md",
           "description": "Document page/size, the page metadata, a walk-all example stopping on total or an empty page, the no-snapshot caveat and bounded sizes.",
-          "status": "doing",
+          "status": "done",
           "depends_on": [
             "phase-3-task-1"
-          ]
+          ],
+          "commit_sha": "f28b9aa"
         },
         {
           "id": "phase-3-task-3",
           "name": "Breaking changelog, version and contract smoke",
           "description": "Add the breaking CHANGE_LOG.md entry with release order, bump pyproject.toml to 0.0.3rc1, and update test_contract_graphs.py to assert the paged shape.",
-          "status": "backlog"
+          "status": "doing"
         },
         {
           "id": "phase-3-task-4",
