@@ -171,13 +171,14 @@
           "id": "phase-3-task-3",
           "name": "Breaking changelog, version and contract smoke",
           "description": "Add the breaking CHANGE_LOG.md entry with release order, bump pyproject.toml to 0.0.3rc1, and update test_contract_graphs.py to assert the paged shape.",
-          "status": "doing"
+          "status": "done",
+          "commit_sha": "db078dd"
         },
         {
           "id": "phase-3-task-4",
           "name": "Execute docs scenarios",
           "description": "Run the docs and CLAUDE.md scenarios offline, including the docs example against FakeGraphs.",
-          "status": "backlog",
+          "status": "doing",
           "test_scenarios": [
             "TS-23",
             "TS-24"
