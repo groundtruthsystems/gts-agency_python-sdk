@@ -177,8 +177,8 @@
         {
           "id": "phase-3-task-4",
           "name": "Execute docs scenarios",
-          "description": "Run the docs and CLAUDE.md scenarios offline, including the docs example against FakeGraphs.",
-          "status": "doing",
+          "description": "Run the docs and CLAUDE.md scenarios offline, including the docs example against FakeGraphs. Result: TS-23 and TS-24 passed (9 tests in test_graphs_docs.py; the docs example walks 30 fake graphs over 2 pages and collects each code once).",
+          "status": "done",
           "test_scenarios": [
             "TS-23",
             "TS-24"
