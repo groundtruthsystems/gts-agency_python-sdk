@@ -147,20 +147,21 @@
     {
       "id": "phase-3",
       "name": "Docs, changelog and version",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-3-task-1",
           "name": "Write failing docs tests",
           "description": "Extend test_graphs_docs.py to assert the paged usage, page metadata, walk example, no-snapshot caveat, bounded-size advice and the CLAUDE.md wording.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "276dcab"
         },
         {
           "id": "phase-3-task-2",
           "name": "Update docs/graphs.md and CLAUDE.md",
           "description": "Document page/size, the page metadata, a walk-all example stopping on total or an empty page, the no-snapshot caveat and bounded sizes.",
-          "status": "backlog",
+          "status": "doing",
           "depends_on": [
             "phase-3-task-1"
           ]
