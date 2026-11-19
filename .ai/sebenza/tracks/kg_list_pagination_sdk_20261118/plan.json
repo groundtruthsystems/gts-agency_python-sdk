@@ -112,16 +112,17 @@
           "id": "phase-2-task-2",
           "name": "Implement paged FakeGraphs",
           "description": "Mirror the new signature with sort-by-code, p*s slicing, 0/10 defaults, empty pages and a 500 SERVICE_ERROR HTTPError on negatives, building domain.Page via an alias import.",
-          "status": "doing",
+          "status": "done",
           "depends_on": [
             "phase-2-task-1"
-          ]
+          ],
+          "commit_sha": "f1ef5f7"
         },
         {
           "id": "phase-2-task-3",
           "name": "Execute fake and parity scenarios",
           "description": "Run the parity, fake and facade scenarios offline, including the unchanged FakeSessions tests.",
-          "status": "backlog",
+          "status": "doing",
           "test_scenarios": [
             "TS-17",
             "TS-18",
