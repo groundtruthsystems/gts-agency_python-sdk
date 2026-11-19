@@ -45,7 +45,9 @@ def _outcome(call):
     try:
         result = call()
     except requests.HTTPError as exc:
-        return ("error", exc.response.status_code, exc.response.json())
+        error = dict(exc.response.json()["error"])
+        error.pop("req_uuid")  # per-request on the real server, so never part of the contract
+        return ("error", exc.response.status_code, error)
     return ("ok", result.page, [(e.code, e.name, e.enabled) for e in result.items])
 
 

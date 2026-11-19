@@ -49,6 +49,7 @@ from agency_sdk.delegates.session_vault_dto import (
     VaultListResponse,
     VaultSetResponse,
 )
+from agency_sdk.domain import Page as DomainPage  # graphs use the shared Page; session fakes keep datasets_dto's
 from agency_sdk.test.conftest import StubResponse
 
 
@@ -522,8 +523,18 @@ class _FakeHitl:
             return HitlRequest(**record)
 
 
+# comand's answer to a negative or overflowing page request (gts-agency ``page_entries``).
+_I32_MAX = 2**31 - 1
+_INVALID_PAGE_BODY = {"error": {"type": "SERVICE_ERROR", "req_uuid": "req-fake", "message": "Invalid page request"}}
+
+
 class FakeGraphs:
-    """In-memory ``AgencyGraphsClient``: the knowledge-graph catalogue."""
+    """In-memory ``AgencyGraphsClient``: the knowledge-graph catalogue, paged as comand pages it.
+
+    Sorted by ``code``, 0-based, defaults ``page=0`` / ``size=10``, offset ``page * size``. A page past the end
+    or ``size=0`` is an empty page with the real ``total``; a negative ``page``/``size`` raises the 500
+    ``SERVICE_ERROR`` ``HTTPError`` the real client gets (gts-agency ``page_entries``, cf1d53a3).
+    """
 
     def __init__(self) -> None:
         self._graphs: list[KnowledgeGraphEntry] = []
@@ -534,8 +545,14 @@ class FakeGraphs:
     def add_graph(self, code: str, *, name: str = "", description: str = "", enabled: bool = True) -> None:
         self._graphs.append(KnowledgeGraphEntry(code=code, name=name or code, description=description, enabled=enabled))
 
-    def list(self, organisation_id: int) -> KnowledgeGraphList:
-        self.calls.append(("list", {"organisation_id": organisation_id}))
+    def list(self, organisation_id: int, *, page: int | None = None, size: int | None = None) -> KnowledgeGraphList:
+        self.calls.append(("list", {"organisation_id": organisation_id, "page": page, "size": size}))
         if self.error is not None:
             raise self.error
-        return KnowledgeGraphList(items=list(self._graphs))
+        p = 0 if page is None else page
+        s = 10 if size is None else size
+        if p < 0 or s < 0 or p * s > _I32_MAX:
+            raise http_error(500, _INVALID_PAGE_BODY)
+        ordered = sorted(self._graphs, key=lambda g: g.code)
+        start = min(p * s, len(ordered))
+        return KnowledgeGraphList(page=DomainPage(page=p, size=s, total=len(ordered)), items=ordered[start : start + s])
