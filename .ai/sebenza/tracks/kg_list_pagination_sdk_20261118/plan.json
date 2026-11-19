@@ -147,7 +147,7 @@
     {
       "id": "phase-3",
       "name": "Docs, changelog and version",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -182,13 +182,14 @@
           "test_scenarios": [
             "TS-23",
             "TS-24"
-          ]
+          ],
+          "commit_sha": "82e016b"
         },
         {
           "id": "phase-3-task-5",
           "name": "Phase verification & checkpoint",
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     },

@@ -34,7 +34,7 @@
         {
           "id": "phase-3",
           "name": "Docs, changelog and version",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         },
         {
@@ -46,8 +46,8 @@
       ],
       "progress": {
         "total_tasks": 19,
-        "completed_tasks": 14,
-        "percentage": 74
+        "completed_tasks": 15,
+        "percentage": 79
       },
       "origin": {
         "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",
@@ -56,7 +56,7 @@
       },
       "spec_path": "./tracks/kg_list_pagination_sdk_20261118/spec.md",
       "plan_path": "./tracks/kg_list_pagination_sdk_20261118/plan.json",
-      "current_phase_id": "phase-3"
+      "current_phase_id": "phase-4"
     }
   ]
 }
