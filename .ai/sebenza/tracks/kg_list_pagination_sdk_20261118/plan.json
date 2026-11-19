@@ -198,8 +198,8 @@
     {
       "id": "phase-4",
       "name": "Final verification and release gate",
-      "status": "doing",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Needs a non-production comand with gts-agency cf1d53a3 (#175) deployed plus a dedicated service account (AGENCY_AUTH_URL, AGENCY_API_URL, AGENCY_CLIENT_ID, AGENCY_CLIENT_SECRET, AGENCY_ORG_ID); none is configured in this session.",
       "tasks": [
         {
           "id": "phase-4-task-1",
@@ -215,7 +215,7 @@
           "id": "phase-4-task-2",
           "name": "Run live contract smoke against deployed API",
           "description": "Once the gts-agency endpoint is deployed, run pytest -m integration for test_contract_graphs.py once and record the result in the track.",
-          "status": "backlog",
+          "status": "blocked",
           "test_scenarios": [
             "TS-21",
             "TS-22",
@@ -223,7 +223,8 @@
           ],
           "depends_on": [
             "phase-4-task-1"
-          ]
+          ],
+          "blocked_reason": "Needs a non-production comand with gts-agency cf1d53a3 (#175) deployed plus a dedicated service account (AGENCY_AUTH_URL, AGENCY_API_URL, AGENCY_CLIENT_ID, AGENCY_CLIENT_SECRET, AGENCY_ORG_ID); none is configured in this session."
         },
         {
           "id": "phase-4-task-3",
