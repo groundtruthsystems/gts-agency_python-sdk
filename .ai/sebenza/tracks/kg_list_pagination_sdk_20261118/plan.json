@@ -77,7 +77,8 @@
             "TS-28",
             "TS-29",
             "TS-33"
-          ]
+          ],
+          "commit_sha": "3eab5fc"
         },
         {
           "id": "phase-1-task-6",
