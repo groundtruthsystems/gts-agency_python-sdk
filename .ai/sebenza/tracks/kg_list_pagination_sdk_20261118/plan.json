@@ -5,8 +5,8 @@
     {
       "id": "phase-1",
       "name": "Contract gate, DTO and client",
-      "status": "blocked",
-      "blocked_reason": "Waiting for the gts-agency comand endpoint + OpenAPI (KgListParams, PagedResult<KnowledgeGraphEntry>) to merge to master (handover \u00a75.1); as of 2026-11-19T03:17:40Z it exists only as uncommitted changes on feature/paginate-knowledge-graphs.",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-1-task-1",
@@ -24,16 +24,17 @@
           "id": "phase-1-task-2",
           "name": "Write failing DTO and client tests",
           "description": "Add red tests in test_graphs_dto.py and test_graphs_client.py for paged parsing, conditional p/s, pass-through of out-of-range values, walks and canary checks.",
-          "status": "backlog",
+          "status": "done",
           "depends_on": [
             "phase-1-task-1"
-          ]
+          ],
+          "commit_sha": "0871f7b"
         },
         {
           "id": "phase-1-task-3",
           "name": "Implement KnowledgeGraphList.page",
           "description": "Add the required page field typed agency_sdk.domain.Page to KnowledgeGraphList and update the module and class docstrings.",
-          "status": "backlog",
+          "status": "doing",
           "depends_on": [
             "phase-1-task-2"
           ]

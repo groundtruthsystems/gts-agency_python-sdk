@@ -15,15 +15,15 @@
       "status": "doing",
       "description": "SDK half of 'Update get knowledge graphs to follow standard pagination': AgencyGraphsClient.list gains keyword-only page/size (sent as p/s only when given), KnowledgeGraphList gains the shared domain Page, FakeGraphs mirrors the server paging contract; breaking release after the comand API ships.",
       "created_at": "2026-11-19T02:41:14Z",
-      "updated_at": "2026-11-19T03:35:08Z",
+      "updated_at": "2026-11-19T03:37:41Z",
       "design_path": "./tracks/kg_list_pagination_sdk_20261118/design.md",
       "test_plan_path": "./tracks/kg_list_pagination_sdk_20261118/test-plan.md",
       "phases_summary": [
         {
           "id": "phase-1",
           "name": "Contract gate, DTO and client",
-          "status": "blocked",
-          "blocked_reason": "Waiting for the gts-agency comand endpoint + OpenAPI (KgListParams, PagedResult<KnowledgeGraphEntry>) to merge to master (handover \u00a75.1); as of 2026-11-19T03:17:40Z it exists only as uncommitted changes on feature/paginate-knowledge-graphs."
+          "status": "doing",
+          "blocked_reason": null
         },
         {
           "id": "phase-2",
@@ -46,8 +46,8 @@
       ],
       "progress": {
         "total_tasks": 19,
-        "completed_tasks": 1,
-        "percentage": 5
+        "completed_tasks": 2,
+        "percentage": 11
       },
       "origin": {
         "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",
