@@ -84,14 +84,16 @@
           "id": "phase-1-task-6",
           "name": "Phase verification & checkpoint",
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
-          "status": "done"
+          "status": "done",
+          "commit_sha": "ac41b69"
         }
       ],
       "request": {
         "request_id": "01M7RWZ2AFZEA0H41W40DA8E3C",
         "status": "open",
         "raised_at": "2026-11-19T03:17:52Z"
-      }
+      },
+      "checkpoint_sha": "ac41b69"
     },
     {
       "id": "phase-2",
