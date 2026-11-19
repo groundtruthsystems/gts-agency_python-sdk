@@ -198,8 +198,8 @@
     {
       "id": "phase-4",
       "name": "Final verification and release gate",
-      "status": "blocked",
-      "blocked_reason": "Needs a non-production comand with gts-agency cf1d53a3 (#175) deployed plus a dedicated service account (AGENCY_AUTH_URL, AGENCY_API_URL, AGENCY_CLIENT_ID, AGENCY_CLIENT_SECRET, AGENCY_ORG_ID); none is configured in this session.",
+      "status": "doing",
+      "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
@@ -214,8 +214,8 @@
         {
           "id": "phase-4-task-2",
           "name": "Run live contract smoke against deployed API",
-          "description": "Once the gts-agency endpoint is deployed, run pytest -m integration for test_contract_graphs.py once and record the result in the track.",
-          "status": "blocked",
+          "description": "Once the gts-agency endpoint is deployed, run pytest -m integration for test_contract_graphs.py once and record the result in the track. Result 2026-11-19T03:49:45Z: run against the local stack (comand localhost:13001 serving the paged endpoint from gts-agency cf1d53a3/#175, Keycloak realm agency, org 2, a local API-key service account supplied by the user): pytest -m integration agency_sdk/test/test_contract_graphs.py -> 8 passed. TS-22 passed (paged shape, defaults 0/10, code order, medical_ontology enabled); TS-21 and TS-35 passed (FakeGraphs equals live comand on defaults, p0/s1, p1/s1, past end, s=0, p=-1, s=-1). The first run failed only because the smoke asserted code 'medical-ontology'; comand's code is 'medical_ontology' (since #43), fixed in 5dc1a06.",
+          "status": "done",
           "test_scenarios": [
             "TS-21",
             "TS-22",
@@ -224,7 +224,11 @@
           "depends_on": [
             "phase-4-task-1"
           ],
-          "blocked_reason": "Needs a non-production comand with gts-agency cf1d53a3 (#175) deployed plus a dedicated service account (AGENCY_AUTH_URL, AGENCY_API_URL, AGENCY_CLIENT_ID, AGENCY_CLIENT_SECRET, AGENCY_ORG_ID); none is configured in this session."
+          "request": {
+            "request_id": "01M7RYD5SH8RQPTP63EGVAS808",
+            "status": "open",
+            "raised_at": "2026-11-19T03:43:03Z"
+          }
         },
         {
           "id": "phase-4-task-3",
@@ -244,7 +248,12 @@
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
           "status": "backlog"
         }
-      ]
+      ],
+      "request": {
+        "request_id": "01M7RYD5YZHZNJWJGDT49WMZQ3",
+        "status": "open",
+        "raised_at": "2026-11-19T03:43:03Z"
+      }
     }
   ]
 }

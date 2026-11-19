@@ -12,10 +12,10 @@
     {
       "track_id": "kg_list_pagination_sdk_20261118",
       "type": "feature",
-      "status": "blocked",
+      "status": "doing",
       "description": "SDK half of 'Update get knowledge graphs to follow standard pagination': AgencyGraphsClient.list gains keyword-only page/size (sent as p/s only when given), KnowledgeGraphList gains the shared domain Page, FakeGraphs mirrors the server paging contract; breaking release after the comand API ships.",
       "created_at": "2026-11-19T02:41:14Z",
-      "updated_at": "2026-11-19T03:43:03Z",
+      "updated_at": "2026-11-19T03:49:46Z",
       "design_path": "./tracks/kg_list_pagination_sdk_20261118/design.md",
       "test_plan_path": "./tracks/kg_list_pagination_sdk_20261118/test-plan.md",
       "phases_summary": [
@@ -40,14 +40,14 @@
         {
           "id": "phase-4",
           "name": "Final verification and release gate",
-          "status": "blocked",
-          "blocked_reason": "Needs a non-production comand with gts-agency cf1d53a3 (#175) deployed plus a dedicated service account (AGENCY_AUTH_URL, AGENCY_API_URL, AGENCY_CLIENT_ID, AGENCY_CLIENT_SECRET, AGENCY_ORG_ID); none is configured in this session."
+          "status": "doing",
+          "blocked_reason": null
         }
       ],
       "progress": {
         "total_tasks": 19,
-        "completed_tasks": 16,
-        "percentage": 84
+        "completed_tasks": 17,
+        "percentage": 89
       },
       "origin": {
         "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",
