@@ -234,8 +234,8 @@
         {
           "id": "phase-4-task-3",
           "name": "Release checklist for 0.0.3rc1",
-          "description": "Confirm the breaking changelog, release notes, version and a green recorded smoke before anyone publishes 0.0.3rc1.",
-          "status": "backlog",
+          "description": "Confirm the breaking changelog, release notes, version and a green recorded smoke before anyone publishes 0.0.3rc1. Result: TS-30 passed \u2014 CHANGE_LOG.md carries the BREAKING (0.0.3rc1) entry with the release order and 'older SDK versions are unsupported'; pyproject.toml is 0.0.3rc1; the live smoke is recorded green (phase-4-task-2); offline suite 585 passed (2 pre-existing OTel failures). Not done here, by design: tagging v0.0.3rc1, writing the GitHub release notes and publishing are the operator's.",
+          "status": "done",
           "test_scenarios": [
             "TS-30"
           ],
