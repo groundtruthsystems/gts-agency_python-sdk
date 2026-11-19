@@ -15,7 +15,7 @@
       "status": "doing",
       "description": "SDK half of 'Update get knowledge graphs to follow standard pagination': AgencyGraphsClient.list gains keyword-only page/size (sent as p/s only when given), KnowledgeGraphList gains the shared domain Page, FakeGraphs mirrors the server paging contract; breaking release after the comand API ships.",
       "created_at": "2026-11-19T02:41:14Z",
-      "updated_at": "2026-11-19T03:38:11Z",
+      "updated_at": "2026-11-19T03:38:56Z",
       "design_path": "./tracks/kg_list_pagination_sdk_20261118/design.md",
       "test_plan_path": "./tracks/kg_list_pagination_sdk_20261118/test-plan.md",
       "phases_summary": [
@@ -46,8 +46,8 @@
       ],
       "progress": {
         "total_tasks": 19,
-        "completed_tasks": 4,
-        "percentage": 21
+        "completed_tasks": 5,
+        "percentage": 26
       },
       "origin": {
         "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",

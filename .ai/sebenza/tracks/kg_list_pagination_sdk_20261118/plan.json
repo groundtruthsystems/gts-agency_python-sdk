@@ -53,8 +53,8 @@
         {
           "id": "phase-1-task-5",
           "name": "Execute DTO and client scenarios",
-          "description": "Run the phase's scenarios offline and confirm green with mypy and black clean.",
-          "status": "doing",
+          "description": "Run the phase's scenarios offline and confirm green with mypy and black clean. Result: TS-01..TS-16, TS-26..TS-29, TS-33 all passed (55 tests in test_graphs_client.py + test_graphs_dto.py); mypy strict, black and bandit clean. Full suite also shows 2 unrelated OTel exporter failures (opentelemetry-exporter-otlp-proto-http 1.45.2 lacks _session) and the phase-2/3 fake and docs tests still red as planned.",
+          "status": "done",
           "test_scenarios": [
             "TS-01",
             "TS-02",
