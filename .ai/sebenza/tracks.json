@@ -8,5 +8,55 @@
     "worktree": "comand-python-sdk-google-adk-vault-session",
     "repo_path": "/home/kevinbayes/git/gts/gts-agency_python-sdk"
   },
-  "tracks": []
+  "tracks": [
+    {
+      "track_id": "kg_list_pagination_sdk_20261118",
+      "type": "feature",
+      "status": "backlog",
+      "description": "SDK half of 'Update get knowledge graphs to follow standard pagination': AgencyGraphsClient.list gains keyword-only page/size (sent as p/s only when given), KnowledgeGraphList gains the shared domain Page, FakeGraphs mirrors the server paging contract; breaking release after the comand API ships.",
+      "created_at": "2026-11-19T02:41:14Z",
+      "updated_at": "2026-11-19T03:17:19Z",
+      "design_path": "./tracks/kg_list_pagination_sdk_20261118/design.md",
+      "test_plan_path": "./tracks/kg_list_pagination_sdk_20261118/test-plan.md",
+      "phases_summary": [
+        {
+          "id": "phase-1",
+          "name": "Contract gate, DTO and client",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-2",
+          "name": "FakeGraphs parity",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-3",
+          "name": "Docs, changelog and version",
+          "status": "backlog",
+          "blocked_reason": null
+        },
+        {
+          "id": "phase-4",
+          "name": "Final verification and release gate",
+          "status": "backlog",
+          "blocked_reason": null
+        }
+      ],
+      "progress": {
+        "total_tasks": 19,
+        "completed_tasks": 0,
+        "percentage": 0
+      },
+      "origin": {
+        "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",
+        "worktree": "gts-agency-python-sdk",
+        "branch": "factory/gts-agency-python-sdk"
+      },
+      "spec_path": "./tracks/kg_list_pagination_sdk_20261118/spec.md",
+      "plan_path": "./tracks/kg_list_pagination_sdk_20261118/plan.json",
+      "current_phase_id": "phase-1"
+    }
+  ]
 }
