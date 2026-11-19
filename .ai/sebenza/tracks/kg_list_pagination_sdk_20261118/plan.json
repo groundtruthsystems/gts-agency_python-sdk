@@ -121,8 +121,8 @@
         {
           "id": "phase-2-task-3",
           "name": "Execute fake and parity scenarios",
-          "description": "Run the parity, fake and facade scenarios offline, including the unchanged FakeSessions tests.",
-          "status": "doing",
+          "description": "Run the parity, fake and facade scenarios offline, including the unchanged FakeSessions tests. Result: TS-17, TS-18, TS-19, TS-20, TS-25, TS-32, TS-34 passed (31 tests in test_adk_fakes_graphs.py + test_client_facade.py); full suite 581 passed, the only 2 failures are test_observability_pipeline exporter tests that fail identically on untouched main 0ecdc1d (OTel 1.45.2 env drift).",
+          "status": "done",
           "test_scenarios": [
             "TS-17",
             "TS-18",
