@@ -56,7 +56,12 @@
       },
       "spec_path": "./tracks/kg_list_pagination_sdk_20261118/spec.md",
       "plan_path": "./tracks/kg_list_pagination_sdk_20261118/plan.json",
-      "current_phase_id": "phase-4"
+      "current_phase_id": "phase-4",
+      "request": {
+        "request_id": "01M7RYXANH4870APQFZ46WMXRH",
+        "status": "open",
+        "raised_at": "2026-11-19T03:51:52Z"
+      }
     }
   ]
 }
