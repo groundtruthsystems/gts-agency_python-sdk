@@ -98,20 +98,21 @@
     {
       "id": "phase-2",
       "name": "FakeGraphs parity",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-2-task-1",
           "name": "Write failing fake and parity tests",
           "description": "Add red tests in test_adk_fakes_graphs.py running one shared case table against FakeGraphs and the mocked real client, plus Page-type and empty-catalogue cases.",
-          "status": "backlog"
+          "status": "done",
+          "commit_sha": "06ac5a7"
         },
         {
           "id": "phase-2-task-2",
           "name": "Implement paged FakeGraphs",
           "description": "Mirror the new signature with sort-by-code, p*s slicing, 0/10 defaults, empty pages and a 500 SERVICE_ERROR HTTPError on negatives, building domain.Page via an alias import.",
-          "status": "backlog",
+          "status": "doing",
           "depends_on": [
             "phase-2-task-1"
           ]
