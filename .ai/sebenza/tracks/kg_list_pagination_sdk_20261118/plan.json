@@ -98,7 +98,7 @@
     {
       "id": "phase-2",
       "name": "FakeGraphs parity",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -131,13 +131,14 @@
             "TS-25",
             "TS-32",
             "TS-34"
-          ]
+          ],
+          "commit_sha": "701f578"
         },
         {
           "id": "phase-2-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
-          "status": "backlog"
+          "status": "done"
         }
       ]
     },
