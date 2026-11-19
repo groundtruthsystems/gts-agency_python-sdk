@@ -1,9 +1,11 @@
 """DTOs for the knowledge-graphs delegate (snake_case, matching the API).
 
-:class:`KnowledgeGraphList` / :class:`KnowledgeGraphEntry` mirror comand's ``ListKnowledgeGraphsResponse``
-(``service/knowledge_graphs/knowledge_graph_service.rs``): the built-in catalogue with the org's ``enabled``
-flag. ``credential_variable_id`` and ``config`` are omitted by the server when unset, and both are hidden
-from ``repr`` because ``config`` is operator configuration that should never reach a log line.
+:class:`KnowledgeGraphList` mirrors comand's ``PagedResult<KnowledgeGraphEntry>``
+(``service/knowledge_graphs/knowledge_graph_service.rs``): one page of the built-in catalogue, sorted by ``code``,
+with the org's ``enabled`` flag, plus the standard ``page`` metadata (:class:`agency_sdk.domain.Page`). It replaced
+the unpaged ``ListKnowledgeGraphsResponse``. ``credential_variable_id`` and ``config`` are omitted by the server
+when unset, and both are hidden from ``repr`` because ``config`` is operator configuration that should never reach a
+log line.
 """
 
 from __future__ import annotations
@@ -11,6 +13,8 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from agency_sdk.domain import Page
 
 
 class KnowledgeGraphEntry(BaseModel):
@@ -27,8 +31,13 @@ class KnowledgeGraphEntry(BaseModel):
 
 
 class KnowledgeGraphList(BaseModel):
-    """``GET /api/knowledge-graphs?o=`` response. Not paged."""
+    """``GET /api/knowledge-graphs?o=&p=&s=`` response: one 0-based page of the catalogue, sorted by ``code``.
+
+    ``page.page`` and ``page.size`` echo the request (or the server defaults ``0`` / ``10``); ``page.total`` counts
+    every entry across all pages.
+    """
 
     model_config = ConfigDict(extra="allow")
 
+    page: Page
     items: list[KnowledgeGraphEntry]

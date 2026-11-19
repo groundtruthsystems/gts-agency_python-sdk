@@ -31,7 +31,7 @@ def test_knowledge_graph_list_parses_full_and_minimal_entries():
                 "config": {"base_url": "https://example.invalid"},
             },
             {"code": "other", "name": "Other", "description": "", "enabled": False},
-        ]
+        ],
     }
     kg = KnowledgeGraphList.model_validate(body)
 
