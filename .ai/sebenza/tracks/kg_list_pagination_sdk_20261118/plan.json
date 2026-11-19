@@ -198,14 +198,14 @@
     {
       "id": "phase-4",
       "name": "Final verification and release gate",
-      "status": "backlog",
+      "status": "doing",
       "blocked_reason": null,
       "tasks": [
         {
           "id": "phase-4-task-1",
           "name": "Re-run the full offline test plan",
-          "description": "Run the full offline suite with coverage, mypy and black, and close any traceability gap left by the per-phase runs.",
-          "status": "backlog",
+          "description": "Run the full offline suite with coverage, mypy and black, and close any traceability gap left by the per-phase runs. Result: TS-31 passed \u2014 585 passed, graphs_client.py and graphs_dto.py 100% covered (96% overall), mypy/black/bandit clean; every offline scenario of phases 1\u20133 re-ran green, no traceability gap. The only 2 failures (test_observability_pipeline exporter auth) fail identically on untouched main 0ecdc1d under OTel 1.45.2.",
+          "status": "done",
           "test_scenarios": [
             "TS-31"
           ]
