@@ -44,16 +44,17 @@
           "id": "phase-1-task-4",
           "name": "Implement paged AgencyGraphsClient.list",
           "description": "Add keyword-only page/size that send p/s only when not None, with no client-side validation, and update the docstring.",
-          "status": "doing",
+          "status": "done",
           "depends_on": [
             "phase-1-task-3"
-          ]
+          ],
+          "commit_sha": "975b5a9"
         },
         {
           "id": "phase-1-task-5",
           "name": "Execute DTO and client scenarios",
           "description": "Run the phase's scenarios offline and confirm green with mypy and black clean.",
-          "status": "backlog",
+          "status": "doing",
           "test_scenarios": [
             "TS-01",
             "TS-02",
