@@ -17,7 +17,8 @@
             "request_id": "01M7RWZ25C27M2GW0VQVJHQ4YZ",
             "status": "open",
             "raised_at": "2026-11-19T03:17:52Z"
-          }
+          },
+          "commit_sha": "0ed1c96"
         },
         {
           "id": "phase-1-task-2",
