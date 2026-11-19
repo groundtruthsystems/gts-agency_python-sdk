@@ -11,9 +11,13 @@
         {
           "id": "phase-1-task-1",
           "name": "Verify merged gts-agency contract",
-          "description": "Confirm the merged comand OpenAPI shows params(KgListParams) and PagedResult<KnowledgeGraphEntry> matching handover \u00a72, raising an inbox request on any mismatch.",
-          "status": "blocked",
-          "blocked_reason": "Waiting for the gts-agency comand endpoint + OpenAPI (KgListParams, PagedResult<KnowledgeGraphEntry>) to merge to master (handover \u00a75.1); as of 2026-11-19T03:17:40Z it exists only as uncommitted changes on feature/paginate-knowledge-graphs."
+          "description": "Confirm the merged comand OpenAPI shows params(KgListParams) and PagedResult<KnowledgeGraphEntry> matching handover \u00a72, raising an inbox request on any mismatch. Done: gts-agency origin/master cf1d53a3 (#175) matches \u00a72 \u2014 KgListParams{o,p?,s?}, PagedResult{page{page,size,total},items}, defaults 0/10, sort by code, past-end/s=0 empty, negatives/overflow \u2192 500 SERVICE_ERROR 'Invalid page request'.",
+          "status": "done",
+          "request": {
+            "request_id": "01M7RWZ25C27M2GW0VQVJHQ4YZ",
+            "status": "open",
+            "raised_at": "2026-11-19T03:17:52Z"
+          }
         },
         {
           "id": "phase-1-task-2",
@@ -77,7 +81,12 @@
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
           "status": "backlog"
         }
-      ]
+      ],
+      "request": {
+        "request_id": "01M7RWZ2AFZEA0H41W40DA8E3C",
+        "status": "open",
+        "raised_at": "2026-11-19T03:17:52Z"
+      }
     },
     {
       "id": "phase-2",
