@@ -34,16 +34,17 @@
           "id": "phase-1-task-3",
           "name": "Implement KnowledgeGraphList.page",
           "description": "Add the required page field typed agency_sdk.domain.Page to KnowledgeGraphList and update the module and class docstrings.",
-          "status": "doing",
+          "status": "done",
           "depends_on": [
             "phase-1-task-2"
-          ]
+          ],
+          "commit_sha": "233d3f5"
         },
         {
           "id": "phase-1-task-4",
           "name": "Implement paged AgencyGraphsClient.list",
           "description": "Add keyword-only page/size that send p/s only when not None, with no client-side validation, and update the docstring.",
-          "status": "backlog",
+          "status": "doing",
           "depends_on": [
             "phase-1-task-3"
           ]
