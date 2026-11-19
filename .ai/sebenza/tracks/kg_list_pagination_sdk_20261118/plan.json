@@ -5,14 +5,15 @@
     {
       "id": "phase-1",
       "name": "Contract gate, DTO and client",
-      "status": "backlog",
-      "blocked_reason": null,
+      "status": "blocked",
+      "blocked_reason": "Waiting for the gts-agency comand endpoint + OpenAPI (KgListParams, PagedResult<KnowledgeGraphEntry>) to merge to master (handover \u00a75.1); as of 2026-11-19T03:17:40Z it exists only as uncommitted changes on feature/paginate-knowledge-graphs.",
       "tasks": [
         {
           "id": "phase-1-task-1",
           "name": "Verify merged gts-agency contract",
           "description": "Confirm the merged comand OpenAPI shows params(KgListParams) and PagedResult<KnowledgeGraphEntry> matching handover \u00a72, raising an inbox request on any mismatch.",
-          "status": "backlog"
+          "status": "blocked",
+          "blocked_reason": "Waiting for the gts-agency comand endpoint + OpenAPI (KgListParams, PagedResult<KnowledgeGraphEntry>) to merge to master (handover \u00a75.1); as of 2026-11-19T03:17:40Z it exists only as uncommitted changes on feature/paginate-knowledge-graphs."
         },
         {
           "id": "phase-1-task-2",
