@@ -5,7 +5,7 @@
     {
       "id": "phase-1",
       "name": "Contract gate, DTO and client",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -84,7 +84,7 @@
           "id": "phase-1-task-6",
           "name": "Phase verification & checkpoint",
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
-          "status": "backlog"
+          "status": "done"
         }
       ],
       "request": {
