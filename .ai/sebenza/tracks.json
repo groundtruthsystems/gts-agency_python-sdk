@@ -40,14 +40,14 @@
         {
           "id": "phase-4",
           "name": "Final verification and release gate",
-          "status": "doing",
+          "status": "done",
           "blocked_reason": null
         }
       ],
       "progress": {
         "total_tasks": 19,
-        "completed_tasks": 18,
-        "percentage": 95
+        "completed_tasks": 19,
+        "percentage": 100
       },
       "origin": {
         "inbox_item_id": "01M7H93HXF30929WZK18PXAW1G",

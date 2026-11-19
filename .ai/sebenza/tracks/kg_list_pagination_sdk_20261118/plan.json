@@ -198,7 +198,7 @@
     {
       "id": "phase-4",
       "name": "Final verification and release gate",
-      "status": "doing",
+      "status": "done",
       "blocked_reason": null,
       "tasks": [
         {
@@ -241,13 +241,14 @@
           ],
           "depends_on": [
             "phase-4-task-2"
-          ]
+          ],
+          "commit_sha": "b157d71"
         },
         {
           "id": "phase-4-task-4",
           "name": "Phase verification & checkpoint",
           "description": "Phase verification & checkpoint per workflow.md (manual verification deferred to the end-of-track report).",
-          "status": "backlog"
+          "status": "done"
         }
       ],
       "request": {
