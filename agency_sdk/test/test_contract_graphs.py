@@ -58,9 +58,9 @@ def test_list_contract(client):
     assert catalogue.page.total >= len(catalogue.items)
     codes = [e.code for e in catalogue.items]
     assert codes == sorted(codes), "items are not in code order"
-    entry = next((e for e in catalogue.items if e.code == "medical-ontology"), None)
-    assert entry is not None, "medical-ontology missing from the catalogue"
-    assert entry.enabled, "medical-ontology is not enabled for this org"
+    entry = next((e for e in catalogue.items if e.code == "medical_ontology"), None)
+    assert entry is not None, "medical_ontology missing from the catalogue"
+    assert entry.enabled, "medical_ontology is not enabled for this org"
 
 
 def _fake_like(client) -> FakeGraphs:

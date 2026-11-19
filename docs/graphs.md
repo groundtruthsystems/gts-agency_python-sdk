@@ -32,7 +32,7 @@ One page is a single call: `client.graphs().list(org_id)` returns the first 10 e
 
 ## `list`
 
-Returns one page of comand's built-in catalogue (today only `medical-ontology`) with the org's `enabled`
+Returns one page of comand's built-in catalogue (today only `medical_ontology`; the hyphenated form is only its route path) with the org's `enabled`
 flag, sorted by `code`. `credential_variable_id` and `config` are present only when comand sends them, and
 both are hidden from `repr`.
 
@@ -81,7 +81,7 @@ exactly as comand does (sorted by `code`, the same defaults, empty pages and 500
 from agency_sdk.test.adk_fakes import FakeGraphs, http_error
 
 graphs = FakeGraphs()
-graphs.add_graph("medical-ontology", name="Medical Ontology")
+graphs.add_graph("medical_ontology", name="Standard Clinical Knowledge Graph")
 graphs.list(2, page=0, size=5).page.total  # 1
 graphs.error = http_error(500)  # every call raises it until reset to None
 ```
