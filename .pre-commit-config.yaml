@@ -1,0 +1,14 @@
+# Install once per clone:  pre-commit install --hook-type pre-push
+# Run by hand:             pre-commit run --hook-stage pre-push --all-files
+repos:
+  - repo: local
+    hooks:
+      # Mirrors the release gate in .github/workflows/publish.yaml: bandit fails on any finding.
+      - id: bandit
+        name: bandit (release security gate)
+        entry: bandit -q -r agency_sdk/ -x agency_sdk/test
+        language: python
+        additional_dependencies: [bandit]  # unpinned, like CI's `pip install bandit`
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

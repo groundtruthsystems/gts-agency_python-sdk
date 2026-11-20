@@ -253,7 +253,8 @@ class DurableRunner:
             dispatched = await asyncio.to_thread(self.session_service.sessions.get, session_id)
             correlation_id = dispatched.correlation_id
         resolved = await self._resolve("find_or_create", correlation_id, session_id=session_id, user_id=user_id)
-        assert resolved is not None  # find_or_create never misses
+        if resolved is None:  # find_or_create never misses; guard the contract without an assert
+            raise SessionNotFound("comand resolved no session for this correlation id")
         if session_id is not None and resolved.session_id != session_id:
             raise DispatchedSessionMismatch("another live session holds this task's correlation id")
         status = resolved.status

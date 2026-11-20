@@ -28,6 +28,12 @@ mypy agency_sdk/
 # Formatting (120 char line length)
 black agency_sdk/
 
+# Security scan: the release gate (publish.yaml) fails on any bandit finding
+bandit -r agency_sdk/ -x agency_sdk/test
+
+# Run bandit on every push (once per clone; config in .pre-commit-config.yaml)
+pre-commit install --hook-type pre-push
+
 # Build package
 python -m build
 
