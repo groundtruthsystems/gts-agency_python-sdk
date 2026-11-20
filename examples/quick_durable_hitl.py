@@ -10,7 +10,10 @@ Run the three stages as separate processes, sharing one correlation id:
 
 or all three in sequence with ``python examples/quick_durable_hitl.py all``.
 
-- ``run`` and ``resume`` use the agent's client credentials (``AGENCY_*``).
+- ``run`` and ``resume`` use the template agent's service-account credentials (``AGENCY_*``): comand's
+  ``resolve_session``, which maps the correlation id to the task's session, answers only that account.
+- The correlation id names the task (10-128 characters of ``[A-Za-z0-9._:-]``, never a clinical
+  identifier). A dispatched agent uses the ``correlation_id`` from its dispatch payload instead.
 - ``answer`` uses a **human's own** access token (``AGENCY_HUMAN_TOKEN``). comand refuses answers from
   service principals, keeps only the first answer and records the verified responder; the agent never
   sends an answer itself.
@@ -18,7 +21,8 @@ or all three in sequence with ``python examples/quick_durable_hitl.py all``.
   ADK pause; a tool that returns a value never pauses.
 
 The agent uses a deterministic local model, so no LLM endpoint is needed. Prerequisites: the ``[adk]``
-extra and a control plane with the Agent Vault endpoints (``docs/agent_vault_gap_analysis.md`` §4).
+extra and a control plane with the Agent Vault and session-correlation endpoints (comand
+``documentation/AGENT_VAULT_API.md``).
 """
 
 import asyncio
@@ -38,6 +42,7 @@ from google.genai import types
 
 from agency_sdk.adk import DurableRunner, GtsSessionService
 from agency_sdk.client import AgencyClient, CredentialsSupplier
+from agency_sdk.delegates.session_dto import SessionStatus
 from agency_sdk.delegates.session_hitl_client import AgencySessionHitlClient
 
 USER = "user-1"
@@ -90,9 +95,13 @@ async def run_example(
         print(f"run: paused for human input, pending requests {outcome.pending_requests}; exiting")
         return outcome
     if mode == "answer":
-        ref = service.sessions.find_by_correlation_id(service.organisation_id, correlation_id)
-        assert ref is not None, "no run for this correlation id"
-        answered = human_hitl.respond(service.organisation_id, ref.session_id, "approval-1", {"approved": True})
+        # The reviewer finds the task's paused session by correlation id (newest first).
+        found = service.sessions.search(
+            service.organisation_id, correlation_id=correlation_id, status=[SessionStatus.AWAITING_INPUT], size=1
+        )
+        assert found.items, "no paused run for this correlation id"
+        session_id = found.items[0].id
+        answered = human_hitl.respond(service.organisation_id, session_id, "approval-1", {"approved": True})
         print(f"answer: recorded by comand (status {answered.status})")
         return answered
     if mode == "resume":

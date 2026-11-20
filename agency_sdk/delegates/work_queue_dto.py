@@ -50,13 +50,16 @@ class ItemResponse(BaseModel):
     started_on: str | None = None
     blocked_on: str | None = None
     unblocked_on: str | None = None
+    #: The item's session failed after saving vault progress, so ``resume`` can continue it on the same
+    #: session; otherwise only ``restart`` applies. Derived on read; ``False`` where the server omits it.
+    resumable: bool = False
     completed_on: str | None = None
     created_on: str
     modified_on: str
 
 
 class ItemCommandResponse(BaseModel):
-    """Outcome of an item command (publish / unblock / retry / reprocess).
+    """Outcome of an item command (publish / unblock / resume / restart / reprocess).
 
     The ``_command`` endpoint's established server shape (transcribed from
     ``work_queue_dto.rs``, per design §6.0): commands report what happened —

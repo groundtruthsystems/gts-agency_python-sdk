@@ -84,7 +84,7 @@ def test_durable_hitl_example_runs_stage_by_stage():
         outcomes.append(
             asyncio.run(
                 example.run_example(
-                    stage, service=service, hitl=cp.hitl, human_hitl=cp.hitl, correlation_id="c-docs-01"
+                    stage, service=service, hitl=cp.hitl, human_hitl=cp.hitl, correlation_id="corr-docs-0001"
                 )
             )
         )

@@ -1,6 +1,6 @@
 """Offline tests for ``DurableRunner`` — durable execution by correlation id (Phase 4).
 
-Scenarios (``test-plan.md``): TS-16 status dispatch, TS-17 racing runners, TS-18 duplicate register, TS-19
+Scenarios (``test-plan.md``): TS-16 status dispatch, TS-17 racing runners, TS-18 racing creates converge on one session, TS-19
 SIGKILL resume without repeats, TS-21 transient outage, TS-48/49 completed runs, TS-50 failure record,
 TS-51 nothing deleted, TS-52 resume-input selection, TS-69 failure/FAILED crash window, TS-71 tombstone.
 """
@@ -23,7 +23,8 @@ from agency_sdk.adk import DurableRunner, GtsSessionService, errors  # noqa: E40
 from agency_sdk.adk._records import FAILURE_KEY, HEAD_KEY  # noqa: E402
 from agency_sdk.adk.durable import choose_resume_input  # noqa: E402
 from agency_sdk.delegates.session_dto import SessionStatus  # noqa: E402
-from agency_sdk.test.adk_fakes import FakeControlPlane, http_error  # noqa: E402
+from agency_sdk.delegates.session_templates_client import CorrelationMismatch  # noqa: E402
+from agency_sdk.test.adk_fakes import AGENT_PRINCIPAL, FakeControlPlane, http_error  # noqa: E402
 from agency_sdk.test.adk_llm_fakes import CountingTools, call, llm_calls, make_app, steps_script, text  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,7 +67,10 @@ class TestRun:
         assert outcome.final_text == "done: {'done': 3}"
         assert tools.counts() == {"step-1": 1, "step-2": 1, "step-3": 1}
         session = cp.session(outcome.session_id)
-        assert session["labels"]["correlation_id"] == CID and session["status"] == 0
+        assert session["correlation_id"] == CID and session["status"] == 0
+        assert session["owner"] == AGENT_PRINCIPAL  # comand sets the owner, never the ADK user
+        assert [e["mode"] for op, e in cp.log if op == "resolve"] == ["find_or_create"]
+        assert not [op for op, _ in cp.log if op == "register"]
         assert _statuses(cp)[0] == SessionStatus.IN_PROGRESS and _statuses(cp)[-1] == SessionStatus.COMPLETED
 
     def test_runner_requires_a_resumable_app(self, cp):
@@ -76,16 +80,20 @@ class TestRun:
     def test_awaiting_and_failed_sessions_do_not_run(self, cp, tmp_path):
         """TS-16 (awaiting / failed): no LLM call, no vault write."""
         runner, app, _ = _runner(cp, tmp_path)
-        waiting = run(runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="c-wait"))
-        failed = run(runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="c-fail"))
+        waiting = run(
+            runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="corr-wait-0001")
+        )
+        failed = run(
+            runner.session_service.create_session(app_name="app", user_id="user-1", correlation_id="corr-fail-0001")
+        )
         with cp.shared.io():
             cp.shared.sessions[waiting.id]["status"] = 3
             cp.shared.sessions[failed.id]["status"] = -1
         cp.vault.log.clear()
 
         outcomes = (
-            run(runner.run("c-wait", user_id="user-1", message="go")),
-            run(runner.run("c-fail", user_id="user-1", message="go")),
+            run(runner.run("corr-wait-0001", user_id="user-1", message="go")),
+            run(runner.run("corr-fail-0001", user_id="user-1", message="go")),
         )
 
         assert [o.status for o in outcomes] == ["awaiting_input", "failed"]
@@ -208,7 +216,7 @@ class TestCompletedAndFailed:
         with pytest.raises(SystemExit):
             run(runner.run(CID, user_id="user-1", message="go"))
         cp.sessions.update = original_update
-        sid = cp.sessions.find_by_correlation_id(2, CID).session_id
+        [sid] = cp.sessions_of(CID)
         record_before = cp.vault.value(sid, FAILURE_KEY)
 
         rerun, app, _ = _runner(cp, tmp_path, script=[text("never")], tools=[], name="r.json")
@@ -279,23 +287,21 @@ class TestConcurrencyAndOutage:
         final = run(_service(cp).get_session(app_name="app", user_id="user-1", session_id=sid))
         assert len([e for e in final.events if e.author == "user"]) == 1  # one lineage, no duplicate input
 
-    def test_duplicate_register_reuses_the_existing_session(self, cp, tmp_path, monkeypatch):
-        """TS-18: lookup misses (race), register gets 409 with the existing id, never a second session."""
-        existing = run(_created(_runner(cp, tmp_path)[0]))
-        runner, _, _ = _runner(cp, tmp_path, name="r.json")
-        real_lookup = cp.sessions.find_by_correlation_id
-        calls = {"n": 0}
+    def test_racing_runners_for_a_new_correlation_create_one_session(self, cp, tmp_path):
+        """TS-18: comand serialises resolve_session creates, so two fresh runs converge on one session."""
+        a, _, _ = _runner(cp, tmp_path, name="a.json")
+        b, _, _ = _runner(cp, tmp_path, name="b.json")
 
-        def racy_lookup(org, cid):
-            calls["n"] += 1
-            return None if calls["n"] == 1 else real_lookup(org, cid)
+        async def race():
+            return await asyncio.gather(
+                a.run(CID, user_id="user-1", message="go"), b.run(CID, user_id="user-1", message="go")
+            )
 
-        monkeypatch.setattr(cp.sessions, "find_by_correlation_id", racy_lookup)
+        outcomes = run(race())
 
-        outcome = run(runner.run(CID, user_id="user-1", message="go"))
-
-        assert outcome.session_id == existing and outcome.status == "completed"
-        assert len(cp.shared.sessions) == 1
+        assert len(cp.sessions_of(CID)) == 1
+        assert {o.session_id for o in outcomes} == set(cp.sessions_of(CID))
+        assert "completed" in {o.status for o in outcomes}
 
     def test_transient_outage_stops_in_progress_and_a_later_run_resumes(self, cp, tmp_path):
         """TS-21: a 5xx mid-run is not retried and not a failure; the session stays IN_PROGRESS."""
@@ -313,7 +319,7 @@ class TestConcurrencyAndOutage:
         with pytest.raises(errors.VaultUnavailable):
             run(runner.run(CID, user_id="user-1", message="go"))
         cp.vault.on_set = None
-        sid = cp.sessions.find_by_correlation_id(2, CID).session_id
+        [sid] = cp.sessions_of(CID)
         assert cp.session(sid)["status"] == 2
         assert FAILURE_KEY not in cp.vault.keys(sid)
 
@@ -321,6 +327,132 @@ class TestConcurrencyAndOutage:
 
         assert outcome.status == "completed"
         assert all(n == 1 for n in tools.counts().values())
+
+
+class TestCorrelationIsATask:
+    """A correlation id names a task: resolve_session picks the live session, else the newest finished one."""
+
+    def test_a_restarted_session_is_picked_up_and_initialised(self, cp, tmp_path):
+        first, _, _ = _runner(cp, tmp_path)
+        done = run(first.run(CID, user_id="user-1", message="go"))
+        cp.add_session("s-restart", owner="U:7", correlation_id=CID, status=1)  # work-queue restart
+
+        again, _, tools = _runner(cp, tmp_path, name="again.json")
+        outcome = run(again.run(CID, user_id="user-1", message="go"))
+
+        assert outcome.session_id == "s-restart" and outcome.status == "completed"
+        assert tools.counts() == {"step-1": 1, "step-2": 1, "step-3": 1}
+        assert cp.session(done.session_id)["status"] == 0
+        assert cp.sessions_of(CID) == [done.session_id, "s-restart"]
+
+    def test_without_a_live_session_the_newest_finished_one_answers(self, cp, tmp_path):
+        first, _, _ = _runner(cp, tmp_path)
+        done = run(first.run(CID, user_id="user-1", message="go"))
+        cp.add_session("s-cancelled", owner="U:7", correlation_id=CID, status=-1)  # newer, failed, no ADK head
+        cp.vault.log.clear()
+
+        rerun, app, _ = _runner(cp, tmp_path, script=[text("never")], tools=[], name="r.json")
+        outcome = run(rerun.run(CID, user_id="user-1", message="go"))
+
+        assert (outcome.session_id, outcome.status) == ("s-cancelled", "failed")
+        assert llm_calls(app) == [] and cp.vault.writes() == []
+        assert cp.session(done.session_id)["status"] == 0
+
+    def test_a_dispatched_session_is_attached_and_run(self, cp, tmp_path):
+        cp.add_session("s-dispatched", owner="U:7")  # correlation defaults to the session id
+        runner, _, _ = _runner(cp, tmp_path)
+
+        outcome = run(runner.run(CID, user_id="user-1", message="go", session_id="s-dispatched"))
+
+        assert (outcome.session_id, outcome.status) == ("s-dispatched", "completed")
+        assert cp.session("s-dispatched")["correlation_id"] == CID
+        assert cp.session("s-dispatched")["owner"] == "U:7"  # attach never changes the owner
+        assert cp.sessions_of(CID) == ["s-dispatched"]
+
+    def test_a_dispatched_session_with_another_correlation_is_a_mismatch(self, cp, tmp_path):
+        cp.add_session("s-dispatched", owner="U:7", correlation_id="corr-operator-0001")
+        runner, _, _ = _runner(cp, tmp_path)
+        cp.vault.log.clear()
+
+        with pytest.raises(CorrelationMismatch):
+            run(runner.run(CID, user_id="user-1", message="go", session_id="s-dispatched"))
+
+        assert cp.vault.writes() == [] and cp.session("s-dispatched")["correlation_id"] == "corr-operator-0001"
+
+    def test_only_the_template_agent_may_resolve(self, cp, tmp_path):
+        runner, _, _ = _runner(cp, tmp_path)
+        run(runner.run(CID, user_id="user-1", message="go"))
+        cp.templates.caller = "U:someone-else"
+
+        with pytest.raises(errors.SessionNotFound):
+            run(runner.resume(CID, user_id="user-1"))
+
+    @pytest.mark.parametrize("reports_created", [True, False], ids=["comand-fixed", "comand-created-false"])
+    def test_a_dispatched_session_already_carrying_the_id_is_set_up_and_run(self, cp, tmp_path, reports_created):
+        """The main path: the worker dispatched the session under the task's correlation id.
+
+        comand finds the session itself by correlation id; whether it reports ``created`` or not, the run sets
+        up the missing ADK head and continues in that session.
+        """
+        cp.templates.dispatched_match_reports_created = reports_created
+        cp.add_session("s-dispatched", owner="U:7", correlation_id=CID, status=1)
+        runner, _, tools = _runner(cp, tmp_path)
+
+        outcome = run(runner.run(CID, user_id="user-1", message="go", session_id="s-dispatched"))
+
+        assert (outcome.session_id, outcome.status) == ("s-dispatched", "completed")
+        assert tools.counts() == {"step-1": 1, "step-2": 1, "step-3": 1}
+        assert cp.sessions_of(CID) == ["s-dispatched"]
+
+    def test_without_a_correlation_id_it_is_read_from_the_dispatched_session(self, cp, tmp_path):
+        cp.add_session("s-dispatched", owner="U:7", correlation_id=CID, status=1)
+        runner, _, _ = _runner(cp, tmp_path)
+
+        outcome = run(runner.run(None, user_id="user-1", message="go", session_id="s-dispatched"))
+
+        assert (outcome.session_id, outcome.status) == ("s-dispatched", "completed")
+        assert ("get", {"session_id": "s-dispatched"}) in cp.log
+        assert cp.vault.value("s-dispatched", HEAD_KEY)["correlation_id"] == CID
+
+    def test_without_a_correlation_id_or_a_session_it_refuses(self, cp, tmp_path):
+        runner, _, _ = _runner(cp, tmp_path)
+
+        with pytest.raises(ValueError, match="correlation_id"):
+            run(runner.run(None, user_id="user-1", message="go"))
+
+        assert not [op for op, _ in cp.log if op in ("resolve", "get")]
+
+    def test_another_live_session_for_the_task_refuses_the_dispatched_one(self, cp, tmp_path):
+        """Running would continue the wrong session: fail before writing anything."""
+        cp.add_session("s-live", owner="U:7", correlation_id=CID, status=2)
+        cp.add_session("s-dispatched", owner="U:7", status=1)  # still on its default correlation id
+        runner, app, _ = _runner(cp, tmp_path)
+        cp.vault.log.clear()
+
+        with pytest.raises(errors.DispatchedSessionMismatch) as exc:
+            run(runner.run(CID, user_id="user-1", message="go", session_id="s-dispatched"))
+
+        assert CID not in str(exc.value) and "s-live" not in str(exc.value)
+        assert cp.vault.writes() == [] and llm_calls(app) == []
+        assert not [op for op, _ in cp.log if op == "update"]
+
+    def test_a_restart_dispatch_runs_in_the_new_session(self, cp, tmp_path):
+        first, _, _ = _runner(cp, tmp_path)
+        done = run(first.run(CID, user_id="user-1", message="go"))
+        cp.add_session("s-restart", owner="U:8", correlation_id=CID, status=1)  # restart carries the id over
+
+        again, _, _ = _runner(cp, tmp_path, name="again.json")
+        outcome = run(again.run(CID, user_id="user-1", message="go", session_id="s-restart"))
+
+        assert (outcome.session_id, outcome.status) == ("s-restart", "completed")
+        assert cp.sessions_of(CID) == [done.session_id, "s-restart"]
+
+    def test_runner_needs_a_template(self, cp, tmp_path):
+        service = GtsSessionService(vault=cp.vault, sessions=cp.sessions, templates=cp.templates, organisation_id=2)
+        runner = DurableRunner(app=make_app(steps_script(1), []), session_service=service)
+
+        with pytest.raises(ValueError, match="template_name"):
+            run(runner.run(CID, user_id="user-1", message="go"))
 
 
 class TestResumeInputSelection:

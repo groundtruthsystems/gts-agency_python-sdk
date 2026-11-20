@@ -111,6 +111,11 @@ def test_item_response_omitted_optional_fields_default_to_none():
     assert item.blocked_on is None
     assert item.unblocked_on is None
     assert item.completed_on is None
+    assert item.resumable is False
+
+
+def test_item_response_reads_resumable():
+    assert ItemResponse(**{**MINIMAL_ITEM_JSON, "resumable": True}).resumable is True
 
 
 def test_item_response_carries_typed_dependencies():

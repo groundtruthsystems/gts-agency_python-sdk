@@ -6,10 +6,13 @@
 ``page``/``size``, and ``scope=app|user`` resolved *server-side*. Every call is appended to ``log``
 and ``peak_inflight`` records the highest number of concurrent calls.
 
-``FakeControlPlane`` adds the session and session-template endpoints (labels, correlation lookup,
-search, register, status updates) and owns a ``FakeVault`` whose ``app``/``user`` scopes resolve the
-way comand does: ``user`` to the session's bound owner (403 when none is bound — fail closed) and
-``app`` to the session's ``adk_app`` label.
+``FakeControlPlane`` adds the session and session-template endpoints as comand implements them
+(``documentation/AGENT_VAULT_API.md``): ``_search`` filters, ``register`` (correlation from
+``input.correlation``, else the session id; owner = the caller), ``resolve_session`` (live first, else
+newest; only the template agent may call it; one session per correlation under concurrent creates) and
+status updates. Correlation ids written to a session must pass comand's write rule. It owns a
+``FakeVault`` whose ``app``/``user`` scopes resolve the way comand does: ``user`` to the session's owner
+(403 when none — fail closed) and ``app`` to the session's template.
 
 Pass ``path=`` to persist everything to a JSON file under an exclusive ``flock``, so separate
 processes (the cross-process read-back and SIGKILL scenarios) share one fake backend.
@@ -27,6 +30,7 @@ import contextlib
 import fcntl
 import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -38,10 +42,15 @@ import requests
 
 from agency_sdk.delegates.datasets_dto import Page
 from agency_sdk.delegates.graphs_dto import KnowledgeGraphEntry, KnowledgeGraphList
-from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionRef, SessionSearchResult
+from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionSearchResult, SessionSummary
 from agency_sdk.delegates.session_hitl_client import HitlAlreadyAnswered, HitlNotAuthorised, HitlRequestExpired
 from agency_sdk.delegates.session_hitl_dto import HitlRequest
-from agency_sdk.delegates.session_templates_client import CorrelationIdConflict, SessionTemplateNotFound
+from agency_sdk.delegates.session_templates_client import (
+    CorrelationMismatch,
+    SessionAlreadyExists,
+    SessionTemplateNotFound,
+)
+from agency_sdk.delegates.session_templates_dto import RegisteredSession, ResolvedSession
 from agency_sdk.delegates.session_vault_client import ConditionalWriteFailed
 from agency_sdk.delegates.session_vault_dto import (
     VaultEntryMeta,
@@ -55,6 +64,19 @@ from agency_sdk.test.conftest import StubResponse
 
 def http_error(status: int, body: Any = None) -> requests.HTTPError:
     return requests.HTTPError(f"{status} error", response=StubResponse(json_data=body, status_code=status))
+
+
+_CORRELATION_WRITE = re.compile(r"[A-Za-z0-9._:-]{10,128}")
+_SSN = re.compile(r"\d{3}-?\d{2}-?\d{4}")
+#: The fake's default caller and the template agent's service account (``resolve_session`` answers only it).
+AGENT_PRINCIPAL = "sa:agent"
+_LIVE = (1, 2, 3)
+
+
+def check_correlation_write(value: str) -> None:
+    """comand's write rule (``agent_vault/ids.rs``): 400 for anything else."""
+    if not _CORRELATION_WRITE.fullmatch(value) or _SSN.fullmatch(value):
+        raise http_error(400, {"error": {"type": "BAD_REQUEST", "message": "Invalid correlation_id"}})
 
 
 @dataclass
@@ -82,6 +104,7 @@ class _Shared:
         self.vault: dict[tuple[str, str | None, str], _Entry] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self.templates: dict[str, str] = {"adk-agent": "tpl-adk"}
+        self.seq = 0
         self.hitl: dict[str, dict[str, dict[str, Any]]] = {}
         if self.path is not None and self.path.exists():
             with self.io():
@@ -114,6 +137,7 @@ class _Shared:
         }
         self.sessions = raw.get("sessions", {})
         self.templates = raw.get("templates", self.templates)
+        self.seq = raw.get("seq", 0)
         self.hitl = raw.get("hitl", {})
 
     def _save(self) -> None:
@@ -132,6 +156,7 @@ class _Shared:
             ],
             "sessions": self.sessions,
             "templates": self.templates,
+            "seq": self.seq,
             "hitl": self.hitl,
         }
         tmp = self.path.with_suffix(".tmp")
@@ -338,15 +363,35 @@ class FakeControlPlane:
         if scope == "user":
             owner = session.get("owner")
             return f"user:{owner}" if owner else None
-        app = session.get("labels", {}).get("adk_app")
-        return f"app:{app}" if app else None
+        template = session.get("template")
+        return f"app:{template}" if template else None
 
     def add_session(
-        self, session_id: str, *, owner: str | None = None, labels: dict[str, str] | None = None, status: int = 2
+        self,
+        session_id: str,
+        *,
+        owner: str | None = None,
+        correlation_id: str | None = None,
+        template: str | None = "adk-agent",
+        status: int = 2,
     ) -> None:
-        """Seed a dispatched session (as the ① worker would have created it)."""
+        """Seed a dispatched session (as comand's execute path would have created it)."""
         with self.shared.io():
-            self.shared.sessions[session_id] = {"status": status, "labels": dict(labels or {}), "owner": owner}
+            self.shared.sessions[session_id] = self._new_record(
+                session_id, template=template, correlation_id=correlation_id, owner=owner, status=status
+            )
+
+    def _new_record(
+        self, session_id: str, *, template: str | None, correlation_id: str | None, owner: str | None, status: int
+    ) -> dict[str, Any]:
+        self.shared.seq += 1
+        return {
+            "status": status,
+            "template": template,
+            "correlation_id": correlation_id or session_id,
+            "owner": owner,
+            "created": self.shared.seq,
+        }
 
     def expire(self, session_id: str, request_id: str) -> None:
         """Model comand's background job: expire a pending request and fail its session (server time)."""
@@ -357,6 +402,14 @@ class FakeControlPlane:
     def session(self, session_id: str) -> dict[str, Any]:
         with self.shared.io():
             return json.loads(json.dumps(self.shared.sessions[session_id]))
+
+    def sessions_of(self, correlation_id: str) -> list[str]:
+        """The ids of every session of a task, oldest first."""
+        with self.shared.io():
+            found = [
+                (s["created"], sid) for sid, s in self.shared.sessions.items() if s["correlation_id"] == correlation_id
+            ]
+        return [sid for _, sid in sorted(found)]
 
 
 class _FakeSessions:
@@ -373,12 +426,9 @@ class _FakeSessions:
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
         logs: str | None = None,
-        labels: dict[str, str] | None = None,
         session_id: str | None = None,
     ) -> SessionCommandResponse:
-        self._cp.log.append(
-            ("update", {"session_id": session_id, "status": int(status), "labels": labels, "result": result})
-        )
+        self._cp.log.append(("update", {"session_id": session_id, "status": int(status), "result": result}))
         with self._cp.shared.io():
             session = self._cp.shared.sessions.get(session_id or "")
             if session is None:
@@ -386,29 +436,64 @@ class _FakeSessions:
             terminal = session["status"] in (-1, 0)
             if not (terminal and int(status) not in (-1, 0)):  # comand's stale-regression guard
                 session["status"] = int(status)
-            if labels:
-                session["labels"].update(labels)
             if result is not None:
                 session["result"] = result
         return SessionCommandResponse(success=True, message="ok")
 
-    def find_by_correlation_id(self, organisation_id: int, correlation_id: str) -> SessionRef | None:
-        self._cp.log.append(("lookup", {}))
+    def get(self, session_id: str) -> SessionSummary:
+        self._cp.log.append(("get", {"session_id": session_id}))
         with self._cp.shared.io():
-            for sid, s in self._cp.shared.sessions.items():
-                if s["labels"].get("correlation_id") == correlation_id:
-                    return SessionRef(session_id=sid, status=s["status"], labels=s["labels"])
-        return None
+            s = self._cp.shared.sessions.get(session_id)
+            if s is None:
+                raise http_error(404)
+            return SessionSummary(
+                id=session_id,
+                type="agent",
+                status=s["status"],
+                organisation=2,
+                version=1,
+                created_on="2026-11-19T00:00:00Z",
+                correlation_id=s["correlation_id"],
+                user_id=s["owner"] or "",
+                template_name=s["template"],
+            )
 
     def search(
-        self, organisation_id: int, *, labels: dict[str, str], user: str | None = None, page: int = 0, size: int = 50
+        self,
+        organisation_id: int,
+        *,
+        correlation_id: str | None = None,
+        user_id: str | None = None,
+        template_id: str | None = None,
+        status: list[int] | None = None,
+        page: int = 0,
+        size: int = 50,
+        sort: tuple[str, str] | None = None,
     ) -> SessionSearchResult:
-        self._cp.log.append(("search", {"labels": labels, "user": user}))
+        self._cp.log.append(
+            ("search", {"correlation_id": correlation_id, "user_id": user_id, "template_id": template_id})
+        )
         with self._cp.shared.io():
+            templates = self._cp.shared.templates
+            rows = sorted(self._cp.shared.sessions.items(), key=lambda kv: kv[1]["created"], reverse=True)
             matches = [
-                SessionRef(session_id=sid, status=s["status"], labels=s["labels"])
-                for sid, s in sorted(self._cp.shared.sessions.items())
-                if all(s["labels"].get(k) == v for k, v in labels.items()) and (user is None or s.get("owner") == user)
+                SessionSummary(
+                    id=sid,
+                    type="agent",
+                    status=s["status"],
+                    organisation=organisation_id,
+                    version=1,
+                    created_on=f"2026-11-19T00:00:{s['created'] % 60:02d}Z",
+                    correlation_id=s["correlation_id"],
+                    user_id=s["owner"] or "",
+                    template_id=templates.get(s["template"]) if s["template"] else None,
+                    template_name=s["template"],
+                )
+                for sid, s in rows
+                if (correlation_id is None or s["correlation_id"] == correlation_id)
+                and (user_id is None or s["owner"] == user_id)
+                and (template_id is None or (s["template"] and templates.get(s["template"]) == template_id))
+                and (status is None or s["status"] in [int(x) for x in status])
             ]
         items = matches[page * size : (page + 1) * size]
         return SessionSearchResult(page=Page(total=len(matches), page=page, size=size), items=items)
@@ -417,31 +502,99 @@ class _FakeSessions:
 class _FakeTemplates:
     def __init__(self, cp: FakeControlPlane) -> None:
         self._cp = cp
+        #: The principal calling (``register`` owner; ``resolve_session`` answers only ``AGENT_PRINCIPAL``).
+        self.caller = AGENT_PRINCIPAL
+        #: comand's fixed behaviour: the first resolve that finds the dispatched session itself (it already
+        #: carries the correlation id) does the first vault commit and reports ``created=True``. ``False`` models
+        #: the earlier server, which reported ``created=False`` and skipped that commit.
+        self.dispatched_match_reports_created = True
+
+    def resolve_id(self, organisation_id: int, name: str) -> str:
+        with self._cp.shared.io():
+            if name not in self._cp.shared.templates:
+                raise SessionTemplateNotFound(f"No session template named {name!r}")
+            return self._cp.shared.templates[name]
 
     def register(
         self,
         organisation_id: int,
         template_name: str,
         *,
-        correlation_id: str,
-        labels: dict[str, str] | None = None,
+        correlation_id: str | None = None,
         input: dict[str, Any] | None = None,
-        owner: str | None = None,
-    ) -> str:
-        self._cp.log.append(("register", {"template": template_name, "labels": labels, "owner": owner}))
+    ) -> RegisteredSession:
+        self._cp.log.append(("register", {"template": template_name, "correlation_id": correlation_id}))
+        if correlation_id is not None:
+            check_correlation_write(correlation_id)
         with self._cp.shared.io():
             if template_name not in self._cp.shared.templates:
                 raise SessionTemplateNotFound(f"No session template named {template_name!r}")
-            for sid, s in self._cp.shared.sessions.items():
-                if s["labels"].get("correlation_id") == correlation_id:
-                    raise CorrelationIdConflict(sid)
             sid = f"s-{uuid.uuid4().hex[:12]}"
-            self._cp.shared.sessions[sid] = {
-                "status": 2,
-                "labels": {**(labels or {}), "correlation_id": correlation_id},
-                "owner": owner,
-            }
-            return sid
+            record = self._cp._new_record(
+                sid, template=template_name, correlation_id=correlation_id, owner=self.caller, status=2
+            )
+            self._cp.shared.sessions[sid] = record
+            return RegisteredSession(session_id=sid, correlation_id=record["correlation_id"], user_id=self.caller)
+
+    def resolve_session(
+        self,
+        organisation_id: int,
+        template_name: str,
+        *,
+        mode: str,
+        correlation_id: str,
+        session_id: str | None = None,
+        input: dict[str, Any] | None = None,
+        state: dict[str, Any] | None = None,
+        framework_user_id: str | None = None,
+    ) -> ResolvedSession | None:
+        self._cp.log.append(("resolve", {"mode": mode, "session_id": session_id}))
+        if mode != "find":
+            check_correlation_write(correlation_id)
+        with self._cp.shared.io():
+            if template_name not in self._cp.shared.templates:
+                raise SessionTemplateNotFound(f"No session template named {template_name!r}")
+            if self.caller != AGENT_PRINCIPAL:  # only the template agent may resolve: a plain 404
+                if mode == "find":
+                    return None
+                raise http_error(404)
+            sessions = self._cp.shared.sessions
+            mine = [
+                (sid, s)
+                for sid, s in sessions.items()
+                if s["template"] == template_name and s["correlation_id"] == correlation_id
+            ]
+            mine.sort(key=lambda kv: (kv[1]["status"] in _LIVE, kv[1]["created"]), reverse=True)
+            if mine:  # comand matches the correlation id first, even when a session_id is given
+                if mode == "create":
+                    raise SessionAlreadyExists("A session already exists for this correlation id")
+                sid, s = mine[0]
+                first = sid == session_id and not s.get("vault_committed")
+                if first and self.dispatched_match_reports_created:
+                    s["vault_committed"] = True
+                    return ResolvedSession(session_id=sid, created=True, status=s["status"], vault_version=1)
+                version = 1 if s.get("vault_committed") else 0
+                return ResolvedSession(session_id=sid, created=False, status=s["status"], vault_version=version)
+            if mode == "find":
+                return None
+            if session_id is not None:  # attach to the dispatched session
+                target = sessions.get(session_id)
+                if target is None:
+                    raise http_error(404)
+                if target["status"] in (0, -1, -2):
+                    raise http_error(409, {"error": {"type": "CONFLICT", "details": {"code": "session_terminal"}}})
+                if target["correlation_id"] not in (session_id, correlation_id):
+                    raise CorrelationMismatch("The session already carries a different correlation id")
+                target["correlation_id"] = correlation_id
+                target["vault_committed"] = True
+                return ResolvedSession(session_id=session_id, created=True, status=target["status"], vault_version=1)
+            sid = f"s-{uuid.uuid4().hex[:12]}"
+            record = self._cp._new_record(
+                sid, template=template_name, correlation_id=correlation_id, owner=self.caller, status=1
+            )
+            record["vault_committed"] = True
+            sessions[sid] = record
+            return ResolvedSession(session_id=sid, created=True, status=1, vault_version=1)
 
 
 class _FakeHitl:

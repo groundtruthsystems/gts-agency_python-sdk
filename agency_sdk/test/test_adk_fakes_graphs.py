@@ -127,5 +127,5 @@ def test_fake_result_round_trips_and_sessions_keep_their_page():
     assert type(result.page) is Page
     assert KnowledgeGraphList.model_validate(result.model_dump()) == result
 
-    search = FakeControlPlane().sessions.search(ORG, labels={"k": "v"})
+    search = FakeControlPlane().sessions.search(ORG, correlation_id="corr-none-0001")
     assert type(search.page) is datasets_dto.Page

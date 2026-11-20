@@ -45,8 +45,10 @@ Add `tls=0` to the URI for plain HTTP during local development.
 **How ADK sessions map to GTS sessions.** One ADK session is one GTS session: the ADK `session_id` *is*
 the GTS session id.
 - A dispatched agent passes the session id it was given, and the service adopts that session.
-- `create_session` without an id registers a new GTS session from `template_name`. The ADK `user_id` is
-  sent as the session's owner claim.
+- `create_session` without an id registers a new GTS session from `template_name`.
+- comand sets every session's **owner** (`user_id`) itself, to the principal that started the run. The ADK
+  `user_id` is never sent as the owner. It is kept in the vault head, and `list_sessions` matches it there,
+  because comand lists a template's sessions and does not filter by framework user.
 
 ## What is stored
 
@@ -59,8 +61,8 @@ the GTS session id.
 
 The rules that apply across these records:
 - **`temp:` state** is never persisted.
-- **Scoped state.** comand resolves `scope=user` from the session's bound owner and `scope=app` from its
-  app, so the SDK never names a user. A session with no bound owner is refused (fail closed).
+- **Scoped state.** comand resolves `scope=user` from the session's owner and `scope=app` from its
+  app, so the SDK never names a user. A session with no owner is refused (fail closed).
 - **`get_user_state`** (with no session) raises `NotImplementedError`.
 - **Printing records.** Record and `RunOutcome` `repr`s never show state, `user_id`, event content or the
   final text. Do not log whole ADK sessions or events yourself; they carry PHI.
@@ -89,17 +91,41 @@ durable = DurableRunner(app=app, session_service=session_service, hitl=client.se
 outcome = await durable.run(correlation_id, user_id="user-1", message="Review case 42")
 ```
 
-The app must be built with `App(..., resumability_config=ResumabilityConfig(is_resumable=True))`.
+The app must be built with `App(..., resumability_config=ResumabilityConfig(is_resumable=True))`, and the
+session service needs `template_name`.
 
-A correlation id names **one run**. Make it high-entropy and opaque, never a clinical identifier. What
-`run` does depends on the run's current status:
+A correlation id names a **task**. Several GTS sessions may share it:
+- a work-queue `resume` reopens the same session;
+- a work-queue `restart` or `reprocess` starts a new session under the same id.
 
-| The run is | `run(...)` returns |
+The id must be 10–128 characters of `[A-Za-z0-9._:-]`, opaque, and never a clinical identifier (comand
+rejects SSN-shaped values).
+- **A dispatched agent** passes its worker arguments' `correlation_id` and `session_id`:
+  `durable.run(arguments.get("correlation_id"), session_id=arguments["session_id"], user_id=..., message=...)`.
+  - If the worker does not pass `correlation_id` yet, pass `None`. The runner then reads it from the session
+    with `sessions().get(session_id)`.
+  - The run continues **only in the dispatched session**. If another live session already holds the
+    correlation id, `DispatchedSessionMismatch` is raised and nothing is written.
+- **Otherwise** generate the id yourself, or let comand generate one with `"correlation": "${fn:uuid()}"` in
+  the work item's input.
+
+`run` and `resume` look the task up with comand's `resolve_session` on the service's template.
+- `resolve_session` answers **only the template agent's service account**, so run with its credentials.
+  Any other caller gets the same 404 as a miss.
+- It returns the task's live session (created, running or awaiting input), otherwise its newest finished
+  one, otherwise `run` creates one.
+- comand serialises concurrent creates, so racing workers converge on one session.
+- When nothing carries the id yet, the dispatched `session_id` is attached to it. If that session already
+  carries a different id, `CorrelationMismatch` is raised: use the dispatched `correlation_id`.
+
+What `run` does then depends on the status of the session it found:
+
+| The session is | `run(...)` returns |
 |---|---|
-| new | creates the session, runs it, returns `completed` (or pauses) |
+| new (just created, attached, dispatched, or a work-queue restart) | runs it from a fresh ADK head, returns `completed` (or pauses). The missing head is the signal, not comand's `created` flag |
 | in progress (for example the worker was killed) | resumes the unfinished invocation, returns `completed` |
 | completed | `already_completed` with the stored final text; the model is not called |
-| failed | `failed` with `error_type`. Start a new correlation id to retry, because FAILED is terminal in comand |
+| failed | `failed` with `error_type`. FAILED is terminal: recover it through the work queue (`resume` or `restart`) |
 | racing another worker | one of them returns `conflict` and writes nothing further |
 
 How failures are handled:
@@ -128,7 +154,7 @@ effects must be idempotent. Steps whose results were committed are never repeate
 | Situation | Result |
 |---|---|
 | A duplicate or concurrent resume | The answer is injected once; the committed `FunctionResponse` is the marker |
-| The session or correlation id does not exist | `SessionNotFound` (`resume` never creates a run) |
+| The session or correlation id does not exist, or the caller is not the template agent | `SessionNotFound` (`resume` never creates a run) |
 | An answer is bound to another invocation | `RequestNotFound`, and nothing is written |
 | The request expired (comand's background job, server time) | `HitlExpired`, and the session is FAILED |
 | An answer is larger than `max_answer_bytes` (64 KiB) | `VaultLimitExceeded` |

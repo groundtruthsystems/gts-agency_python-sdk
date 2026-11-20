@@ -256,7 +256,7 @@ class TestPublishItem:
 
 
 class TestItemCommand:
-    @pytest.mark.parametrize("command", ["unblock", "retry", "reprocess"])
+    @pytest.mark.parametrize("command", ["unblock", "resume", "restart", "reprocess"])
     def test_item_command_passes_command_through(self, client, stub_requests, command):
         # non-dispatching command responses carry no session_id key at all
         stub_requests.queue(json_data={"success": True, "message": f"Item {command} ok"})
@@ -270,6 +270,43 @@ class TestItemCommand:
         assert result.success is True
         assert result.message == f"Item {command} ok"
         assert result.session_id is None
+
+    @pytest.mark.parametrize(
+        ("method", "command"), [("resume_item", "resume"), ("restart_item", "restart"), ("reprocess_item", "reprocess")]
+    )
+    def test_recovery_commands_send_a_flat_reason(self, client, stub_requests, method, command):
+        """``retry`` is gone: resume (same session) and restart/reprocess (new session, same correlation id)."""
+        stub_requests.queue(json_data={"success": True, "message": "ok", "session_id": "s-next"})
+
+        result = getattr(client, method)(12, 4711, 2, reason="creds rotated")
+
+        call = stub_requests.calls[0]
+        assert call.url == "http://cp.test/api/work_queues/12/items/4711/_command"
+        assert call.kwargs["params"] == {"o": "2"}
+        assert call.kwargs["json"] == {"command": command, "reason": "creds rotated"}
+        assert result.session_id == "s-next"
+
+    def test_reprocess_reason_is_optional(self, client, stub_requests):
+        stub_requests.queue(json_data={"success": True, "message": "ok"})
+
+        client.reprocess_item(12, 4711, 2)
+
+        assert stub_requests.calls[0].kwargs["json"] == {"command": "reprocess"}
+
+    @pytest.mark.parametrize("method", ["resume_item", "restart_item"])
+    def test_resume_and_restart_require_a_reason(self, client, method):
+        with pytest.raises(TypeError):
+            getattr(client, method)(12, 4711, 2)
+
+    def test_a_resume_conflict_propagates(self, client, stub_requests):
+        stub_requests.queue(
+            json_data={"error": {"type": "CONFLICT", "details": {"code": "not_resumable"}}}, status_code=409
+        )
+
+        with pytest.raises(requests.HTTPError) as exc:
+            client.resume_item(12, 4711, 2, reason="try again")
+
+        assert exc.value.response.status_code == 409
 
     def test_item_command_forwards_extra_fields(self, client, stub_requests):
         stub_requests.queue(json_data={"success": True, "message": "Item unblocked"})

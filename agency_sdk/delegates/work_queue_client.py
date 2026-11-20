@@ -180,7 +180,7 @@ class AgencyWorkQueueClient(BaseDelegateClient):
     def item_command(
         self, queue_id: int, item_id: int, organisation_id: int, command: str, **kwargs: Any
     ) -> ItemCommandResponse:
-        """Run an item command (publish / unblock / retry / reprocess).
+        """Run an item command (publish / unblock / resume / restart / reprocess).
 
         Extra keyword arguments are passed through as flat siblings of
         ``command`` in the request body (e.g. ``feedback=...`` for unblock).
@@ -193,6 +193,40 @@ class AgencyWorkQueueClient(BaseDelegateClient):
             "POST", f"/{queue_id}/items/{item_id}/_command", data=data, params={"o": str(organisation_id)}
         )
         return ItemCommandResponse(**body)
+
+    def resume_item(self, queue_id: int, item_id: int, organisation_id: int, *, reason: str) -> ItemCommandResponse:
+        """Resume an unblocked item on its SAME session (``resume``; replaces the removed ``retry``).
+
+        Only a Failed agent-vault session qualifies (``ItemResponse.resumable``). ``reason`` is required and
+        audited. Gated by the queue's ``retry`` policy action.
+
+        Raises:
+            requests.HTTPError: 409 ``not_resumable`` (restart instead), ``session_live``, ``session_terminal``
+                or ``awaiting_input`` (respond instead); 400 for a blank reason.
+        """
+        return self.item_command(queue_id, item_id, organisation_id, "resume", reason=reason)
+
+    def restart_item(self, queue_id: int, item_id: int, organisation_id: int, *, reason: str) -> ItemCommandResponse:
+        """Restart an unblocked item as a NEW session under the previous session's correlation id.
+
+        The caller owns the new session. ``reason`` is required and audited. Gated by the queue's ``retry``
+        policy action.
+
+        Raises:
+            requests.HTTPError: 409 while the session is created, running or awaiting input; 400 for a blank
+                reason.
+        """
+        return self.item_command(queue_id, item_id, organisation_id, "restart", reason=reason)
+
+    def reprocess_item(
+        self, queue_id: int, item_id: int, organisation_id: int, *, reason: str | None = None
+    ) -> ItemCommandResponse:
+        """Reprocess a done item as a NEW session under the previous session's correlation id.
+
+        The caller owns the new session; ``reason`` is optional. Gated by the queue's ``retry`` policy action.
+        """
+        extra: dict[str, Any] = {"reason": reason} if reason is not None else {}
+        return self.item_command(queue_id, item_id, organisation_id, "reprocess", **extra)
 
     def get_item(self, queue_id: int, item_id: int, organisation_id: int) -> ItemResponse:
         """Fetch a single work item."""

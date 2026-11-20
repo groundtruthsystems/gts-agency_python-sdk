@@ -9,9 +9,10 @@ is intentionally not exposed here — see ``docs/session_reporting_delegate_desi
 (A session the SDK itself must create — an ADK ``create_session`` with no id — is registered from a
 template via ``AgencySessionTemplatesClient.register``, never from here.)
 
-Two read paths support the Agent Vault (``docs/agent_vault_gap_analysis.md``): ``find_by_correlation_id``
-and ``search``. Both send their selectors in a POST body, so a correlation id never lands in a URL,
-access log or ``HTTPError`` message.
+``search`` lists sessions by task (``correlation_id``), owner (``user_id``), template or status. A
+correlation id names a task that many sessions may share; an agent locates *its* session by correlation id
+with ``AgencySessionTemplatesClient.resolve_session`` instead. Selectors travel in the POST body, so a
+correlation id never lands in a URL, access log or ``HTTPError`` message.
 
 The client only MARSHALS a caller-decided status; it never infers the run
 outcome. Deciding the status (and any terminal payload) stays with the agent.
@@ -19,11 +20,14 @@ outcome. Deciding the status (and any terminal payload) stays with the agent.
 
 from typing import Any
 
-import requests
-
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.base_client import BaseDelegateClient
-from agency_sdk.delegates.session_dto import SessionCommandResponse, SessionRef, SessionSearchResult, SessionStatus
+from agency_sdk.delegates.session_dto import (
+    SessionCommandResponse,
+    SessionSearchResult,
+    SessionStatus,
+    SessionSummary,
+)
 
 
 class AgencySessionClient(BaseDelegateClient):
@@ -57,7 +61,6 @@ class AgencySessionClient(BaseDelegateClient):
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
         logs: str | None = None,
-        labels: dict[str, str] | None = None,
         session_id: str | None = None,
     ) -> SessionCommandResponse:
         """Report progress on the session via ``POST /{id}/_command {command:"update"}``.
@@ -73,7 +76,6 @@ class AgencySessionClient(BaseDelegateClient):
             metrics: Optional run metrics.
             error: Optional failure detail (surfaced in the CP UI's ERRORS tab).
             logs: Optional captured logs (surfaced in the CP UI's LOGS tab).
-            labels: Optional labels to set on the session (e.g. ``adk_app`` on an adopted session).
             session_id: Target session; defaults to the ``attach``ed session. An
                 explicit value overrides the attached session for THIS call only —
                 it does not rebind ``self._session_id``.
@@ -96,8 +98,6 @@ class AgencySessionClient(BaseDelegateClient):
             update["error"] = error
         if logs is not None:
             update["logs"] = logs
-        if labels is not None:
-            update["labels"] = labels
         payload = {"command": "update", "organisation": organisation_id, "update": update}
         # retry=True: re-sending the same update is safe (idempotent; ①'s session-status
         # monotonicity guard prevents terminal regression), unlike the work-queue POSTs.
@@ -106,39 +106,57 @@ class AgencySessionClient(BaseDelegateClient):
         )
         return SessionCommandResponse(**body)
 
-    def find_by_correlation_id(self, organisation_id: int, correlation_id: str) -> SessionRef | None:
-        """Locate the session that owns ``correlation_id`` (unique per organisation).
+    def get(self, session_id: str) -> SessionSummary:
+        """Read one session via ``GET /api/sessions/{id}`` (comand resolves the organisation from the record).
 
-        ``POST /api/sessions/_lookup`` with the id in the body. A miss and a session in another
-        organisation are deliberately indistinguishable: both are 404 and both return ``None``.
+        A dispatched agent uses it to learn its task's ``correlation_id`` when the worker did not pass one.
 
         Raises:
-            requests.HTTPError: Any non-404 error.
+            requests.HTTPError: 404 when the session does not exist or the caller may not read it.
         """
-        body = {"organisation": organisation_id, "correlation_id": correlation_id}
-        try:
-            found = self._make_request("POST", "/_lookup", data=body, params={"o": str(organisation_id)}, retry=True)
-        except requests.HTTPError as err:
-            if err.response is not None and err.response.status_code == 404:
-                return None
-            raise
-        return SessionRef(**found)
+        return SessionSummary(**self._make_request("GET", f"/{session_id}"))
 
     def search(
         self,
         organisation_id: int,
         *,
-        labels: dict[str, str],
-        user: str | None = None,
+        correlation_id: str | None = None,
+        user_id: str | None = None,
+        template_id: str | None = None,
+        status: list[SessionStatus | int] | None = None,
         page: int = 0,
         size: int = 50,
+        sort: tuple[str, str] | None = None,
     ) -> SessionSearchResult:
-        """Find sessions by labels (AND-ed), optionally for one user; the server filters by policy.
+        """Search the organisation's sessions via ``POST /api/sessions/_search`` (newest first by default).
 
-        Backs ADK ``list_sessions(app_name, user_id)``. Selectors travel in the POST body.
+        Every filter is exact and optional; the server applies the caller's organisations and the review
+        exclusion on top. Selectors travel in the POST body.
+
+        Args:
+            organisation_id: The organisation to search (sent as the one-element ``organisation`` list).
+            correlation_id: Sessions of this task (case-sensitive).
+            user_id: Sessions owned by this principal (``U:<id>``, ``sa:<id>`` or ``key:<id>``). This is the
+                owner comand set, not a framework user id.
+            template_id: Sessions of this template (for ADK, the app).
+            status: Only these status codes.
+            page: 0-based page number.
+            size: Page size.
+            sort: ``(field, direction)``, e.g. ``("created_on", "asc")``; the server default is newest first.
+
+        Raises:
+            requests.HTTPError: 400 for a malformed ``correlation_id``/``user_id``, or any other error.
         """
-        body: dict[str, Any] = {"organisation": organisation_id, "labels": labels}
-        if user is not None:
-            body["user"] = user
-        params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
+        body: dict[str, Any] = {"organisation": [organisation_id], "page": {"page": page, "size": size}}
+        if correlation_id is not None:
+            body["correlation_id"] = correlation_id
+        if user_id is not None:
+            body["user_id"] = user_id
+        if template_id is not None:
+            body["template_id"] = template_id
+        if status is not None:
+            body["status"] = [int(s) for s in status]
+        if sort is not None:
+            body["sort"] = {"field": sort[0], "direction": sort[1]}
+        params = {"o": str(organisation_id)}
         return SessionSearchResult(**self._make_request("POST", "/_search", data=body, params=params, retry=True))

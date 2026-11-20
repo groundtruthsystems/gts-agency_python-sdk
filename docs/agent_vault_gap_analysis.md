@@ -6,6 +6,19 @@ architecture verification and operator decisions).
 `agent_vault_backend_20261012`. §4 below is the contract that track has to implement.
 **Design of record:** `.ai/sebenza/tracks/agent_vault_adk_sessions_20261012/design.md`.
 
+> **Superseded in part (2026-11-19).** comand implemented item 5 differently, in its
+> `session_correlation_20261119` track. The authoritative contract is comand's
+> `documentation/AGENT_VAULT_API.md`. The SDK (0.0.4rc1) follows comand:
+> - **Never existed:** `POST /api/sessions/_lookup`, session labels, and a unique correlation id with a
+>   409 on duplicate register. Removed: `find_by_correlation_id`, `update(labels=)`, `register(labels=, owner=)`
+>   and `CorrelationIdConflict`.
+> - **A correlation id names a task** that many sessions share.
+> - **Register** takes it as `input.correlation`.
+> - **The owner (`user_id`) is set by comand.**
+> - **Agents locate their session** with `session_templates().resolve_session(...)`.
+> - **Search:** `_search` filters by `correlation_id`, owner `user_id`, `template_id` and `status`.
+> - **Work queue:** `retry` became `resume` / `restart` (with a reason).
+
 **Operator decisions folded into rev 2:**
 1. A HITL answer is recorded **by comand under the reviewer's own authenticated identity**. The SDK
    never accepts an answer from a client payload.

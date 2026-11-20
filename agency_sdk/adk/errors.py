@@ -45,6 +45,14 @@ class RequestNotFound(AgentVaultError):
     """A human-input request id does not exist on the session, or does not match the paused call."""
 
 
+class DispatchedSessionMismatch(AgentVaultError):
+    """``resolve_session`` answered with a session other than the dispatched one.
+
+    Another live session already holds the task's correlation id, so running would continue the wrong session.
+    Raised before anything is written; the message names no id.
+    """
+
+
 class HitlExpired(AgentVaultError):
     """The pending human-input request expired (comand's background job failed the session)."""
 
@@ -53,6 +61,7 @@ __all__ = [
     "SessionNotFound",
     "RequestNotFound",
     "HitlExpired",
+    "DispatchedSessionMismatch",
     "AgentVaultError",
     "CorruptRecord",
     "UnsupportedSchema",

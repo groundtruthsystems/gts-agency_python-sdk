@@ -10,7 +10,8 @@ after :func:`register_gts_session_service` (credentials come from ``AGENCY_*`` e
 
 One ADK session is one GTS session: the ADK ``session_id`` *is* the GTS session id. A dispatched agent
 adopts the id it was given; ``create_session`` without an id registers a new GTS session from the
-configured template. Every non-partial event handed to :meth:`append_event` is a **checkpoint**,
+configured template. comand sets every session's owner itself; the ADK ``user_id`` is kept only in the
+vault head, so ``list_sessions`` filters by it client-side and lists by template server-side. Every non-partial event handed to :meth:`append_event` is a **checkpoint**,
 committed by a conditional write on the session head before the runner moves on, and a writer whose
 copy of the session is out of date gets ADK's ``StaleSessionError`` having changed nothing.
 
@@ -24,7 +25,6 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-import uuid
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -60,7 +60,6 @@ class GtsSessionService(BaseSessionService):
         templates: Any,
         organisation_id: int,
         template_name: str | None = None,
-        bind_owner: bool = True,
         base_url: str | None = None,
         timeout: float = 10.0,
         limits: VaultLimits | None = None,
@@ -72,8 +71,8 @@ class GtsSessionService(BaseSessionService):
             sessions: The session delegate (``AgencyClient.sessions()``).
             templates: The session-template delegate (``AgencyClient.session_templates()``).
             organisation_id: The organisation every session belongs to.
-            template_name: Template used when ``create_session`` gets no id; without one, such calls fail.
-            bind_owner: Send the ADK ``user_id`` as the session owner claim when registering.
+            template_name: The template (the ADK app) used to register sessions, resolve correlation ids and
+                list sessions; ``create_session`` without an id and ``DurableRunner`` fail without it.
             base_url: The control-plane URL, for information only.
             timeout: Per-request timeout in seconds.
             limits: Client-side size and event-count caps.
@@ -82,7 +81,6 @@ class GtsSessionService(BaseSessionService):
         self.organisation_id = organisation_id
         self.template_name = template_name
         self.base_url = base_url
-        self._bind_owner = bind_owner
         self._sessions = sessions
         self._templates = templates
         self._store = VaultStore(
@@ -93,11 +91,17 @@ class GtsSessionService(BaseSessionService):
             app_state_classification=app_state_classification,
         )
         self._heads: dict[str, HeadSnapshot] = {}
+        self._template_id: str | None = None
 
     @property
     def sessions(self) -> Any:
-        """The session delegate (status updates, correlation lookup) this service writes through."""
+        """The session delegate (status updates, search) this service writes through."""
         return self._sessions
+
+    @property
+    def templates(self) -> Any:
+        """The session-template delegate (register, ``resolve_session``)."""
+        return self._templates
 
     @property
     def store(self) -> VaultStore:
@@ -151,6 +155,13 @@ class GtsSessionService(BaseSessionService):
         self._remember(session_id, snapshot)
         return session
 
+    async def _resolved_template_id(self) -> str | None:
+        if self._template_id is None and self.template_name:
+            self._template_id = await asyncio.to_thread(
+                self._templates.resolve_id, self.organisation_id, self.template_name
+            )
+        return self._template_id
+
     async def _visible_head(self, app_name: str, user_id: str | None, session_id: str) -> HeadSnapshot | None:
         snapshot = await self._store.read_head(session_id)
         if snapshot is None or snapshot.head.deleted or snapshot.head.app_name != app_name:
@@ -171,8 +182,9 @@ class GtsSessionService(BaseSessionService):
     ) -> Session:
         """Create a session: register a new GTS session from the template, or adopt ``session_id``.
 
-        ``correlation_id`` (an extension to ADK's signature, used by ``DurableRunner``) labels a newly
-        registered session; it defaults to a random id.
+        ``correlation_id`` (an extension to ADK's signature, used by ``DurableRunner``) is the task's id. A
+        newly registered session is given it (without one, comand uses the session id); for an adopted
+        session it is recorded in the head and must be the session's own (the dispatch payload's).
 
         Raises:
             AlreadyExistsError: ``session_id`` already has an ADK session.
@@ -180,31 +192,45 @@ class GtsSessionService(BaseSessionService):
             SessionTemplateNotFound: The configured template does not exist.
             VaultUnavailable: comand refused a scope (for example no bound owner); nothing was written.
         """
-        deltas = extract_state_delta(state or {})
         if session_id is None:
             if not self.template_name:
                 raise ValueError("create_session without a session_id needs template_name to be configured")
-            registered: str = await asyncio.to_thread(
-                self._templates.register,
-                self.organisation_id,
-                self.template_name,
-                correlation_id=correlation_id or uuid.uuid4().hex,
-                labels={"adk_app": app_name},
-                owner=user_id if self._bind_owner else None,
+            registered = await asyncio.to_thread(
+                self._templates.register, self.organisation_id, self.template_name, correlation_id=correlation_id
             )
-            sid = registered
+            sid = registered.session_id
+            correlation_id = registered.correlation_id
         else:
             sid = session_id
             if await self._store.read_head(sid) is not None:
                 raise AlreadyExistsError(f"Session {sid} already exists.")
             await asyncio.to_thread(
-                self._sessions.update,
-                self.organisation_id,
-                status=SessionStatus.IN_PROGRESS,
-                labels={"adk_app": app_name, **({"correlation_id": correlation_id} if correlation_id else {})},
-                session_id=sid,
+                self._sessions.update, self.organisation_id, status=SessionStatus.IN_PROGRESS, session_id=sid
             )
-        await self._scoped_state(sid)  # fail closed before writing anything if a scope is refused
+        return await self.initialise_head(
+            app_name=app_name, user_id=user_id, session_id=sid, correlation_id=correlation_id, state=state
+        )
+
+    async def initialise_head(
+        self,
+        *,
+        app_name: str,
+        user_id: str,
+        session_id: str,
+        correlation_id: str | None = None,
+        state: Optional[dict[str, Any]] = None,
+    ) -> Session:
+        """Write the ADK head of an EXISTING GTS session that has none yet; report no status.
+
+        ``create_session`` ends here; ``DurableRunner`` calls it directly for a session ``resolve_session``
+        created or attached (its run reports ``IN_PROGRESS`` itself).
+
+        Raises:
+            AlreadyExistsError: The session already has an ADK head (the conditional create lost).
+            VaultUnavailable: comand refused a scope; nothing was written.
+        """
+        deltas = extract_state_delta(state or {})
+        await self._scoped_state(session_id)  # fail closed before writing anything if a scope is refused
         head = SessionHead(
             app_name=app_name,
             user_id=user_id,
@@ -212,9 +238,9 @@ class GtsSessionService(BaseSessionService):
             last_update_time=time.time(),
             state=deltas["session"],
         )
-        snapshot = await self._store.create_head(sid, head)
-        await self._merge_scopes(sid, deltas)
-        return self._to_session(sid, snapshot, [], await self._scoped_state(sid))
+        snapshot = await self._store.create_head(session_id, head)
+        await self._merge_scopes(session_id, deltas)
+        return self._to_session(session_id, snapshot, [], await self._scoped_state(session_id))
 
     async def get_session(
         self,
@@ -240,24 +266,29 @@ class GtsSessionService(BaseSessionService):
         return self._to_session(session_id, snapshot, events, await self._scoped_state(session_id))
 
     async def list_sessions(self, *, app_name: str, user_id: Optional[str] = None) -> ListSessionsResponse:
-        """List the app's sessions (optionally one user's), oldest-updated first, without events or state."""
+        """List the app's sessions (optionally one user's), oldest-updated first, without events or state.
+
+        comand lists the configured template's sessions (all of the organisation's without one); the app and
+        the ADK ``user_id`` are then matched against each session's vault head, because the framework user id
+        is not a server-side filter.
+        """
+        template_id = await self._resolved_template_id()
         found: list[Session] = []
         page = 0
         while True:
             result = await asyncio.to_thread(
                 self._sessions.search,
                 self.organisation_id,
-                labels={"adk_app": app_name},
-                user=user_id,
+                template_id=template_id,
                 page=page,
                 size=_SEARCH_PAGE,
             )
-            for ref in result.items:
-                snapshot = await self._visible_head(app_name, user_id, ref.session_id)
+            for item in result.items:
+                snapshot = await self._visible_head(app_name, user_id, item.id)
                 if snapshot is not None:
                     found.append(
                         Session(
-                            id=ref.session_id,
+                            id=item.id,
                             app_name=app_name,
                             user_id=snapshot.head.user_id,
                             last_update_time=snapshot.head.last_update_time,

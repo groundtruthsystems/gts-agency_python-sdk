@@ -57,7 +57,7 @@ def _runner(cp, tmp_path, script=None, name="counts.json", extra_tools=None, **k
 
 
 def _sid(cp):
-    return cp.sessions.find_by_correlation_id(2, CID).session_id
+    return cp.sessions_of(CID)[-1]
 
 
 def _fr_events(cp, sid):

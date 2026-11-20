@@ -8,7 +8,8 @@ track (``agent_vault_backend_20261012``) has not shipped the contract — such a
 blocked, never as passed.
 
 Environment: ``AGENCY_AUTH_URL``, ``AGENCY_API_URL``, ``AGENCY_ORG_ID``, ``AGENCY_CLIENT_ID``,
-``AGENCY_CLIENT_SECRET``, ``SESSION_TEMPLATE_NAME`` (default ``adk-agent``), and for the human-side scenarios
+``AGENCY_CLIENT_SECRET`` (the template agent's service account: ``resolve_session`` answers only it),
+``SESSION_TEMPLATE_NAME`` (default ``adk-agent``), and for the human-side scenarios
 ``AGENCY_HUMAN_TOKEN`` (a reviewer's own access token). Optional: ``AGENT_VAULT_EXPIRY_WAIT`` seconds to wait
 for comand's expiry job (default 120).
 """
@@ -84,10 +85,12 @@ def contract():
             f"comand lacks Agent Vault contract item {item}: {detail} (blocked on agent_vault_backend_20261012)"
         )
 
+    templates = client.session_templates()
     try:
-        session_id = client.session_templates().register(org, _template(), correlation_id=f"probe-{uuid.uuid4().hex}")
+        registered = templates.register(org, _template(), correlation_id=f"probe-{uuid.uuid4().hex}")
     except Exception as exc:  # noqa: BLE001 - any failure here is a contract gap
-        gap("5", f"register with labels failed ({type(exc).__name__})")
+        gap("5", f"register with a correlation id failed ({type(exc).__name__})")
+    session_id = registered.session_id
     vault = client.session_vault()
     try:
         first = vault.set(org, session_id, "probe.key", {"a": 1}, if_absent=True)
@@ -113,9 +116,15 @@ def contract():
         vault.set(org, session_id, "adk.state", {"state": {}}, scope="app")
     except requests.HTTPError:
         gap("4", "scope=app")
-    ref = client.sessions().find_by_correlation_id(org, f"never-{uuid.uuid4().hex}")
-    if ref is not None:
-        gap("5", "lookup of an unknown correlation id returned a session")
+    found = client.sessions().search(org, correlation_id=registered.correlation_id)
+    if [item.id for item in found.items] != [session_id]:
+        gap("5", "search by correlation id did not return the registered session")
+    try:
+        missing = templates.resolve_session(org, _template(), mode="find", correlation_id=f"never-{uuid.uuid4().hex}")
+    except requests.HTTPError as exc:
+        gap("5", f"resolve_session find failed ({exc.response.status_code if exc.response is not None else '?'})")
+    if missing is not None:
+        gap("5", "resolve_session found a session for an unknown correlation id")
     try:
         client.session_hitl().list(org, session_id)
     except requests.HTTPError:
@@ -199,20 +208,19 @@ def test_expiry_by_comands_background_job(contract, tmp_path):
         asyncio.run(runner.resume(cid, user_id="it-user"))
 
 
-def test_user_scope_is_isolated_and_fails_closed(contract):
-    """TS-56."""
-    vault, templates, org = contract.session_vault(), contract.session_templates(), _org()
-    a = templates.register(org, _template(), correlation_id=uuid.uuid4().hex, owner="it-user-a")
-    b = templates.register(org, _template(), correlation_id=uuid.uuid4().hex, owner="it-user-b")
-    unbound = templates.register(org, _template(), correlation_id=uuid.uuid4().hex)
-    vault.set(org, a, "adk.state", {"state": {"secret": "a"}}, scope="user")
+def test_user_scope_follows_the_server_set_owner(contract):
+    """TS-56: comand owns ``user_id`` (the registering principal), and ``user`` scope is the owner's.
 
-    with pytest.raises(requests.HTTPError) as miss:
-        vault.get(org, b, "adk.state", scope="user")
-    assert miss.value.response.status_code == 404
-    with pytest.raises(requests.HTTPError) as refused:
-        vault.get(org, unbound, "adk.state", scope="user")
-    assert 400 <= refused.value.response.status_code < 500 and refused.value.response.status_code != 404
+    Isolation between *different* owners needs a second principal and is covered by comand's own tests; here
+    two sessions registered by one principal share its ``user`` scope, and neither carries a client-chosen owner.
+    """
+    vault, templates, org = contract.session_vault(), contract.session_templates(), _org()
+    a = templates.register(org, _template(), correlation_id=uuid.uuid4().hex)
+    b = templates.register(org, _template(), correlation_id=uuid.uuid4().hex)
+    assert a.user_id == b.user_id and a.user_id.split(":", 1)[0] in ("U", "sa", "key")
+    vault.set(org, a.session_id, "adk.state", {"state": {"pref": "a"}}, scope="user")
+
+    assert vault.get(org, b.session_id, "adk.state", scope="user").value == {"state": {"pref": "a"}}
 
 
 def test_first_answer_wins(contract, tmp_path):

@@ -1,8 +1,14 @@
 """``DurableRunner``: run an ADK agent by correlation id, resuming from the last checkpoint.
 
-A correlation id names **one run**. ``run(correlation_id, ...)`` looks the id up in comand; an unknown id
-gets a new session (registered with the id as a label, so racing registrations converge on one
-session), a known one is hydrated from the vault and continued:
+A correlation id names a **task**; several GTS sessions may share it (a work-queue *restart* or *reprocess*
+starts a new session under the same id, a *resume* reopens the same one). ``run(correlation_id, ...)``
+asks comand's ``resolve_session`` (``find_or_create`` on the service's template), which returns the task's
+live session, else its newest finished one, else creates one; comand serialises concurrent creates, so
+racing runners converge on one session. A dispatched agent passes its ``session_id`` and the dispatch
+payload's ``correlation_id``: comand attaches the id to that session, or answers
+:class:`~agency_sdk.delegates.session_templates_client.CorrelationMismatch` when it carries another.
+A created or running session with no ADK head yet (just created, attached, or a restart's new session) is
+initialised; one with a head is hydrated from the vault and continued:
 
 - **completed** → the stored final result, without calling the model;
 - **failed** → ``failed`` (the PHI-free ``adk.failure`` record names the error type);
@@ -26,9 +32,13 @@ Every committed event is a checkpoint (see :mod:`agency_sdk.adk.session_service`
 - an infrastructure error (vault or network) propagates and leaves the session ``IN_PROGRESS`` so a
   later run resumes it;
 - an agent error writes ``adk.failure`` (exception *type* only — messages can carry PHI) and then marks
-  the session FAILED. FAILED and COMPLETED are terminal in comand, so a retry uses a new correlation id.
+  the session FAILED. FAILED and COMPLETED are terminal in comand: an operator recovers the work item with
+  ``resume`` (same session, a Failed vault session only) or ``restart`` (a new session, same correlation
+  id), and the next ``run`` picks that session up.
 
-Requires an ``App`` with ``ResumabilityConfig(is_resumable=True)``.
+Requires an ``App`` with ``ResumabilityConfig(is_resumable=True)`` and a ``GtsSessionService`` configured with
+``template_name``. ``resolve_session`` answers only the template agent's service account, so run with
+that account's credentials.
 """
 
 from __future__ import annotations
@@ -42,6 +52,7 @@ from typing import Any, Literal
 import requests
 from google.adk.apps import App
 from google.adk.errors import StaleSessionError
+from google.adk.errors.already_exists_error import AlreadyExistsError
 from google.adk.events import Event
 from google.adk.runners import Runner
 from google.adk.sessions import Session
@@ -51,6 +62,7 @@ from pydantic import BaseModel, Field
 from agency_sdk.adk._records import FailureRecord
 from agency_sdk.adk.errors import (
     AgentVaultError,
+    DispatchedSessionMismatch,
     HitlExpired,
     RequestNotFound,
     SessionNotFound,
@@ -59,12 +71,16 @@ from agency_sdk.adk.errors import (
 from agency_sdk.adk.session_service import GtsSessionService
 from agency_sdk.delegates.session_dto import SessionStatus
 from agency_sdk.delegates.session_hitl_dto import HitlRequest
-from agency_sdk.delegates.session_templates_client import CorrelationIdConflict
+from agency_sdk.delegates.session_templates_client import ResolveMode
+from agency_sdk.delegates.session_templates_dto import ResolvedSession
 
 #: Default lifetime of a human-input request.
 DEFAULT_HITL_TTL = timedelta(days=7)
 #: Default cap on one human answer, checked before it is injected.
 DEFAULT_MAX_ANSWER_BYTES = 64 * 1024
+
+#: comand's "created" session status (dispatched, not yet reported on by the agent).
+_CREATED = 1
 
 OutcomeStatus = Literal["completed", "already_completed", "awaiting_input", "failed", "conflict"]
 
@@ -202,55 +218,91 @@ class DurableRunner:
 
     async def run(
         self,
-        correlation_id: str,
+        correlation_id: str | None,
         *,
         user_id: str,
         message: str | types.Content | None = None,
         session_id: str | None = None,
         hitl_ttl: timedelta | None = None,
     ) -> RunOutcome:
-        """Run (or resume) the correlation id's run.
+        """Run (or resume) the correlation id's task.
 
         Args:
-            correlation_id: The run's id — high-entropy and opaque, never a clinical identifier.
-            user_id: The ADK user (also the owner claim for a newly registered session).
+            correlation_id: The task's id — ``[A-Za-z0-9._:-]{10,128}``, opaque, never a clinical identifier.
+                A dispatched agent passes the ``correlation_id`` its worker put in the arguments; ``None`` (with
+                ``session_id``) reads it from the dispatched session, for workers that do not pass it yet.
+            user_id: The ADK user (the dispatch payload's ``user_id``); kept as framework metadata, never
+                the session's owner, which comand sets.
             message: The input for a fresh run; ignored when an existing run is resumed.
-            session_id: A dispatched GTS session to adopt for a new run, instead of registering one.
+            session_id: The dispatched GTS session. The run continues in exactly this session: comand returns it
+                (it carries the correlation id) or attaches the id to it.
             hitl_ttl: Lifetime of any human-input request this run creates (default: the runner's).
 
         Raises:
+            ValueError: ``correlation_id`` is ``None`` and no ``session_id`` was given.
+            CorrelationMismatch: ``session_id`` already carries a different correlation id.
+            DispatchedSessionMismatch: Another live session holds the correlation id; nothing was written.
             SessionNotFound: The run's session was deleted.
             HitlExpired: A human-input request of this run expired.
             RequestNotFound: A recorded answer does not belong to the paused call.
             AgentVaultError / requests exceptions: Infrastructure failures; the session stays in progress.
         """
-        lookup = self.session_service.sessions.find_by_correlation_id
-        ref = await asyncio.to_thread(lookup, self._org, correlation_id)
-        if ref is None:
+        if correlation_id is None:
+            if session_id is None:
+                raise ValueError("run needs a correlation_id, or the dispatched session_id to read it from")
+            dispatched = await asyncio.to_thread(self.session_service.sessions.get, session_id)
+            correlation_id = dispatched.correlation_id
+        resolved = await self._resolve("find_or_create", correlation_id, session_id=session_id, user_id=user_id)
+        assert resolved is not None  # find_or_create never misses
+        if session_id is not None and resolved.session_id != session_id:
+            raise DispatchedSessionMismatch("another live session holds this task's correlation id")
+        status = resolved.status
+        # The ADK head is the only "set up" signal: ``created`` is false when comand finds the dispatched
+        # session by its correlation id, and ``vault_version`` counts comand's own commits, not this head. Only a
+        # created or running session is initialised (fresh, attached, dispatched, or a work-queue restart);
+        # a finished one is never revived, and awaiting input needs a history.
+        fresh = status in (_CREATED, SessionStatus.IN_PROGRESS)
+        if fresh and await self.session_service.store.read_head(resolved.session_id) is None:
             try:
-                created = await self.session_service.create_session(
-                    app_name=self.app.name, user_id=user_id, session_id=session_id, correlation_id=correlation_id
+                await self.session_service.initialise_head(
+                    app_name=self.app.name,
+                    user_id=user_id,
+                    session_id=resolved.session_id,
+                    correlation_id=correlation_id,
                 )
-                return await self._continue(
-                    created.id, int(SessionStatus.IN_PROGRESS), user_id, _as_content(message), hitl_ttl
-                )
-            except CorrelationIdConflict:
-                ref = await asyncio.to_thread(lookup, self._org, correlation_id)
-                if ref is None:
-                    raise
-        return await self._continue(ref.session_id, ref.status, user_id, _as_content(message), hitl_ttl)
+                status = int(SessionStatus.IN_PROGRESS)
+            except AlreadyExistsError:
+                pass  # a racing runner initialised it first; continue from what comand reported
+        return await self._continue(resolved.session_id, status, user_id, _as_content(message), hitl_ttl)
 
     async def resume(self, correlation_id: str, *, user_id: str) -> RunOutcome:
-        """Continue the correlation id's run with the answers comand has recorded — never with a caller's.
+        """Continue the correlation id's task with the answers comand has recorded — never with a caller's.
 
         Raises:
-            SessionNotFound: No run has this correlation id (``resume`` never creates one), or it was deleted.
+            SessionNotFound: No session has this correlation id (``resume`` never creates one), or it was deleted.
             HitlExpired / RequestNotFound: As for :meth:`run`.
         """
-        ref = await asyncio.to_thread(self.session_service.sessions.find_by_correlation_id, self._org, correlation_id)
-        if ref is None:
+        resolved = await self._resolve("find", correlation_id)
+        if resolved is None:
             raise SessionNotFound("no run has this correlation id")
-        return await self._continue(ref.session_id, ref.status, user_id, None, None)
+        return await self._continue(resolved.session_id, resolved.status, user_id, None, None)
+
+    async def _resolve(
+        self, mode: ResolveMode, correlation_id: str, *, session_id: str | None = None, user_id: str | None = None
+    ) -> ResolvedSession | None:
+        template_name = self.session_service.template_name
+        if not template_name:
+            raise ValueError("DurableRunner needs a GtsSessionService configured with template_name")
+        resolved: ResolvedSession | None = await asyncio.to_thread(
+            self.session_service.templates.resolve_session,
+            self._org,
+            template_name,
+            mode=mode,
+            correlation_id=correlation_id,
+            session_id=session_id,
+            framework_user_id=user_id,
+        )
+        return resolved
 
     async def _load(self, session_id: str, user_id: str) -> Session:
         session = await self.session_service.get_session(app_name=self.app.name, user_id=user_id, session_id=session_id)

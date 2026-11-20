@@ -28,8 +28,9 @@ from google.genai import types  # noqa: E402
 
 from agency_sdk.adk import GtsSessionService, errors  # noqa: E402
 from agency_sdk.adk._records import EVENT_PREFIX, HEAD_KEY, STATE_KEY, encode_event, event_key  # noqa: E402
+from agency_sdk.delegates.session_dto import SessionStatus  # noqa: E402
 from agency_sdk.delegates.session_templates_client import SessionTemplateNotFound  # noqa: E402
-from agency_sdk.test.adk_fakes import FakeControlPlane  # noqa: E402
+from agency_sdk.test.adk_fakes import AGENT_PRINCIPAL, FakeControlPlane  # noqa: E402
 from agency_sdk.test.adk_llm_fakes import CountingTools, make_app, steps_script  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,22 +77,23 @@ class TestCreate:
         session = run(_new(svc, cp, state={"k": 1}))
 
         reg = [entry for op, entry in cp.log if op == "register"]
-        assert reg == [{"template": "adk-agent", "labels": {"adk_app": "app"}, "owner": "user-1"}]
-        assert cp.session(session.id)["labels"]["correlation_id"]
+        assert reg == [{"template": "adk-agent", "correlation_id": None}]
+        assert cp.session(session.id)["correlation_id"] == session.id  # comand's default: the session id
+        assert cp.vault.value(session.id, HEAD_KEY)["correlation_id"] == session.id
         head = cp.vault.value(session.id, HEAD_KEY)
         assert (head["revision"], head["event_count"], head["state"]) == (0, 0, {"k": 1})
         assert session.state == {"k": 1} and session.events == []
         assert session._storage_update_marker == "1"
 
     def test_create_with_a_dispatched_id_adopts_it(self, svc, cp):
-        """TS-04: adopt via update(labels=), never register."""
-        cp.add_session("s-dispatched", owner="user-1")
+        """TS-04: adopt by reporting IN_PROGRESS, never register."""
+        cp.add_session("s-dispatched", owner="user-1", status=1)
 
         session = run(svc.create_session(app_name="app", user_id="user-1", session_id="s-dispatched"))
 
         assert session.id == "s-dispatched"
         assert not [op for op, _ in cp.log if op == "register"]
-        assert cp.session("s-dispatched")["labels"]["adk_app"] == "app"
+        assert cp.session("s-dispatched")["status"] == SessionStatus.IN_PROGRESS
 
     def test_create_on_an_existing_head_raises(self, svc, cp):
         cp.add_session("s-1", owner="user-1")
@@ -291,6 +293,20 @@ class TestListAndDelete:
 
         assert [s.id for s in run(svc.list_sessions(app_name="app")).sessions] == [b.id, a.id]
 
+    def test_list_searches_by_template_never_by_the_adk_user(self, svc, cp):
+        """comand lists a template's sessions; the framework user id is matched on the vault head instead."""
+        mine = run(svc.create_session(app_name="app", user_id="user-1"))
+        cp.add_session("s-other-template", owner="user-1", template="other-template")
+
+        listed = run(svc.list_sessions(app_name="app", user_id="user-1")).sessions
+        listed_again = run(svc.list_sessions(app_name="app", user_id="user-1")).sessions
+
+        assert [s.id for s in listed] == [s.id for s in listed_again] == [mine.id]
+        searches = [e for op, e in cp.log if op == "search"]
+        assert searches and all(
+            e == {"correlation_id": None, "user_id": None, "template_id": "tpl-adk"} for e in searches
+        )
+
 
 class TestScopedState:
     def test_app_and_user_state_cross_sessions_and_survive_delete(self, svc, cp):
@@ -345,9 +361,12 @@ class TestScopedState:
             run(svc.append_event(session, _event(delta={"user:x": 1})))
         assert not [c for c in cp.vault.writes() if c.scope == "app"]
 
-    def test_register_sends_the_owner_claim(self, svc, cp):
-        run(_new(svc, cp))
-        assert [e["owner"] for op, e in cp.log if op == "register"] == ["user-1"]
+    def test_register_never_names_an_owner_comand_sets_it(self, svc, cp):
+        session = run(_new(svc, cp, correlation_id="corr-owner-0001"))
+
+        assert [e["correlation_id"] for op, e in cp.log if op == "register"] == ["corr-owner-0001"]
+        assert cp.session(session.id)["owner"] == AGENT_PRINCIPAL
+        assert cp.vault.value(session.id, HEAD_KEY)["user_id"] == "user-1"  # the ADK user stays in the head
 
     def test_missed_scoped_delta_is_repaired_by_the_next_run_not_by_reads(self, svc, cp, monkeypatch):
         """TS-57."""

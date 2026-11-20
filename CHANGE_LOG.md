@@ -6,6 +6,24 @@
 
 ## Change Log
 
+### 2026-11-19 — BREAKING (0.0.4rc1): session correlation ids follow comand (no `_lookup`)
+
+`AgencySessionClient.find_by_correlation_id` called `POST /api/sessions/_lookup`, which comand never had. It came from the hypothetical contract in `docs/agent_vault_gap_analysis.md` §4, along with session labels, register `labels`/`owner`, and a 409 `CorrelationIdConflict`. comand's `session_correlation_20261119` track implemented something different, and the SDK now follows that.
+
+- **A correlation id names a task.** Many sessions share one: a work-queue `resume` keeps the session, while `restart` and `reprocess` start a new one under the same id. comand sets every session's owner.
+- **Removed:** `find_by_correlation_id`, `SessionRef`, `update(labels=)`, `register(labels=, owner=)`, `CorrelationIdConflict` and `GtsSessionService(bind_owner=)`.
+- **`sessions().search`** sends comand's real body: an `organisation` list, `page:{page,size}`, and the `correlation_id`/owner `user_id`/`template_id`/`status`/`sort` filters. It returns `SessionSummary` items with PHI and the owner kept out of `repr`.
+- **`session_templates().register`** sends the id as `input.correlation` and returns `RegisteredSession`.
+- **New `session_templates().resolve_session`** (find / create / find_or_create / attach). It answers only the template agent's service account. Errors: `CorrelationMismatch` and `SessionAlreadyExists`; a 503 is retried, honouring `Retry-After`.
+- **Work queue:** `resume_item`, `restart_item` and `reprocess_item` replace the removed `retry`; `ItemResponse.resumable` is new.
+- **`DurableRunner`** resolves the task with `resolve_session`, so racing creates converge on one session server-side.
+  - It initialises an ADK head for a created or running session that has none: a fresh one, a dispatched or attached one, or a restart. A missing head is the signal, not `created`. It never revives a finished one.
+  - With `session_id` it runs only in that session, and raises `DispatchedSessionMismatch` if another live session holds the task.
+  - `correlation_id=None` reads the id from the new `sessions().get(session_id)`.
+- **`GtsSessionService.list_sessions`** lists by template and matches the ADK user on the vault head.
+
+The offline fakes model comand's ordering (correlation matched before attach) and its id write rule (10–128 characters, not SSN-shaped).
+
 ### 2026-11-18 — BREAKING (0.0.3rc1): paged knowledge-graph list (kg_list_pagination_sdk_20261118)
 
 `AgencyClient.graphs().list(org, *, page=None, size=None)` now follows comand's standard pagination (gts-agency cf1d53a3, #175): `KnowledgeGraphList` gained a required `page` (the shared `agency_sdk.domain.Page`), so this SDK cannot parse the old unpaged body and older SDKs cannot parse the new one — the API deploys first, then `0.0.3rc1`, and older SDK versions are unsupported against the paged endpoint, with no fallback either way. `page`/`size` are keyword-only and sent as `p`/`s` only when given, so the server's defaults (0-based, `page=0`, `size=10`, no maximum) apply and the SDK does no range checks: a negative value reaches comand and its 500 `SERVICE_ERROR` surfaces as `requests.HTTPError`, and walkers must stop on `page.total` or an empty page because `size=0` never fills one. `FakeGraphs` pages exactly as comand does, held to the real client by a parity test, and builds `domain.Page` through an alias because the session fakes still use the `datasets_dto` copy, which pydantic would reject for this field. The live contract smoke passed 8/8 against a local comand running #175, and showed that the catalogue code is `medical_ontology`, not the `medical-ontology` the smoke and docs had assumed since the previous track.

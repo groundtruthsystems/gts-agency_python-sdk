@@ -32,6 +32,7 @@ class StubResponse:
         else:
             self.content = b""
         self.text = text if text is not None else ""
+        self.headers: dict[str, str] = {}
 
     def json(self) -> Any:
         return self._json

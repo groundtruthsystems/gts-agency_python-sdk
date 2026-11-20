@@ -47,19 +47,42 @@ class SessionCommandResponse(BaseModel):
     update: dict[str, Any] | None = None
 
 
-class SessionRef(BaseModel):
-    """A session located by correlation-id lookup or label search: its id, status and labels."""
+class SessionSummary(BaseModel):
+    """A session as ``POST /api/sessions/_search`` returns it (comand's ``SessionResponse``).
 
-    session_id: str
+    ``correlation_id`` names the **task**: every session of it (the first run, a work-queue restart or
+    reprocess) shares the id, and it defaults to the session id. ``user_id`` is the owner comand set
+    (``principal_ref`` of whoever started the run: ``U:<id>``, ``sa:<id>`` or ``key:<id>``).
+
+    ``input``/``result``/``error``/``metrics``/``events`` are PHI-capable and ``user_id`` is PII, so all
+    are kept out of ``repr``.
+    """
+
+    id: str
+    type: str
     status: int
-    labels: dict[str, str] = Field(default_factory=dict)
+    organisation: int
+    version: int
+    created_on: str
+    correlation_id: str
+    user_id: str = Field(repr=False)
+    template_id: str | None = None
+    template_name: str | None = None
+    name: str | None = None
+    storage_type: str | None = None
+    vault_version: int | None = None
+    input: Any = Field(default=None, repr=False)
+    result: Any = Field(default=None, repr=False)
+    error: str | None = Field(default=None, repr=False)
+    metrics: Any = Field(default=None, repr=False)
+    events: Any = Field(default=None, repr=False)
 
 
 class SessionSearchResult(BaseModel):
-    """One page of ``POST /api/sessions/_search`` results (policy-filtered server-side)."""
+    """One page of ``POST /api/sessions/_search`` results (org- and policy-filtered server-side)."""
 
     page: Page
-    items: list[SessionRef]
+    items: list[SessionSummary]
 
 
 class AnalyticsEvent(BaseModel):
