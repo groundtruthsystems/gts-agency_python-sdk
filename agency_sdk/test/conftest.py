@@ -2,8 +2,8 @@
 
 All unit tests run without network access: `stub_requests` monkeypatches the
 `requests` entry points the SDK uses (`requests.request`, `requests.get`,
-`requests.post`) with a recorder that captures every call and replays queued
-canned responses.
+`requests.post`, `requests.put`, `requests.delete`) with a recorder that captures
+every call and replays queued canned responses (or raises a queued exception).
 """
 
 from dataclasses import dataclass, field
@@ -22,6 +22,7 @@ class StubResponse:
         status_code: int = 200,
         content_bytes: bytes | None = None,
         text: str | None = None,
+        headers: dict[str, str] | None = None,
     ):
         self.status_code = status_code
         self._json = json_data
@@ -32,7 +33,7 @@ class StubResponse:
         else:
             self.content = b""
         self.text = text if text is not None else ""
-        self.headers: dict[str, str] = {}
+        self.headers: dict[str, str] = dict(headers or {})
 
     def json(self) -> Any:
         return self._json
@@ -66,7 +67,7 @@ class RequestRecorder:
 
     def __init__(self):
         self.calls: list[CapturedCall] = []
-        self._responses: list[StubResponse] = []
+        self._responses: list[StubResponse | BaseException] = []
 
     def queue(
         self,
@@ -74,16 +75,26 @@ class RequestRecorder:
         status_code: int = 200,
         content_bytes: bytes | None = None,
         text: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> StubResponse:
-        response = StubResponse(json_data=json_data, status_code=status_code, content_bytes=content_bytes, text=text)
+        response = StubResponse(
+            json_data=json_data, status_code=status_code, content_bytes=content_bytes, text=text, headers=headers
+        )
         self._responses.append(response)
         return response
+
+    def queue_exception(self, error: BaseException) -> None:
+        """Queue an exception raised by the next call (e.g. ``requests.ConnectionError``)."""
+        self._responses.append(error)
 
     def __call__(self, method: str, url: str, **kwargs: Any) -> StubResponse:
         self.calls.append(CapturedCall(method=method, url=url, kwargs=kwargs))
         if not self._responses:
             raise AssertionError(f"No stub response queued for {method} {url}")
-        return self._responses.pop(0)
+        response = self._responses.pop(0)
+        if isinstance(response, BaseException):
+            raise response
+        return response
 
 
 class FakeCredentials:
@@ -99,6 +110,8 @@ def stub_requests(monkeypatch):
     monkeypatch.setattr(requests, "request", recorder)
     monkeypatch.setattr(requests, "get", lambda url, **kw: recorder(method="GET", url=url, **kw))
     monkeypatch.setattr(requests, "post", lambda url, **kw: recorder(method="POST", url=url, **kw))
+    monkeypatch.setattr(requests, "put", lambda url, **kw: recorder(method="PUT", url=url, **kw))
+    monkeypatch.setattr(requests, "delete", lambda url, **kw: recorder(method="DELETE", url=url, **kw))
     return recorder
 
 

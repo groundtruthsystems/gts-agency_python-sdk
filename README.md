@@ -143,8 +143,10 @@ executions = rules.list_executions(rule_id="rule-id", organisation_id=2)
 ```python
 files = client.files()
 
-# Upload into a folder (multipart; up to 100 MiB per file and per request)
-result = files.upload(organisation_id=2, file_paths=["report.pdf"], path="guidelines")
+# Upload into a folder. Files at or under the org's proxied threshold (GET /api/files/_limits,
+# 1 MiB by default) go through comand in batches; larger ones, up to 5 GiB, go straight to the
+# bucket through an upload session. On failure, FilesUploadError.uploaded lists what succeeded.
+result = files.upload(organisation_id=2, file_paths=["report.pdf", "scan.tiff"], path="guidelines")
 file_id = result.uploaded[0].id
 
 # Resolve a gtsf:// reference (as found in configurations and rule annotations)
