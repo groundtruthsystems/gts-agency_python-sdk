@@ -6,6 +6,17 @@
 
 ## Change Log
 
+### 2026-11-25 — 0.0.4rc2: file uploads route by size (upload sessions for large files)
+
+comand's proxied `POST /api/files/_upload` now only takes files at or under `proxied_upload_max_bytes` (1 MiB by default, configurable up to 30 MiB) and answers `413 use_signed_upload` above it. `AgencyFilesClient.upload` sent everything there, so any file over 1 MiB, or any call totalling about 2 MiB, failed. The SDK now routes like the web Files page and `gts-cli`.
+
+- **Routing.** `upload()` reads `GET /api/files/_limits` once per call. Files at or under the threshold go to `_upload` in batches that stay within it. Larger files, up to `max_upload_bytes` (5 GiB by default), each go through an upload session: S3/RustFS multipart parts or a GCS resumable session, sent straight to the bucket, then `_complete`. A failed session is cancelled best-effort (except after `422 upload_verification_failed`, when comand has already removed it).
+- **Fallbacks.** If `_limits` fails, each file tries `_upload` and moves to a session on `413 use_signed_upload`. An initiate answered with `400 use_proxied_upload` sends that file to `_upload`.
+- **Retries.** S3 parts retry with backoff and re-sign on 403. GCS resumes from the status query. `_complete` retries `409 upload_incomplete` and `CONFLICT_RETRY`. `AgencyFilesClient(max_retries=3, retry_base_delay=0.5)` tunes them.
+- **New:** `files().limits(org)`, `FilesUploadError` (a `requests.HTTPError`; `uploaded` lists what succeeded before the failure) and the `UploadLimits`, `UploadSessionResponse`, `UploadPartUrl` and `UploadPartsResponse` DTOs. `FilesUploadError` and `UploadLimits` are re-exported from `agency_sdk`.
+- **Not breaking:** `upload()` keeps its signature and `UploadResult`. Presigned URLs and session URIs are credentials, so they stay out of exception messages, logs, `repr` and validation errors.
+- **Memory:** a proxied batch peaks at about twice its size, and a session holds one part (64 MiB by default). Docs (`README.md`, `docs/files_storage_flows.md`) drop the old 100 MiB cap, and `examples/quick_files.py` also uploads a 3 MiB file.
+
 ### 2026-11-19 — BREAKING (0.0.4rc1): session correlation ids follow comand (no `_lookup`)
 
 `AgencySessionClient.find_by_correlation_id` called `POST /api/sessions/_lookup`, which comand never had. It came from the hypothetical contract in `docs/agent_vault_gap_analysis.md` §4, along with session labels, register `labels`/`owner`, and a 409 `CorrelationIdConflict`. comand's `session_correlation_20261119` track implemented something different, and the SDK now follows that.
