@@ -76,6 +76,30 @@ status the API returns.
 All four are optional on the model so one SDK parses both; read `resolved_jobs` and
 fall back to `completed_jobs` if you must support both.
 
+## Publishing a dataset instead of a graph
+
+A `dataset` batch holds jobs that are not vertices of a graph: one job per item of a JSON array.
+`push_dataset` is the counterpart of `push_graph`: it resolves a published **dataset** workflow (or
+takes `workflow_id`), creates the batch with `batch_type="dataset"`, binds, uploads and reads back.
+
+```python
+result = client.annotations().push_dataset(
+    organisation_id=2,
+    name="Code gaps — DBQ: Wrist",
+    items=[{"request": "Code gaps — DBQ: Wrist", "dbqBatchId": "…"}],
+    job_type="dbq_code_gap",          # also selects the app: its purpose must match
+    workflow_id="org-wf-dataset-review",
+)
+```
+
+The server stores each item as the job's `data` and uses its `request` string as the job's display
+text (falling back to the first page of a `document`). `job_type` defaults to `categorization`
+server-side. An empty item list is refused before anything is created; a rejected upload leaves an
+empty DRAFT batch, exactly as `push_graph` does. `upload_dataset` is the upload leg on its own.
+
+The default dataset workflow an organisation is seeded with is single-step (the annotator completes
+the job, no reviewer). Pass `workflow_id` when the jobs need a review or sign-off step.
+
 ## Binding a workflow
 
 A workflow decides how a job is reviewed — who annotates, whether a second person

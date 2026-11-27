@@ -25,7 +25,7 @@ a principal with a local user id **and** organisation write permission on
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -36,6 +36,7 @@ from pydantic import BaseModel
 
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.annotations_dto import (
+    BATCH_TYPE_DATASET,
     BATCH_TYPE_GRAPH,
     MEMBER_ROLE_MEMBER,
     AddMemberResult,
@@ -280,6 +281,67 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         )
         response.raise_for_status()
 
+    def upload_dataset(
+        self,
+        organisation_id: int,
+        batch_id: str,
+        *,
+        items: Sequence[Mapping[str, Any]] | None = None,
+        file_path: str | Path | None = None,
+        job_type: str | None = None,
+        filename: str | None = None,
+    ) -> None:
+        """Upload a dataset to a DRAFT ``dataset`` batch, materialising one job per item.
+
+        The server reads a JSON array of items (or an object with a ``jobs`` array),
+        creates one job per item with the item as the job's ``data`` and its
+        ``request`` string as the job's display text, stores the raw file, and flips
+        the batch to ``ACTIVE`` with ``total_jobs`` set. The batch must have a workflow
+        bound first (see :meth:`bind_workflow`); :meth:`push_dataset` does all of it.
+
+        Transport and retry policy are those of :meth:`upload_graph`: a direct
+        multipart ``POST``, one attempt, since a reset can arrive after the server has
+        committed the upload.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The DRAFT dataset batch to fill.
+            items: The items, as mappings. Mutually exclusive with ``file_path``.
+            file_path: A local ``.json`` dataset file, sent verbatim.
+            job_type: Job type to create (server default ``"categorization"``). It is
+                also what selects the annotations app: an app's ``purpose`` must equal it.
+            filename: Multipart filename. Defaults to the source file's name, or
+                ``"dataset.json"`` for in-memory items.
+
+        Raises:
+            ValueError: If not exactly one of ``items`` / ``file_path`` is given, or
+                ``items`` is empty; raised before any network call.
+            requests.HTTPError: 400 if the batch is not in DRAFT or the JSON does not
+                parse or holds no items.
+        """
+        if (items is None) == (file_path is None):
+            raise ValueError("pass exactly one of items or file_path")
+        if items is not None:
+            if not items:
+                raise ValueError("a dataset needs at least one item: the server refuses an empty one")
+            body = json.dumps(list(items)).encode()
+            upload_name = filename or "dataset.json"
+        else:
+            source = Path(file_path)  # type: ignore[arg-type]  # exactly-one check above
+            body = source.read_bytes()
+            upload_name = filename or source.name
+        params = {"o": str(organisation_id)}
+        if job_type is not None:
+            params["job_type"] = job_type
+        response = requests.post(
+            f"{self.base_url}{self.api_path}/{batch_id}/upload-dataset",
+            headers={"Authorization": f"Bearer {self.token_supplier.bearer_token()}"},
+            params=params,
+            files={"file": (upload_name, body, "application/json")},
+            timeout=UPLOAD_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+
     def list_workflows(self, organisation_id: int, *, page: int = 0, size: int = 50) -> AnnotationWorkflowsPagedResult:
         """List the workflows an organisation can bind to a batch (paged).
 
@@ -447,6 +509,57 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             target_class=target_class,
             hops=hops,
             filename=filename,
+        )
+        batch = self.get_batch(organisation_id, created.id)
+        return PushGraphResult(batch_id=created.id, total_jobs=batch.total_jobs, status=batch.status, batch=batch)
+
+    def push_dataset(
+        self,
+        organisation_id: int,
+        *,
+        name: str,
+        items: Sequence[Mapping[str, Any]] | None = None,
+        file_path: str | Path | None = None,
+        description: str | None = None,
+        instructions: str | None = None,
+        confidentiality_level: str | None = None,
+        job_type: str | None = None,
+        filename: str | None = None,
+        workflow_id: str | None = None,
+        rebind_reason: str | None = None,
+    ) -> PushGraphResult:
+        """Publish items as a ``dataset`` annotation batch: create → bind → upload → read back.
+
+        The dataset counterpart of :meth:`push_graph`, with the same guarantees: the
+        source and the workflow are resolved before anything is created, the bind leg
+        always runs (a dataset workflow, resolved like :meth:`push_graph` resolves a
+        graph one unless ``workflow_id`` is given), and the job count is read back. A
+        rejected upload leaves an empty DRAFT batch, as with :meth:`push_graph`.
+
+        Returns the same result shape as :meth:`push_graph`.
+        """
+        if (items is None) == (file_path is None):
+            raise ValueError("pass exactly one of items or file_path")
+        if items is not None and not items:
+            raise ValueError("a dataset needs at least one item: the server refuses an empty one")
+        resolved_workflow_id = workflow_id or self._resolve_workflow_id(organisation_id, BATCH_TYPE_DATASET)
+        created = self.create_batch(
+            organisation_id,
+            name=name,
+            description=description,
+            instructions=instructions,
+            batch_type=BATCH_TYPE_DATASET,
+            confidentiality_level=confidentiality_level,
+        )
+        if resolved_workflow_id is not None:
+            self.bind_workflow(
+                organisation_id,
+                created.id,
+                workflow_id=resolved_workflow_id,
+                rebind_reason=rebind_reason,
+            )
+        self.upload_dataset(
+            organisation_id, created.id, items=items, file_path=file_path, job_type=job_type, filename=filename
         )
         batch = self.get_batch(organisation_id, created.id)
         return PushGraphResult(batch_id=created.id, total_jobs=batch.total_jobs, status=batch.status, batch=batch)
