@@ -1014,3 +1014,47 @@ class TestBatchMembers:
         assert result.page.total == 2  # people
         assert len({m.user_id for m in result.items}) == 2  # the exact test
         assert result.row_count >= len({m.user_id for m in result.items})  # safe direction
+
+
+class TestAddMember:
+    """The one membership write: grant a role on a batch the caller administers.
+
+    A publisher that creates a RESTRICTED batch is its only admin, so copying a
+    source roster onto a derived batch is something only the publisher can do.
+    """
+
+    ADDED = {"success": True, "message": "Member added", "data": None}
+
+    def test_posts_the_add_member_command_with_the_default_role(self, client, stub_requests):
+        stub_requests.queue(json_data=self.ADDED)
+
+        result = client.add_member(organisation_id=2, batch_id="b-1", user_id=907)
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/annotations/b-1/_command"
+        assert call.kwargs["json"] == {
+            "command": "add_member",
+            "organisation": 2,
+            "payload": {"user_id": 907, "role": "member"},
+        }
+        assert result.success is True
+        assert result.message == "Member added"
+
+    def test_forwards_a_workflow_role_unvalidated(self, client, stub_requests):
+        # The vocabulary is the server's: workflow roles are legal, and an unknown
+        # one is the server's 400 to give, not a client-side guess.
+        stub_requests.queue(json_data=self.ADDED)
+
+        client.add_member(organisation_id=2, batch_id="b-1", user_id=907, role="approver")
+
+        assert stub_requests.calls[0].kwargs["json"]["payload"] == {"user_id": 907, "role": "approver"}
+
+    @pytest.mark.parametrize("status", [400, 403, 404])
+    def test_a_refusal_raises_rather_than_reporting_success(self, client, stub_requests, status):
+        # 400 also covers "user already holds this role": a roster copy must diff
+        # against list_batch_members first instead of treating the error as success.
+        stub_requests.queue(json_data={"error": {"message": "refused"}}, status_code=status)
+
+        with pytest.raises(requests.HTTPError):
+            client.add_member(organisation_id=2, batch_id="b-1", user_id=907, role="admin")

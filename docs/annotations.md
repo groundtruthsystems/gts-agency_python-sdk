@@ -406,6 +406,31 @@ surface it. If a batch you expect is simply absent from a list, check membership
 before suspecting the parser. Observed by a consumer as eleven batches returned out
 of twelve.
 
+## Copying a roster: `add_member`
+
+A `RESTRICTED` batch is visible only to its members, and the caller that creates it
+is seeded as its **only** admin. Organisation admins get no bypass, so nobody else
+can see the batch, let alone add themselves. A publisher that derives a batch from
+a RESTRICTED one (the same audience, a different job type) is therefore the only
+principal that can give that audience access, and `add_member` is how:
+
+```python
+existing = {(m.user_id, m.role) for m in annotations.list_batch_members(org, derived_id).items}
+for m in annotations.list_batch_members(org, source_id).items:
+    if m.eff_to is None and (m.user_id, m.role) not in existing:
+        annotations.add_member(org, derived_id, user_id=m.user_id, role=m.role)
+```
+
+- **Admin only.** `403` for a member who is not an admin, `404` for a caller who
+  cannot see the batch.
+- **Additive, role per row.** A second role for an existing member is normal; the
+  **same** role twice is a `400` -- the status an unknown role also gets. Diff
+  against `list_batch_members` first, as above, rather than catching the error.
+- `role` is passed through unvalidated: `member`, `admin` and the workflow roles
+  (`annotator`, `reviewer`, `approver`) are legal server-side.
+- The member listing is paged; a roster bigger than one page needs the walk
+  described under "Who held which role, and when".
+
 ## Failure modes worth knowing
 
 | Situation | What happens |
@@ -420,6 +445,7 @@ of twelve.
 | One unparseable row in a list read | The row lands in `rejected`; the rest of the page still returns. Check `rejected`. |
 | A RESTRICTED batch is missing from `list_batches` | Not an error — the caller is not an active member. Check `list_batch_members`. |
 | `list_job_transitions` returns 500 for a larger `size` | The server clamps to 500 silently. Not the last page — keep `size` <= 500. |
+| `add_member` for a role the user already holds | `400`, indistinguishable by status from an unknown role. Diff against `list_batch_members` first. |
 
 A push that dies on the upload leg leaves an **empty DRAFT batch** behind. It
 holds no jobs, and `list_batches` finds it; the SDK does not archive it for you,
@@ -437,11 +463,13 @@ something the SDK can work around.
 
 The delegate covers the publish path, its specifications, and the **read** side:
 the batch read-back that proves the push landed, plus the four job-level reads
-above and the batch-members read. Deliberately **not** included: any *write* to a job
+above, the batch-members read, and one membership write (`add_member`, for a
+publisher sharing a RESTRICTED batch it created). Deliberately **not** included: any *write* to a job
 (the `_command` transitions, `/actions`, claims, checklist saves) — a consumer of
 annotation output never writes back — along with dataset batches
 (`upload-dataset`), the access audit log, and the `archive` / `unarchive` /
-`set_confidentiality` commands. Add them when a consumer needs them.
+`set_confidentiality` commands, and the other membership commands (`remove_member`,
+`revoke_role`, `set_member_role`). Add them when a consumer needs them.
 
 ## End-to-end example
 

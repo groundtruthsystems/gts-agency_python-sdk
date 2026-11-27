@@ -37,6 +37,8 @@ from pydantic import BaseModel
 from agency_sdk.credentials import CredentialsSupplier
 from agency_sdk.delegates.annotations_dto import (
     BATCH_TYPE_GRAPH,
+    MEMBER_ROLE_MEMBER,
+    AddMemberResult,
     AnnotationBatch,
     AnnotationBatchesPagedResult,
     AnnotationBatchMember,
@@ -725,3 +727,55 @@ class AgencyAnnotationsClient(BaseDelegateClient):
         params = {"o": str(organisation_id), "p": str(page), "s": str(size)}
         body = self._make_request("GET", f"/{batch_id}/members", params=params)
         return _parse_page(AnnotationBatchMembersPagedResult, AnnotationBatchMember, body)
+
+    def add_member(
+        self,
+        organisation_id: int,
+        batch_id: str,
+        *,
+        user_id: int,
+        role: str = MEMBER_ROLE_MEMBER,
+    ) -> AddMemberResult:
+        """Grant ``user_id`` one role on a batch (the ``add_member`` batch command).
+
+        The one membership write in this delegate, and it exists for publishers: an
+        agent that creates a ``RESTRICTED`` batch is seeded as its only admin, and no
+        one else -- organisation admins included -- can see the batch, let alone add
+        themselves. Copying a source batch's roster onto a batch derived from it is
+        therefore something only the creating agent can do.
+
+        - **Batch admins only.** The caller must hold ``admin`` on the batch; a
+          non-admin member gets ``403``, and a caller who cannot see the batch at all
+          gets ``404`` (a RESTRICTED batch's existence is not disclosed).
+        - **Role-per-row and additive.** Granting a second role to an existing member
+          is normal (one person may annotate and review). Granting a role the user
+          **already holds** is refused with ``400``, the same status as an unknown
+          role -- so to copy a roster idempotently, diff against
+          :meth:`list_batch_members` first rather than catching the error.
+        - **Open vocabulary.** ``role`` is not validated here; the server accepts
+          ``member``, ``admin`` and the workflow roles (``annotator``, ``reviewer``,
+          ``approver``) and rejects anything else with ``400``.
+        - On a ``RESTRICTED`` batch the server writes an access-log row naming the
+          caller and the user added.
+
+        Args:
+            organisation_id: The organisation ID.
+            batch_id: The batch to grant the role on.
+            user_id: The local user (principal) id, as :meth:`list_batch_members`
+                reports it.
+            role: The role to grant. Defaults to ``"member"``.
+
+        Raises:
+            requests.HTTPError: ``400`` (unknown role, or a role already held),
+                ``403`` (not a batch admin), ``404`` (batch not visible).
+        """
+        body = self._make_request(
+            "POST",
+            f"/{batch_id}/_command",
+            data={
+                "command": "add_member",
+                "organisation": organisation_id,
+                "payload": {"user_id": user_id, "role": role},
+            },
+        )
+        return AddMemberResult(success=body["success"], message=body["message"])

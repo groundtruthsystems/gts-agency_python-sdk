@@ -6,6 +6,10 @@
 
 ## Change Log
 
+### 2026-11-27 — 0.0.4rc3: `add_member` on the annotations delegate
+
+A publisher that creates a `RESTRICTED` annotation batch is seeded as its only admin, and comand gives organisation admins no bypass, so nobody else can see the batch or add themselves to it. A batch derived from a RESTRICTED one — guideline-agent's per-DBQ code-gap list, which must have the same audience as its source — could therefore never be shared. `AgencyAnnotationsClient.add_member` sends the `add_member` batch command (`{user_id, role}`, role defaulting to `member`), and is the delegate's only membership write. comand answers `400` both for an unknown role and for a role the user already holds, so a roster copy diffs against `list_batch_members` instead of catching errors; that is documented in `docs/annotations.md`.
+
 ### 2026-11-25 — 0.0.4rc2: file uploads route by size (upload sessions for large files)
 
 comand's proxied `POST /api/files/_upload` now only takes files at or under `proxied_upload_max_bytes` (1 MiB by default, configurable up to 30 MiB) and answers `413 use_signed_upload` above it. `AgencyFilesClient.upload` sent everything there, so any file over 1 MiB, or any call totalling about 2 MiB, failed. The SDK now routes like the web Files page and `gts-cli`.
