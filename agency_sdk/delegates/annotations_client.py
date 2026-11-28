@@ -876,7 +876,9 @@ class AgencyAnnotationsClient(BaseDelegateClient):
             batch_id: The batch to grant the role on.
             user_id: The local user (principal) id, as :meth:`list_batch_members`
                 reports it.
-            role: The role to grant. Defaults to ``"member"``.
+            role: The role to grant. Defaults to ``"member"``. A role the user already
+                holds is refused with ``400``, the same status as an unknown role, so
+                diff against :meth:`list_batch_members` before granting.
 
         Raises:
             requests.HTTPError: ``400`` (unknown role, or a role already held),
