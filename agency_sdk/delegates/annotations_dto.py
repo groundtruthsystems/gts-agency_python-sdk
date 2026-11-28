@@ -401,6 +401,13 @@ MEMBER_ROLE_MEMBER = "member"
 MEMBER_ROLE_ADMIN = "admin"
 
 
+class AddMemberResult(BaseModel):
+    """Outcome of ``add_member``: the server's ``{success, message}`` envelope (``data`` is null)."""
+
+    success: bool
+    message: str
+
+
 class AnnotationBatchMember(BaseModel):
     """One (person, role) membership of a batch, and the window it was held for.
 

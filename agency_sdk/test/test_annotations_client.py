@@ -1014,3 +1014,161 @@ class TestBatchMembers:
         assert result.page.total == 2  # people
         assert len({m.user_id for m in result.items}) == 2  # the exact test
         assert result.row_count >= len({m.user_id for m in result.items})  # safe direction
+
+
+class TestAddMember:
+    """The one membership write: grant a role on a batch the caller administers.
+
+    A publisher that creates a RESTRICTED batch is its only admin, so copying a
+    source roster onto a derived batch is something only the publisher can do.
+    """
+
+    ADDED = {"success": True, "message": "Member added", "data": None}
+
+    def test_posts_the_add_member_command_with_the_default_role(self, client, stub_requests):
+        stub_requests.queue(json_data=self.ADDED)
+
+        result = client.add_member(organisation_id=2, batch_id="b-1", user_id=907)
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/annotations/b-1/_command"
+        assert call.kwargs["json"] == {
+            "command": "add_member",
+            "organisation": 2,
+            "payload": {"user_id": 907, "role": "member"},
+        }
+        assert result.success is True
+        assert result.message == "Member added"
+
+    def test_forwards_a_workflow_role_unvalidated(self, client, stub_requests):
+        # The vocabulary is the server's: workflow roles are legal, and an unknown
+        # one is the server's 400 to give, not a client-side guess.
+        stub_requests.queue(json_data=self.ADDED)
+
+        client.add_member(organisation_id=2, batch_id="b-1", user_id=907, role="approver")
+
+        assert stub_requests.calls[0].kwargs["json"]["payload"] == {"user_id": 907, "role": "approver"}
+
+    @pytest.mark.parametrize("status", [400, 403, 404])
+    def test_a_refusal_raises_rather_than_reporting_success(self, client, stub_requests, status):
+        # 400 also covers "user already holds this role": a roster copy must diff
+        # against list_batch_members first instead of treating the error as success.
+        stub_requests.queue(json_data={"error": {"message": "refused"}}, status_code=status)
+
+        with pytest.raises(requests.HTTPError):
+            client.add_member(organisation_id=2, batch_id="b-1", user_id=907, role="admin")
+
+
+ITEMS = [
+    {"request": "Code gaps — DBQ: Wrist", "dbqBatchId": "b-wrist"},
+    {"request": "Code gaps — DBQ: Knee", "dbqBatchId": "b-knee"},
+]
+
+
+class TestUploadDataset:
+    """A dataset batch takes a JSON array of items; the server makes one job per item."""
+
+    def test_posts_the_items_as_a_json_array_in_the_file_field(self, client, stub_requests):
+        stub_requests.queue(json_data=None)
+
+        assert client.upload_dataset(organisation_id=2, batch_id="b-1", items=ITEMS, job_type="dbq_code_gap") is None
+
+        call = stub_requests.calls[0]
+        assert call.method == "POST"
+        assert call.url == "http://cp.test/api/annotations/b-1/upload-dataset"
+        assert call.kwargs["params"] == {"o": "2", "job_type": "dbq_code_gap"}
+        filename, body, content_type = call.kwargs["files"]["file"]
+        assert (filename, content_type) == ("dataset.json", "application/json")
+        assert json.loads(body) == ITEMS
+
+    def test_job_type_is_omitted_when_not_given(self, client, stub_requests):
+        stub_requests.queue(json_data=None)
+
+        client.upload_dataset(organisation_id=2, batch_id="b-1", items=ITEMS)
+
+        assert stub_requests.calls[0].kwargs["params"] == {"o": "2"}
+
+    def test_a_file_path_is_sent_verbatim(self, client, stub_requests, tmp_path):
+        source = tmp_path / "gaps.json"
+        source.write_text(json.dumps(ITEMS))
+        stub_requests.queue(json_data=None)
+
+        client.upload_dataset(organisation_id=2, batch_id="b-1", file_path=source)
+
+        filename, body, _ = stub_requests.calls[0].kwargs["files"]["file"]
+        assert filename == "gaps.json"
+        assert json.loads(body) == ITEMS
+
+    @pytest.mark.parametrize("items", [[], None])
+    def test_no_items_is_refused_before_any_call(self, client, stub_requests, items):
+        with pytest.raises(ValueError):
+            client.upload_dataset(organisation_id=2, batch_id="b-1", items=items)
+
+        assert stub_requests.calls == []
+
+    def test_propagates_a_400_from_the_server(self, client, stub_requests):
+        stub_requests.queue(json_data={"error": {"message": "Batch must be in DRAFT status"}}, status_code=400)
+
+        with pytest.raises(requests.HTTPError):
+            client.upload_dataset(organisation_id=2, batch_id="b-1", items=ITEMS)
+
+
+class TestPushDataset:
+    def _queue(self, stub_requests, *, lookup=True):
+        if lookup:
+            stub_requests.queue(json_data=WORKFLOWS_PAGE)
+        stub_requests.queue(json_data=CREATED_ENVELOPE)
+        stub_requests.queue(json_data=BOUND_ENVELOPE)
+        stub_requests.queue(json_data=None)
+        stub_requests.queue(json_data=ACTIVE_BATCH_JSON)
+
+    def test_creates_a_dataset_batch_binds_uploads_then_reads_back(self, client, stub_requests):
+        self._queue(stub_requests)
+
+        result = client.push_dataset(
+            organisation_id=2,
+            name="Code gaps — DBQ: Wrist",
+            items=ITEMS,
+            job_type="dbq_code_gap",
+            confidentiality_level="RESTRICTED",
+            description="[code-gaps b-wrist]",
+        )
+
+        batch_id = CREATED_ENVELOPE["data"]["id"]
+        assert [(c.method, c.url) for c in stub_requests.calls] == [
+            ("GET", "http://cp.test/api/annotation-workflows"),
+            ("POST", "http://cp.test/api/annotations/_command"),
+            ("POST", f"http://cp.test/api/annotations/{batch_id}/_command"),
+            ("POST", f"http://cp.test/api/annotations/{batch_id}/upload-dataset"),
+            ("GET", f"http://cp.test/api/annotations/{batch_id}"),
+        ]
+        created = stub_requests.calls[1].kwargs["json"]["payload"]
+        assert created["batch_type"] == "dataset"
+        assert created["confidentiality_level"] == "RESTRICTED"
+        assert created["description"] == "[code-gaps b-wrist]"
+        assert stub_requests.calls[3].kwargs["params"] == {"o": "2", "job_type": "dbq_code_gap"}
+        assert (result.batch_id, result.total_jobs) == (batch_id, 325)
+
+    def test_resolves_a_dataset_workflow_by_default(self, client, stub_requests):
+        self._queue(stub_requests)
+
+        client.push_dataset(organisation_id=2, name="n", items=ITEMS)
+
+        bound = stub_requests.calls[2].kwargs["json"]["payload"]["workflow_id"]
+        dataset_ids = [w["id"] for w in WORKFLOWS_PAGE["items"] if w["target_batch_type"] == "dataset"]
+        assert bound in dataset_ids
+
+    def test_an_explicit_workflow_id_skips_the_lookup(self, client, stub_requests):
+        self._queue(stub_requests, lookup=False)
+
+        client.push_dataset(organisation_id=2, name="n", items=ITEMS, workflow_id="org-wf-dataset-review")
+
+        assert stub_requests.calls[0].url == "http://cp.test/api/annotations/_command"
+        assert stub_requests.calls[1].kwargs["json"]["payload"]["workflow_id"] == "org-wf-dataset-review"
+
+    def test_empty_items_are_refused_before_anything_is_created(self, client, stub_requests):
+        with pytest.raises(ValueError):
+            client.push_dataset(organisation_id=2, name="n", items=[], workflow_id="w")
+
+        assert stub_requests.calls == []
